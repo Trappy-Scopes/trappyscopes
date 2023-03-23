@@ -1,4 +1,6 @@
 import subprocess
+import fluff
+#from picamera import PiCamera
 
 def convert_to_mp4(filename, fps):
 	foldername = filename.split(".")[0]
@@ -79,6 +81,8 @@ def preview(tsec=30):
 	camera.close()
 
 if __name__ == "__main__":
+
+	print(fluff.header())
 
 	# Step 1 - Turn on illumination
 	set_lightsV(2,2,2)
