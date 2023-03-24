@@ -1,0 +1,12 @@
+Camera parameters for videohighres_w1536_h1152_fps30_exp_mode_auto_iso_120
+
+RESOLUTION                ---> 1536x1152
+FRAMERATE                ---> 30
+ISO                      ---> 120
+ANALOG_GAIN              ---> 333/128
+DIGITAL_GAIN             ---> 1
+EXPOSURE_SPEED           ---> 32.979 ms
+EXPOSURE_MODE            ---> auto
+MAX_RESOLUTION           ---> 4056x3040
+MAX_FRAMERATE            ---> 120
+DRC_STRENGTHS            ---> {'off': 0, 'low': 1, 'medium': 2, 'high': 3}
