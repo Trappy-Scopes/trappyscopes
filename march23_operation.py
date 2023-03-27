@@ -4,6 +4,7 @@ from pprint import pprint
 from picamera import PiCamera
 import pyboard
 from time import sleep
+import time
 import sys
 import os
 from cam_config import cam_config
@@ -93,44 +94,28 @@ def preview(tsec=30):
 	camera.stop_preview()
 
 	camera.close()
-
-if __name__ == "__main__":
-
+	
+	
+def init_seq(filename = None):
+	
 	# Configs
 	pico_light_obj_name = "l2"
 	fps=30
-		
-	
-	print(fluff.header())
-	print("All availbale ports:")
-	import serial.tools.list_ports as list_ports
-	all_ports = list(list_ports.comports())
-	for port in all_ports:
-		print(port)
-	print("-"*10)
-	
-	
-	pyb = pyboard.Pyboard('/dev/ttyACM0', 115200)
-	print('/dev/ttyACM0 is acquired!')
-	pyb.enter_raw_repl()
-		
-	
 
 	# Step 1 - Turn on illumination
-	hey_pico('exec(open("main.py").read()); print(l1)')
+	hey_pico('exec(open("main.py").read())')
 	hey_pico("handshake()")
-	set_lightsV(pico_light_obj_name, 2,2,2)
+	set_lightsV(pico_light_obj_name, 1,1,1)
 
 	
 	
 	# Set filename
-	filename = None
 	if len(sys.argv) >= 2:
 		filename = sys.argv[1]
 
 	# Record Video
 	if filename != None:
-		record_video(filename, res=[1920, 1088], fps=fps, tsec=5)
+		record_video(filename, res=[1920, 1088], fps=fps, tsec=60)
 	else: 
 		print("No filename given! Exiting!")
 		exit(1)
@@ -142,7 +127,33 @@ if __name__ == "__main__":
 	# Step 4 - Transfer
 	#transfer_files(folder)
 	
-	set_lightsV(pico_light_obj_name, 0,0,0)
-	print("Lights off!")
+	#set_lightsV(pico_light_obj_name, 0,0,0)
+	#print("Lights off!")
+
+if __name__ == "__main__":
+		
+		print(fluff.header())
+		print("All availbale ports:")
+		import serial.tools.list_ports as list_ports
+		all_ports = list(list_ports.comports())
+		for port in all_ports:
+			print(port)
+		print("-"*10)
+		
+		
+		pyb = pyboard.Pyboard('/dev/ttyACM0', 115200)
+		print('/dev/ttyACM0 is acquired!')
+		pyb.enter_raw_repl()
+
+		if len(sys.argv) >= 2:
+			init_seq()
+		else:
+			hey_pico('exec(open("main.py").read())')
+			
+		print("Setting interactive mode in python")
+		import code
+		code.interact(local=locals())
+			
+		
 
 
