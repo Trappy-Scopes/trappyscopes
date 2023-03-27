@@ -1,13 +1,24 @@
 import subprocess
 import fluff
-#from picamera import PiCamera
+from pprint import pprint
+from picamera import PiCamera
+import pyboard
+from time import sleep
+import sys
+import os
+from cam_config import cam_config
+
+global pyb
+pyb = None
 
 def convert_to_mp4(filename, fps):
 	foldername = filename.split(".")[0]
 	mp4name = os.path.join(foldername, (filename.split(".")[0] + ".mp4"))
 
-	command = f"MP4Box --add {filename}:fps={fps} {mp4name}"
-	process = subprocess.Popen(command, stdout=sys.stdout, stderr=sys.stderr, shell=True)
+	command = f"MP4Box -add {filename}:fps={fps} {mp4name}"
+	print(command)
+	#process = subprocess.run(command, stdout=sys.stdout, stderr=sys.stderr, shell=True)
+	os.system(command)
 	return mp4name
 
 def create_folder(filename):
@@ -15,7 +26,7 @@ def create_folder(filename):
 	os.mkdir(foldername, mode = 0o777)
 	return foldername
 
-def postprocess(filename):
+def postprocess(filename, fps=30):
 	"""
 	Postprocessing of recorded videos.
 	"""
@@ -24,22 +35,29 @@ def postprocess(filename):
 	foldername = create_folder(filename)
 
 	# 2
-	mp4name = convert_to_mp4(filename)
+	mp4name = convert_to_mp4(filename, fps=fps)
 
 	# 3 Move h264 to the same folder
-	import shutil.move as move
+	from shutil import move
 	move(filename, os.path.join(foldername, filename))
 
 
+def hey_pico(command):
+	global pyb
+	
+	print(f"pico! do >> {command}")
+	ret = pyb.exec(command)
+	print(f"pico said >> {ret.decode()}")
+	
+	#pyb.exit_raw_repl()
+
+
+
 def set_lightsV(pico_light_obj_name, rV, gV, bV):
-	import pyboard
-	pyb = pyboard.Pyboard('/dev/ttyACM0', 115200)
-	pyb.enter_raw_repl()
 	
-	ret = pyb.exec(f"{pico_light_obj_name}.setVs({rV}, {gV}, {bV})")
-	print(ret)
+	command = f"{pico_light_obj_name}.setVs({rV}, {gV}, {bV})"
 	
-	pyb.exit_raw_repl()
+	hey_pico(command)
 
 
 def record_video(filename, res=[1920, 1088], fps=30, tsec=30):
@@ -49,8 +67,10 @@ def record_video(filename, res=[1920, 1088], fps=30, tsec=30):
 	camera = PiCamera()
 	camera.resolution = tuple(res)
 	camera.framerate = fps
-	print("Camera object acquired!")
-
+	print("Camera object acquired!\nCamera configuration:")
+	pprint(cam_config(camera))
+	print()
+	
 	camera.start_recording(filename, format="h264")          # Start recording
 	camera.start_preview()
 	camera.wait_recording(tsec)                    				# Wait for while 
@@ -76,13 +96,32 @@ def preview(tsec=30):
 
 if __name__ == "__main__":
 
-	pico_light_object_name = "l1"
+	# Configs
+	pico_light_obj_name = "l2"
+	fps=30
+		
+	
 	print(fluff.header())
+	print("All availbale ports:")
+	import serial.tools.list_ports as list_ports
+	all_ports = list(list_ports.comports())
+	for port in all_ports:
+		print(port)
+	print("-"*10)
+	
+	
+	pyb = pyboard.Pyboard('/dev/ttyACM0', 115200)
+	print('/dev/ttyACM0 is acquired!')
+	pyb.enter_raw_repl()
+		
+	
 
 	# Step 1 - Turn on illumination
+	hey_pico('exec(open("main.py").read()); print(l1)')
+	hey_pico("handshake()")
 	set_lightsV(pico_light_obj_name, 2,2,2)
 
-	import sys
+	
 	
 	# Set filename
 	filename = None
@@ -91,16 +130,19 @@ if __name__ == "__main__":
 
 	# Record Video
 	if filename != None:
-		record_video(filename, res=[1920, 1088], fps=30, tsec=30)
+		record_video(filename, res=[1920, 1088], fps=fps, tsec=5)
 	else: 
-		print("No filename given!")
+		print("No filename given! Exiting!")
 		exit(1)
 
 	# Step 3 - postprocess
-	folder = postprocess(filename)
+	folder = postprocess(filename, fps=fps)
 	print(folder)
 
 	# Step 4 - Transfer
-	transfer_files(folder)
+	#transfer_files(folder)
+	
+	set_lightsV(pico_light_obj_name, 0,0,0)
+	print("Lights off!")
 
 
