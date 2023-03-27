@@ -31,18 +31,12 @@ def postprocess(filename):
 	move(filename, os.path.join(foldername, filename))
 
 
-def set_lightsV(rV, gV, bV):
+def set_lightsV(pico_light_obj_name, rV, gV, bV):
 	import pyboard
 	pyb = pyboard.Pyboard('/dev/ttyACM0', 115200)
 	pyb.enter_raw_repl()
 	
-	ret = pyb.exec(f"set_color_ch('r', {rV})")
-	print(ret)
-
-	ret = pyb.exec(f"set_color_ch('g', {gV})")
-	print(ret)
-
-	ret = pyb.exec(f"set_color_ch('b', {bV})")
+	ret = pyb.exec(f"{pico_light_obj_name}.setVs({rV}, {gV}, {bV})")
 	print(ret)
 	
 	pyb.exit_raw_repl()
@@ -82,14 +76,25 @@ def preview(tsec=30):
 
 if __name__ == "__main__":
 
+	pico_light_object_name = "l1"
 	print(fluff.header())
 
 	# Step 1 - Turn on illumination
-	set_lightsV(2,2,2)
+	set_lightsV(pico_light_obj_name, 2,2,2)
 
-	# Step 2 - Record Videos
+	import sys
+	
+	# Set filename
 	filename = None
-	record_video(filename, res=[1920, 1088], fps=30, tsec=30)
+	if len(sys.argv) >= 2:
+		filename = sys.argv[1]
+
+	# Record Video
+	if filename != None:
+		record_video(filename, res=[1920, 1088], fps=30, tsec=30)
+	else: 
+		print("No filename given!")
+		exit(1)
 
 	# Step 3 - postprocess
 	folder = postprocess(filename)

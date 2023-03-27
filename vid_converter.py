@@ -2,6 +2,11 @@ import os
 from pprint import pprint
 
 
+"""
+Bulk directory wide converter for h264 to mp4 conversion.
+Warning: Assumes that the fps is 30.
+"""
+
 def convert_h264_to_mp4(dir_="."):
 	all_files = os.listdir(dir_)
 	h264files = list(filter(lambda fn: fn.endswith("h264"), all_files))
