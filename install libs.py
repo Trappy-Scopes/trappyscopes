@@ -36,6 +36,10 @@ def git_clone(required_repos, name=None):
 		pip.main(["install" f"git+{repo}"])
 
 
+def apt_get_automatorn(list_of_libs):
+	command = f"sudo apt-get --assume-yes install {}"
+
+
 if __name__ == "__main__":
 	install_libs(maintainance)
 	install_libs(hardware_libs)

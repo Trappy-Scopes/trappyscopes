@@ -69,6 +69,30 @@ def record_video(filename, res=[1920, 1088], fps=30, tsec=30):
 	camera.resolution = tuple(res)
 	camera.framerate = fps
 	print("Camera object acquired!\nCamera configuration:")
+	
+
+	# CONFIG -------------------------
+	camera.framerate = 30
+	camera.resolution(1920, 1080)
+	
+	camera.brightness(50)
+	camera.color_effects(None)
+	camera.contrast(0)
+
+	camera.awb_mode("off")
+	camera.awb_gains(1.9)
+
+	camera.drc_strength("off")
+	camera.flash_mode('off')
+
+
+	camera.iso(200)
+	camera.exposure_mode("off")
+	# CONFIG -------------------------
+
+	
+
+
 	pprint(cam_config(camera))
 	print()
 	
