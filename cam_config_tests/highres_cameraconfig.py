@@ -33,27 +33,24 @@ def write_params (camera, filename):
     f.write('\nFRAMERATE                ---> ' + str(camera.framerate))
     f.write('\nISO                      ---> ' + str(camera.iso))
     f.write('\nANALOG_GAIN              ---> ' + str(camera.analog_gain))
-    f.write('\nDIGITAL_GAIN             ---> ' + str(camera.digital_gain)) 
+    f.write('\nDIGITAL_GAIN             ---> ' + str(camera.digital_gain))
     f.write('\nEXPOSURE_SPEED           ---> ' + str(camera.exposure_speed/1000) + ' ms')
     f.write('\nEXPOSURE_MODE            ---> ' + str(camera.exposure_mode))
     f.write('\nMAX_RESOLUTION           ---> ' + str(camera.MAX_RESOLUTION))
     f.write('\nMAX_FRAMERATE            ---> ' + str(camera.MAX_FRAMERATE))
     f.write('\nDRC_STRENGTHS            ---> ' + str(camera.DRC_STRENGTHS))
-    
+
     f.close()
-    
+
 
 with picamera.PiCamera(resolution = (RES_X, RES_Y), framerate = FR) as camera:
     #parameters that should be defined during initialization to speed optimization:
         #resolution, framerate, framerate_range, sensor_mode, clock_mode
-    
+
     camera.iso = ISO
     camera.shutter_speed = SHUTTER_SPEED
-    #camera.exposure_mode = EXPOSURE_MODE
-    
+
     camera.start_recording(filename + '.h264')
-    #camera.start_recording('lowres.h264', splitter_port=2, resize=(320, 240))
     camera.wait_recording(VIDEO_TIME)
     write_params(camera, filename)
-    #camera.stop_recording(splitter_port=2)
     camera.stop_recording()

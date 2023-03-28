@@ -1,6 +1,6 @@
 Camera parameters for videohighres_w1536_h1152_fps30_exp_mode_auto_iso_150
 
-RESOLUTION                ---> 1536x1152
+RESOLUTION               ---> 1536x1152
 FRAMERATE                ---> 30
 ISO                      ---> 150
 ANALOG_GAIN              ---> 231/64
