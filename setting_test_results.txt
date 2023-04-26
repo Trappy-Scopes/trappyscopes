@@ -1,0 +1,406 @@
+pi@raspberrypi:~/code/Trappy-Scopes/scope-cli $ python march23_operation.py
+
+  *     ████████╗    ██████╗      █████╗     ██████╗     ██████╗     ██╗   ██╗
+  _     ╚══██╔══╝    ██╔══██╗    ██╔══██╗    ██╔══██╗    ██╔══██╗    ╚██╗ ██╔╝
+ | |       ██║       ██████╔╝    ███████║    ██████╔╝    ██████╔╝     ╚████╔╝ 
+ | |       ██║       ██╔══██╗    ██╔══██║    ██╔═══╝     ██╔═══╝       ╚██╔╝  
+ |_|       ██║       ██║  ██║    ██║  ██║    ██║         ██║            ██║   
+ |_|       ╚═╝       ╚═╝  ╚═╝    ╚═╝  ╚═╝    ╚═╝         ╚═╝            ╚═╝   
+_____                                                                         
+-----   ███████╗     ██████╗     ██████╗     ██████╗     ███████╗    ███████╗ 
+  ^.    ██╔════╝    ██╔════╝    ██╔═══██╗    ██╔══██╗    ██╔════╝    ██╔════╝ 
+ | |    ███████╗    ██║         ██║   ██║    ██████╔╝    █████╗      ███████╗ 
+ ---    ╚════██║    ██║         ██║   ██║    ██╔═══╝     ██╔══╝      ╚════██║ 
+        ███████║    ╚██████╗    ╚██████╔╝    ██║         ███████╗    ███████║ 
+ ===    ╚══════╝     ╚═════╝     ╚═════╝     ╚═╝         ╚══════╝    ╚══════╝
+
+
+
+
+All availbale ports:
+/dev/ttyACM0 - Board in FS mode - Board CDC
+/dev/ttyAMA0 - ttyAMA0
+----------
+/dev/ttyACM0 is acquired!
+pico! do >> exec(open("main.py").read())
+pico said >> Connected to IGC. Device IP: 172.22.132.79
+{'humidity': 44, 'temp': 26}
+
+Doing Camera Setting tests...
+Setting Red channel to 0.1 V:
+pico! do >> l1.setVs(0.1, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 0.2 V:
+pico! do >> l1.setVs(0.2, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 0.30000000000000004 V:
+pico! do >> l1.setVs(0.30000000000000004, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 0.4 V:
+pico! do >> l1.setVs(0.4, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 0.5 V:
+pico! do >> l1.setVs(0.5, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 0.6 V:
+pico! do >> l1.setVs(0.6, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 0.7 V:
+pico! do >> l1.setVs(0.7, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 0.7999999999999999 V:
+pico! do >> l1.setVs(0.7999999999999999, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 0.8999999999999999 V:
+pico! do >> l1.setVs(0.8999999999999999, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 0.9999999999999999 V:
+pico! do >> l1.setVs(0.9999999999999999, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 1.0999999999999999 V:
+pico! do >> l1.setVs(1.0999999999999999, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 1.2 V:
+pico! do >> l1.setVs(1.2, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 1.3 V:
+pico! do >> l1.setVs(1.3, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 1.4000000000000001 V:
+pico! do >> l1.setVs(1.4000000000000001, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 1.5000000000000002 V:
+pico! do >> l1.setVs(1.5000000000000002, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 1.6000000000000003 V:
+pico! do >> l1.setVs(1.6000000000000003, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 1.7000000000000004 V:
+pico! do >> l1.setVs(1.7000000000000004, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 1.8000000000000005 V:
+pico! do >> l1.setVs(1.8000000000000005, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 1.9000000000000006 V:
+pico! do >> l1.setVs(1.9000000000000006, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 2.0000000000000004 V:
+pico! do >> l1.setVs(2.0000000000000004, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 2.1000000000000005 V:
+pico! do >> l1.setVs(2.1000000000000005, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 2.2000000000000006 V:
+pico! do >> l1.setVs(2.2000000000000006, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 2.3000000000000007 V:
+pico! do >> l1.setVs(2.3000000000000007, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 2.400000000000001 V:
+pico! do >> l1.setVs(2.400000000000001, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 2.500000000000001 V:
+pico! do >> l1.setVs(2.500000000000001, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 2.600000000000001 V:
+pico! do >> l1.setVs(2.600000000000001, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 2.700000000000001 V:
+pico! do >> l1.setVs(2.700000000000001, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 2.800000000000001 V:
+pico! do >> l1.setVs(2.800000000000001, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
+Setting Red channel to 2.9000000000000012 V:
+pico! do >> l1.setVs(2.9000000000000012, 0, 0)
+pico said >> 
+{'ISO': 200,
+ 'ana_gain': Fraction(1, 1),
+ 'dig_gain': Fraction(1, 1),
+ 'drc_strengths': {'high': 3, 'low': 1, 'medium': 2, 'off': 0},
+ 'exposure_mode': 'off',
+ 'exposure_speed': '19.996 ms',
+ 'framerate': PiCameraFraction(30, 1),
+ 'max.framerate': '120',
+ 'max_resolution': PiResolution(width=4056, height=3040),
+ 'resolution': PiResolution(width=1920, height=1088)}
