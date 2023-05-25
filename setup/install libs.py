@@ -1,5 +1,5 @@
 
-maintainance = ["GitPython"]
+maintainance  = ["GitPython"]
 hardware_libs = ["pyserial", "picamera"]
 tracking_libs = ["trackpy", "matplotlib", "numpy", "pandas", "scikit-video"]
 
@@ -36,7 +36,7 @@ def git_clone(required_repos, name=None):
 		pip.main(["install" f"git+{repo}"])
 
 
-def apt_get_automatorn(list_of_libs):
+def apt_get_automatron(list_of_libs):
 	command = f"sudo apt-get --assume-yes install {}"
 
 

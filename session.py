@@ -1,70 +1,117 @@
 import datetime
 
+class Session:
+	def create_session(scope_name, datastore, sensors\
+					   experiment_mode=False, experiment_id=None,
+					   create_session_folder=True):
+		"""
+		Create a session in the `data` folder.
+		A session generates a directory and some basic metadata structure.
+		"""
+		# In experiment mode, no session folder will be created by default.
+		if experiment_mode:
+			create_session_folder = False
 
-def create_session(scope_name, datastore):
+		# 1. ´data´ folder exists
+		if not os.path.exists("./data"):
+			os.mkdir("./data")
+			print("Created `data` folder —> primary node.")
 
-	"""
-	Create a session in the `data` folder.
-	"""
-
-	# 1. ´data´ folder exists
-	if not os.path.exists("./data"):
-		os.mkdir("./data")
-		print("Created `data` folder — primary node.")
-
-	# 2. Create date folder
-	now = datetime.datetime.now()
-	date_folder = f"{scope_name}__{now.day}__{now.month}__{now.year}"
-	extended_path = os.path.join("./data", date_folder)
-	if not os.path.exists(os.path.join("./data", date_folder)):
-		os.mkdir(extended_path)
-		print(f"Created today's session folder: {os.abspath(extended_path)}")
-
-	# 3. Create sessions folder
-	session_md = MetaData("session")
-
-	# This will persist until the Session is terminated
-	session_defaults = {
-							"cell_strain"     : "CC125",
-							"cell_culture_id" : None,
-							"temp_C"          : None,
-							"humidity"        : None,
-							"session_time"    : None
-	}
+		# 2. Create date folder
+		if not experiment_mode:
+			now = datetime.datetime.now()
+			date_folder = f"{scope_name}__{now.day}__{now.month}__{now.year}"
+			extended_path = os.path.join("./data", date_folder)
+			if not os.path.exists(os.path.join("./data", date_folder)):
+				os.mkdir(extended_path)
+				print(f"Created today's session folder: {os.abspath(extended_path)}")
+				
+		
+		else: # Experiment Mode (One Folder for one experiment)
+			if not experiment_id:
+				print("Error! No Experiment name was given!")
+				exit(1)
+			else:
+				now = datetime.datetime.now()
+				date_folder = f"{scope_name}__{experiment_id}"
+			extended_path = os.path.join("./data", date_folder)
+			if not os.path.exists(extended_path):
+				os.mkdir(extended_path)
+				print(f"Created experiment folder: {os.abspath(extended_path)}")
+			extended_path = os.path.join(extended_path, f"{now.day}__{now.month}__{now.year}")
+			if not os.path.exists(extended_path):
+				os.mkdir(extended_path)
+				print(f"Created date specific experiment folder: {os.abspath(extended_path)}")
 
 
-	session_folder_name = session_md.file_descriptor(include=[scope_name])
-	os.mkdir(session_folder_name)
-	print(f"Session generated: {session_folder_name}")
-	
-	#datastore.new(session_md.file_descriptor())
+		# 3. Create sessions metadata
+		session_md = MetaData("session")
+		session_md.add_que("What is the session name?", label="name", default="unnamed")
 
-def create_acquisition():
+		# This will persist until the Session is terminated
+		session_defaults_by_user = {     
+									 "scope_name"            : scope_name
+									 "cell_strain"           : "CC125",
+									 "cell_culture_id"       : None,
+									 "session_duration_s"    : None,
+									 "path"                  : extended_path,
+								 	 "rel_path"              : extended_path,
+		}
 
-	# Default Aquisitions
-	acq_defaults = {
-						"mode"           : "video",
-						"tsec"           : 30,
-						"illumination_V" : (2,2,2),
-						"preview"        : True,
+		self.metadata = session_defaults_by_user
+		session_md.add_que("What is the cell strain being used?", label="cell_strain")
+		session_md.add_que("What is the cell culture id?", label="cell_culture_id")
 
-						# Can be skipped
-						"iterations"     : 1,
-						"delay_s"        : 0,
+		session_md.collect()
 
-						# To be calculated after acquisition
-						"acq_time_s"     : None,
-						"capture_lag"    : None
-					}
+		# Environmental input collected by sensor array
+		tandh_read = sensors["tandh"].get()
+		environment_metadata  = {
+									"temp_C"                : tandh_read["temp"],
+								 	"humidity"              : tandh_read["humidity"]
+		}
+		session_md.add_node(environment_metadata)
 
-	acq_md = MetaData("start acquisition"):
-	acq_md.add_que('Acquisition mode ["video", "image", "timelapse"]: ', label="acq_mode")
-	for key in acq_defaults.keys()[1:]:
-		acq_md.add_que(key)
 
-	acq_md.collect()
+		acq_folder = extended_path 
+		if create_session_folder:
+			session_folder_name = session_md.file_descriptor(include=["scope_name"])
+			os.mkdir(session_folder_name)
+			print(f"Session generated: {session_folder_name}")
+			acq_folder = session_folder_name
+			
+		return {"metadata": session_md, "acq_folder": acq_folder}
+		#datastore.new(session_md.file_descriptor())
 
-	if acq_md.collected:
-		return acq_md.metadata
-	else:
-		return acq_defaults
+
+	def acq_metadata(acq_modes):
+		"""
+		Creates acquisition metadata. This function must be ideally called by the 
+		"""
+
+		# Default Aquisitions
+		acq_defaults = {
+							"mode"           : "video",
+							"tsec"           : 30,
+							"illumination_V" : (2,2,2),
+							"preview"        : True,
+
+							# Can be skipped
+							"iterations"     : 1,
+							"delay_s"        : 0,
+
+							# To be calculated after acquisition
+							"acq_time_s"     : None,
+							"capture_lag"    : None
+						}
+
+		acq_md = MetaData("acq"):
+		acq_md.add_que(f'Acquisition mode {acq_modes}: ', label="acq_mode")
+		for key in acq_defaults.keys().remove(["acq_time_s", "capture_lag"]):
+			acq_md.add_que(f"{key} ?", label=key)
+		acq_md.collect()
+
+		if acq_md.collected:
+			return acq_md.metadata
+		else:
+			return (None, acq_defaults)

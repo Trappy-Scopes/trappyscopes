@@ -1,0 +1,32 @@
+resolution     : [1920, 1080]
+fps            : 30
+ISO            : 200      # 0 is auto and range is between 0 to 1600.
+# ISO is set with one of the following values.
+ana_gain       : 1        # Fraction Instance
+dig_gain       : 1        # Fraction Instance
+awb_mode       : "off"    # Auto White Balance (Set before setting awb_gains)
+awb_gain       : [1,1]    # Red, Blue ratio object
+brightness     : 50       # Value is between 0-100
+clock_mode     : "reset"  # Other option is "raw" - tstamps rel to cam.init()
+color_effects  : null
+contrast       : 0        # Range is between -100 and +100
+video_denoise  : False    # The default value is True
+
+
+# Seems Unimportant values
+drc_strength   : 'off'  # vals: 'off', low', 'medium', 'high'
+flash_mode     : 'off'
+saturation     : 0      # range is -100 to +100
+sharpness      : 0      # range is between -100 and +100
+
+
+# Proably the most important parameter
+exposure_compensation : 0
+exposure_mode  : 'off'
+meter_mode     : 'average' # 'average', 'spot', 'backlit', 'matrix'
+# exposure_speed :  # unset
+
+
+# Values that should not be set
+#shutter_speed       : 0 # 0 is auto
+#video_stabilization : False
