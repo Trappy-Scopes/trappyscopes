@@ -13,12 +13,13 @@ app = pg.mkQApp("Trappy Scope")
 ## Create window with GraphicsView widget
 win = pg.GraphicsLayoutWidget()
 win.show()  ## show widget alone in its own window
-win.setWindowTitle('Video Preview')
+win.setWindowTitle('Trappy Systems')
 view = win.addViewBox()
 
-## lock the aspect ratio so pixels are always square
+
 view.setAspectLocked(True)
 
+## lock the aspect ratio so pixels are always square
 ## Create image item
 img = pg.ImageItem(border='w')
 view.addItem(img)
@@ -57,3 +58,72 @@ updateData()
 
 if __name__ == '__main__':
     pg.exec()
+
+
+
+
+class PhotometerLivePlot:
+
+
+    def __init__(self):
+        self.app = pg.mkQApp("Trappy Systems Photometer")
+
+        ## Create window with GraphicsView widget
+        self.win = pg.GraphicsLayoutWidget()
+        self.win.show()  ## show widget alone in its own window
+        self.win.setWindowTitle("Trappy Systems Photometer")
+        self.view = win.addViewBox()
+
+
+        self.view.setAspectLocked(True)
+
+
+        self.color_map = { 415      : (143, 0, 255), # Violet
+                      445      : (75, 0, 130),  # Indigo
+                      480      : "b",
+                      515      : "c",
+                      555      : "g",
+                      590      : "y",
+                      630      : (255, 165, 0),
+                      680      : "r",
+                      #"near-ir": (255, 0, 0, 128),
+                      #"clear"  : (255, 255, 255)
+                    }
+
+        # Create BarObjects
+        self.bars = {}
+        for color in self.color_map:
+            self.bars[color] = pg.BarGraphItem(x=color, height=newdata[color],  \
+                                          width=0.3, brush=color_map[color])
+            self.win.addItem(self.bars[color])
+
+
+    def start(self):
+        self. updatetime = perf_counter()
+        self.elapsed = 0
+
+        self.timer = QtCore.QTimer()
+        self.timer.setPeriodic(True)
+
+
+
+
+    def update_fn(self, newdata):
+        for color in newdata:
+            self.bars[color] = pg.BarGraphItem(x=color, height=newdata[color], \
+                               width=0.3, brush=self.color_map[color])
+
+
+
+
+
+
+            
+
+            
+           
+
+
+if __name__ == '__main__':
+    pg.exec()
+

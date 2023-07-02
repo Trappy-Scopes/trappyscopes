@@ -1,8 +1,26 @@
 import datetime
+import os
+import logging as log
 
 class Session:
-	def create_session(scope_name, datastore, sensors\
-					   experiment_mode=False, experiment_id=None,
+
+	session_path = os.path.abspath(os.path.join(os.path.expanduser( '~' ), "data"))
+	if not os.path.exists(session_path):
+		os.mkdir(session_path)
+
+	def simple(name):
+		potential = os.path.join(Session.session_path, name)
+		if os.path.exists(potential):
+			log.error("Session path already exist. Exiting.")
+			exit(0)
+		else:
+			Session.session_path = potential
+			os.mkdir(Session.session_path)
+			log.critical(f"Session path set to: {potential}")
+
+
+	def create_session(scope_name, datastore, sensors, \
+					   experiment_mode=False, experiment_id=None, \
 					   create_session_folder=True):
 		"""
 		Create a session in the `data` folder.
@@ -50,7 +68,7 @@ class Session:
 
 		# This will persist until the Session is terminated
 		session_defaults_by_user = {     
-									 "scope_name"            : scope_name
+									 "scope_name"            : scope_name,
 									 "cell_strain"           : "CC125",
 									 "cell_culture_id"       : None,
 									 "session_duration_s"    : None,
@@ -105,7 +123,7 @@ class Session:
 							"capture_lag"    : None
 						}
 
-		acq_md = MetaData("acq"):
+		acq_md = MetaData("acq")
 		acq_md.add_que(f'Acquisition mode {acq_modes}: ', label="acq_mode")
 		for key in acq_defaults.keys().remove(["acq_time_s", "capture_lag"]):
 			acq_md.add_que(f"{key} ?", label=key)

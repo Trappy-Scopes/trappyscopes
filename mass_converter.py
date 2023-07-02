@@ -12,7 +12,7 @@ def convert_h264_to_mp4(dir_="."):
 	h264files = list(filter(lambda fn: fn.endswith("h264"), all_files))
 	mp4files = list(filter(lambda fn: fn.endswith("mp4"), all_files))
 
-
+	# TODO - update to the new improved version.
 	h264files = [fn.split(".")[0] for fn in h264files]
 	mp4files  = [fn.split(".")[0] for fn in mp4files]
 

@@ -1,3 +1,5 @@
+import sys
+sys.path.append("../abcs/")
 from abc import abstractmethod
 
 from abcs.lights import Light
@@ -26,7 +28,7 @@ from abcs.lights.Light import interpolate
                                                                                                           
 
                                    
-class CaPwmRgbLed(Light):
+class CAPwmRgbLed(Light):
 	"""
 	Object used to control Multichannel Common Anode LED
 	with Raspberry Pi Pico.

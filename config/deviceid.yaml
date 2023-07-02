@@ -6,6 +6,6 @@ type      : microscope
 
 hardware:
   pico         : [pico1, null]
-  camera       : rpi-hq
+  camera       : rpi_hq_picam2
   illumination : CA_PWM_RGB_LED_5mm
 

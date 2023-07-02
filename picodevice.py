@@ -1,5 +1,7 @@
-from utilities import pyboard
+import platform
+from logging import log
 
+from utilities import pyboard
 
 class RPiPicoDevice:
 
@@ -20,19 +22,57 @@ class RPiPicoDevice:
 						   or port.__contains__("/dev/ttyACM")]
 
 	# -- Object defination
-	def __init__(self, port='/dev/ttyACM0', name="pico", verbose=True):
-		self.pico = pyboard.Pyboard(port, 115200)
-		self.pico.enter_raw_repl()
+	def __init__(self, port=None, name="pico", verbose=True, connect=True):
+		#TODO: Add Eception
 
-		self.port = port
+		self.connected = False
 		self.name = name
+		self.port = port
 		self.print_ = lambda string: print(string) if verbose else None
+
+		if connect:
+			self.connect()
 
 	def __del__(self):
 		self.pico.exit_raw_repl()
 
+	def disconnect(self):
+		self.pico.exit_raw_repl()
 
-	def __call__(self, command)
+
+	def connect(self, port=None):
+		# Try connection
+		try:
+			if self.port == None:
+				if platform.system() == "Linux":
+					port = '/dev/ttyACM'
+				elif platform.system() == "Darwin":
+					port = '/dev/cu.usbmodem10'
+				else:
+					print("Unsupported Plateform.")
+
+				port_ = port + "0"
+			self.pico = pyboard.Pyboard(port, 115200)
+			self.port = port_
+			self.connected = True
+		except:
+			for i in range(1, 6):
+				port_ = port + str(i)
+				print(port_)
+				try:
+					self.pico = pyboard.Pyboard(port_ + str(i), 115200)
+					self.port = port_
+				except:
+					pass
+
+		if self.connected:
+			self.pico.enter_raw_repl()
+			print(f"{self.name} -connected-to-> {self.port}")
+		else:
+			print("No Pico device found. Not connected.")
+
+
+	def __call__(self, command):
 		self.print_(f"{self.name}! do >> {command}")
 		ret = self.pico.exec(command)
 		self.print_(f"{self.name} said >> {ret.decode()}")
@@ -44,7 +84,7 @@ class RPiPicoDevice:
 		"""
 		self.__call__('exec(open("main.py").read())')
 
-return
+
 class PicoProxyDevice:
 	"""
 	A proxy device that acts as a virtual device on 

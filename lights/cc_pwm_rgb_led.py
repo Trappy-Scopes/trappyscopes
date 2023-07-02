@@ -1,3 +1,5 @@
+import sys
+sys.path.append("../abcs/")
 from abc import abstractmethod
 
 from abcs.lights import Light

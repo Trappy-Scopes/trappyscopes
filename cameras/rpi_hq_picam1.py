@@ -1,13 +1,13 @@
 import sys
-sys.path.append("..")
+sys.path.append("../abcs/")
 
-import abcs.Camera
+from abcs.camera import AbstractCamera
 from picamera import PiCamera
 from pprint import pprint
 
 
 
-class Camera(abcs.Camera):
+class Camera(AbstractCamera):
 	"""
 	Camera object framework specialised for Raspberry Pi HQ Camera.
 	Implementation used Picamera v1 python library. 
@@ -16,11 +16,11 @@ class Camera(abcs.Camera):
 		self.cam = None
 		self.config = None
 
-	def init_cam(self):
+	def open(self):
 		self.cam = picamera.PiCamera()
 		print("Camera object acquired!")
 
-	def deinit_cam(self):
+	def close(self):
 		self.cam.close()
 		self.cam = None
 		print("Camera object released!")

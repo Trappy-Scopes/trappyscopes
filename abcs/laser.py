@@ -6,7 +6,7 @@ class Laser:
 	"""
 
 	def __init__(self, interface=("spi", pins), gate_pin=None,
-				 Ilimit_mA, ):
+				 Ilimit_mA):
 		pass
 
 
@@ -28,7 +28,7 @@ class Laser:
 	def feedback(fb_pin, sampling_factor=1):
 		pass
 
-	def LaserSelect(controller=None, args, kwargs):
+	def LaserSelect(controller, args, kwargs):
 
 		laser = Laser(*args, **kwargs)
 		controller = controller.strip()
