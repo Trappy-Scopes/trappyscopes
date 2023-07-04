@@ -87,7 +87,7 @@ def capture(name, *args, **kwargs):
 	# File  uniqueness check
 	if unique_check:
 		if name in os.listdir():
-			print("File already exists – ignoring the call.")
+			print("File already exists - ignoring the call.")
 			return
 	
 	# Capture call
