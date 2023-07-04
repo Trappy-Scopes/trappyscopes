@@ -56,7 +56,7 @@ if exp_name:
 pico = RPiPicoDevice(name=device_metadata["hardware"]["pico"][0], \
 					 port='/dev/cu.usbmodem10')
 if not pico.connected:
-	log.error("Could not get a pico device – exiting.")
+	log.error("Could not get a pico device - exiting.")
 	exit(1)
 pico.exec_main()
 log.info(pico)
