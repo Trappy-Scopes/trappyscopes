@@ -70,7 +70,7 @@ log.info(lit)
 
 cam = CameraSelector(device_metadata["hardware"]["camera"])
 if not cam.connected:
-	log.error("Could not get a camera device – exiting.")
+	log.error("Could not get a camera device - exiting.")
 	exit(1)
 cam.configure()
 log.info(cam)
