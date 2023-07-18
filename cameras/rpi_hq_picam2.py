@@ -75,7 +75,7 @@ class Camera(AbstractCamera):
 			"AnalogueGain": 1,
 			"AeEnable"    : False,
 			"AwbEnable"   : False,
-			"ColorGains"  : (1,1), # AWB[0.0, 32.0]. Setting disables Auto AWB
+			#"ColorGains"  : (1,1), # AWB[0.0, 32.0]. Setting disables Auto AWB
 			#"Afmode": controls.AfModeEnums.Manual,
 
 			"Sharpness"   : 0, # [0.0, 16.0]
