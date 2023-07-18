@@ -39,8 +39,8 @@ class Camera(AbstractCamera):
 
 		# Video Encoders and image quality parameters
 		self.encoderh264 = H264Encoder()
-		self.cam.option["quality"] = 95
-		self.cam.option["compress_level"] = 0
+		self.cam.options["quality"] = 95
+		self.cam.options["compress_level"] = 0
 
 		self.config = config
 
