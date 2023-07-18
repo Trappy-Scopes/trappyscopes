@@ -80,7 +80,7 @@ class Camera(AbstractCamera):
 
 			"Sharpness"   : 0, # [0.0, 16.0]
 			"Saturation"  : 1.0, # Set 0 for grayscale. [0.0, 32.0]
-			"NoiseReductionMode" : draft.NoiseReductionModeEnum.Off, # Or use Fast
+			#"NoiseReductionMode" : draft.NoiseReductionModeEnum.Off, # Or use Fast
 			"Contrast"    : 1.0, # [0.0, 32.0]
 			"Brightness"  : 0.0, # [-1.0, 1-0]
 
