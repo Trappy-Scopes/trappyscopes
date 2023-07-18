@@ -51,8 +51,10 @@ class RPiPicoDevice:
 		try:
 			if self.port == None:
 				if platform.system() == "Linux":
+					print("Plateform is Linux.")
 					port = '/dev/ttyACM'
 				elif platform.system() == "Darwin":
+					print("Plateform is Darwin (MacOS).")
 					port = '/dev/cu.usbmodem10'
 				else:
 					print("Unsupported Plateform.")
