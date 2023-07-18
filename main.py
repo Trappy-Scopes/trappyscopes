@@ -67,7 +67,7 @@ lit = PicoLight(pico, "l1")
 log.info(lit)
 
 cam = CameraSelector(device_metadata["hardware"]["camera"])
-#cam.open()
+#cam.open() # Camera should be already open upon creation.
 if not cam.is_open():
 	log.error("Could not get a camera device - exiting.")
 	exit(1)
