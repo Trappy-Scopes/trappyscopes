@@ -2,7 +2,7 @@ from abcs.camera import AbstractCamera
 
 
 from pprint import pprint
-import logger as log
+import logging as log
 import numpy as np
 
 from picamera2 import Picamera2, Preview

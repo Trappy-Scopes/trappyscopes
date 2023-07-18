@@ -37,6 +37,7 @@ def git_clone(required_repos, name=None):
 
 
 def apt_get_automatron(list_of_libs):
+	return
 	command = f"sudo apt-get --assume-yes install {}"
 
 
