@@ -47,21 +47,8 @@ log.critical(pprint.pformat(device_metadata))
 print(pageheader())
 
 
-## 4. Set Experiment
-print("All current experiments on the Microscope:")
-print(Experiment.list_all())
-print("\nCall intro() to get an introduction.")
-print("\n\n")
-print("Press Ctrl+Z to exit or enter to ignore.")
-exp_name = input("Input the session/experiment name -> ")
-exp_name.strip()
 
-exp = None
-if exp_name:
-	exp = Experiment(exp_name)
-
-
-## 5. Set hardware resources
+## 4. Set hardware resources
 
 picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
            "normal" * (device_metadata["hardware"]["pico"][0] == "pico")
@@ -127,6 +114,20 @@ def exit():
 		exp.close()
 	sys.exit()
 
+
+
+## 4. Set Experiment
+print("All current experiments on the Microscope:")
+print(Experiment.list_all())
+print("\nCall intro() to get an introduction.")
+print("\n\n")
+print("Press Ctrl+Z to exit or enter to ignore.")
+exp_name = input("Input the session/experiment name -> ")
+exp_name.strip()
+
+exp = None
+if exp_name:
+	exp = Experiment(exp_name)
 
 
 #print(sys.path)
