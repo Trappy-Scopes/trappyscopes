@@ -67,7 +67,7 @@ picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
            "normal" * (device_metadata["hardware"]["pico"][0] == "pico")
 
 pico = RPiPicoDevice.Select(picomode, name=device_metadata["hardware"]["pico"][1], \
-					 port='/dev/cu.usbmodem10')
+					 port=None)
 print(pico)
 if not pico.connected:
 	log.error("Could not get a pico device - exiting.")
