@@ -90,8 +90,8 @@ class Camera(AbstractCamera):
 
 	# 5
 	def capture(self, action, filepath, tsec=1,
-				iterations=1, itr_delay_s=0, init_delay_s=0):
-		pass
+				iterations=1, itr_delay_s=0, init_delay_s=0, *args, **kwargs):
+		self.modes[action.lower().strip()](*args, **kwargs)
 
 	# 6
 	def preview(self, tsec=30):
@@ -163,7 +163,7 @@ class Camera(AbstractCamera):
 	### Capture mode implementations
 
 	# 
-	def __image__(self, filename, tsec=3):
+	def __image__(self, filename, tsec=3, *args, **kwargs):
 		"""
 		Capture a png image.
 		tsec is ignored.
@@ -172,7 +172,7 @@ class Camera(AbstractCamera):
 		self.cam.capture_file(filename, format='png')
 
 	# 
-	def __image_trig__(self):
+	def __image_trig__(self, *args, **kwargs):
 		"""
 		Capture PNG image when the `Enter` key is pressed.
 		"""
@@ -190,7 +190,7 @@ class Camera(AbstractCamera):
 		self.cam.stop_preview()
 
 	# 
-	def __timelapse__(self, filenames, frames, delay_s=0):
+	def __timelapse__(self, filenames, frames, delay_s=0, *args, **kwargs):
 		"""
 		Captures a timelapse sequence in jpeg format.
 		filenames: is preceeded by the capture sequence number.
@@ -205,7 +205,7 @@ class Camera(AbstractCamera):
 			show_preview = True)
 
 	# 
-	def __video__(self, filename, tsec=30):
+	def __video__(self, filename, tsec=30, *args, **kwargs):
 		"""
 		Record an h264 video.
 		RPi Hardware supports processing upto 1080p30.
@@ -219,7 +219,7 @@ class Camera(AbstractCamera):
 		self.cam.stop_recording()
 
 	# 
-	def __video_noprev__(self, filename, tsec=30):
+	def __video_noprev__(self, filename, tsec=30, *args, **kwargs):
 		"""
 		Record a video without preview in h264 format.
 		Recommended for high fps recordings.
@@ -233,7 +233,7 @@ class Camera(AbstractCamera):
 		self.cam.stop_recording()
 
 	# 
-	def __videomp4__(self, filename, tsec=30):
+	def __videomp4__(self, filename, tsec=30, *args, **kwargs):
 		"""
 		Record an MP4 file using Ffmpeg.
 		Timestamps are not passed to Ffmpeg. Hence they are estimated.
@@ -247,7 +247,7 @@ class Camera(AbstractCamera):
 		output.stop()
 
 	# 
-	def __video_raw__(self, filename):
+	def __video_raw__(self, filename, *args, **kwargs):
 		"""
 		Captures in raw binary unncoded format. NOT IMPLEMENTED.
 		"""
