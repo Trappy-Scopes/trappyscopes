@@ -46,7 +46,6 @@ class Camera(AbstractCamera):
 
 
 	# 2
-	@abstractmethod
 	def open(self):
 		self.cam.close()
 		self.cam.open()
@@ -56,13 +55,11 @@ class Camera(AbstractCamera):
 		return self.cam.is_open
 
 	# 3
-	@abstractmethod
 	def close(self):
 		self.cam.close()
 		log.info("PiCamera2 Camera was closed.")
 
 	# 4
-	@abstractmethod
 	def configure(self, fps=30, res=[1920, 1080],  config=None):
 		"""
 		Configure the base settings of the camera.
@@ -91,13 +88,11 @@ class Camera(AbstractCamera):
 		time.sleep(0.2) # Sync Delay
 
 	# 5
-	@abstractmethod
 	def capture(self, action, filepath, tsec=1,
 				iterations=1, itr_delay_s=0, init_delay_s=0):
 		pass
 
 	# 6
-	@abstractmethod
 	def preview(self, tsec=30):
 
 		self.cam.configure(self.cam.create_video_configuration())
@@ -108,12 +103,10 @@ class Camera(AbstractCamera):
 		self.cam.stop_preview()
 
 	# 7
-	@abstractmethod
 	def state(self):
 		return self.cam.camera_properties
 
 	# 8
-	@abstractmethod
 	def help(self):
 		"""
 		Prints docstrings for all capture modes.
@@ -127,7 +120,6 @@ class Camera(AbstractCamera):
 
 
 	# 9
-	@abstractmethod
 	def __repr__(self):
 		time_now = time.perf_counter()
 		return f"<PiCamera2 - {time_now - self.opentime_ns:3d}s>" + \
