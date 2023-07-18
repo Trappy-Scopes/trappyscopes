@@ -3,6 +3,47 @@ Control Layer Interface for the Microscopes that sit on the Raspberry Pi.
 
 
 
+
+
+## An `Experiment`
+
+### File Structure
+
+```
+Experiment_name
+		|- .experiment 			        (identifier)
+		|- experiment.yaml          (event logs)
+		|- data1, data2, data3, ... (data - in the repository)
+		|- postprocess              (postprocessed data)
+		|- analysis                 (analysis results)
+```
+
+### Flow of Control
+
+```mermaid
+flowchart
+	
+	subgraph Setup
+		Create-ID-files --> Create-folders --> Copy-Payload
+	end
+	
+	subgraph Loading
+		load(load events) --> CWD(Change working directory)
+	end
+	
+	subgraph Deletion
+		del -.calls.- close("close()") --> Logs(Write event logs to yaml) --> CWDB(Change working <br>dir to original)
+	end
+	
+	Setup --> Loading --> Deletion
+```
+
+
+
+
+
+
+
 ### Configuration Files
 
 1. `camconfig.yaml` : Contains the camera configuration file for the default mode.
@@ -21,7 +62,7 @@ flowchart LR
 
 
 
-### Connecting Hardware
+### Connected Hardware
 
 ```mermaid
 flowchart
@@ -71,10 +112,14 @@ The default mode for parsing a device ID structure is to first cast each field t
 0. `pyboard` seems to be corrupt. Replace it. Or check if the error only persists if no device is connected.
 1. Fix Camera selector
 2. Clean scope-cli folder.
-3. Fix experiment class
++ DONE: Fix experiment class
 4. Review each function of PiCamera 2 control layer.
-5. Add null pico-device implementation.
-6. Add null-led device option.
-7. Device declaration before the fluff.header() should dump formatted yaml instead of a python dict.
-8. Add Living Physics, IGC to the fluff.header().
++ DONE: Add null pico-device implementation.
++ CANCELLED : Add null-led device option. 
++ CANCELLED: Device declaration before the fluff.header() should dump formatted yaml instead of a python dict.
++ DONE:  Add Living Physics, IGC to the fluff.header().
 9. Interpretor ascelation from `python3` to `python`.
+10. Fix abcs import issues.
+11. Camera Abstract class add `is_open()` method. `configure()` change of kwargs.
++ DONE: Check if `Experiment` class changes current wd of the python kernal.
+13. 

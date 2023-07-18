@@ -5,6 +5,12 @@ from utilities import pyboard
 
 class RPiPicoDevice:
 
+	def Select(mode, *args, **kwargs):
+		if mode == "null":
+			return NullRPiPicoDevice(*args, **kwargs)
+		else:
+			return RPiPicoDevice(*args, **kwargs)
+
 	def all_ports():
 		print("All availbale ports:")
 		import serial.tools.list_ports as list_ports
@@ -83,6 +89,44 @@ class RPiPicoDevice:
 		Execute main function on the Pico device.
 		"""
 		self.__call__('exec(open("main.py").read())')
+
+
+class NullRPiPicoDevice(RPiPicoDevice):
+
+	def __init__(self, port=None, name="pico", verbose=True, connect=True):
+		
+		self.connected = True # Always
+		self.name = name
+		self.port = port 
+		self.print_ = lambda string: print(string) if verbose else None
+
+		if connect:
+			self.connect()
+
+	def __del__(self):
+		return
+
+	def disconnect(self):
+		self.print_("disconnect: Null connection closed for NullRPiPicoDevice.")
+
+
+
+	def connect(self, port=None):
+		# Try connection
+		self.print_("connect: Null connection established for NullRPiPicoDevice.")
+
+
+	def __call__(self, command):
+		self.print_(f"{command}: All calls are ignored by the NullRPiPicoDevice device.")
+		return None
+
+	def exec_main(self):
+		"""
+		Execute main function on the Pico device.
+		"""
+		self.print_("exec_main: All calls are ignored by the NullRPiPicoDevice device.")
+		return None
+
 
 
 class PicoProxyDevice:

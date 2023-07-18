@@ -4,7 +4,9 @@ import logging as log
 import yaml
 from yaml.loader import SafeLoader
 import sys
-import uuid
+import nanoid
+import datetime
+from colorama import Fore
 
 import config.common
 
@@ -30,11 +32,19 @@ class Experiment:
 		os.mkdir(os.path.join(dir_, "postprocess"))
 		os.mkdir(os.path.join(dir_, "analysis"))
 
-		with open(os.path.join(dir_, ".experiment"), "w") as f:
-			f.write(str(uuid.uuid4()))
+		# Copy payload to the dir_
 
-		with open(os.path.join(dir_, f"{name}.yaml"), "w") as f:
-			f.write("")
+		uuid = nanoid.generate('1234567890abcdef', 10)
+		with open(os.path.join(dir_, ".experiment"), "w") as f:
+			f.write(uuid)
+
+		with open(os.path.join(dir_, "experiment.yaml"), "w") as f:
+			now = datetime.datetime.now()
+			#print(yaml.dump({"Experiment created": [name, uuid]}))
+			f.write(yaml.dump({"Experiment created": 
+									{"name": name, 
+									"uuid": uuid,
+									"created": now}}))
 
 
 	def list_all():
@@ -50,45 +60,74 @@ class Experiment:
 
 		self.name = name
 		self.exp_dir = os.path.join(config.common.DATA_DIR, name)
-		self.log_file = os.path.join(self.exp_dir, f"{name}.yaml")
+		self.log_file = os.path.join(self.exp_dir, "experiment.yaml")
+		
 		self.logs = {}
 		self.events = []
+		self.unsaved = False # Flag that indicates unsaved changes
+		self.active = True   # Flag that indicates whether the Experiment is currently active.
 
 		self.all_exps = Experiment.list_all()
-		# Check if the experiment exists
 
-		
-		if os.path.join(config.common.DATA_DIR, self.name) in self.all_exps:
-			log.info(f"Loading Experiment: {self.name}")
-			pprint(os.listdir(self.exp_dir))
-			
-			# Load experiment logs
-			self.logs = yaml.load(self.log_file, SafeLoader)
-			print("!!!", self.logs)
-			#self.events = list(self.logs.keys())
-		else:
+		# Check if the experiment exists
+		if not os.path.join(config.common.DATA_DIR, self.name) in self.all_exps:
 			Experiment.new(self.name)
 			log.info(f"Creating New Experiment: {self.name}")
 			log.info(f"{self.name}: {self.exp_dir}")
+
+		log.info(f"Loading Experiment: {self.name}")
+		print("Experiment so far: ")
+		pprint([file for file in os.listdir(self.exp_dir) \
+				if os.path.isfile(os.path.join(self.exp_dir, file))])
+		
+		# Load experiment logs
+		with open(self.log_file) as file:
+			logs_in_file = yaml.load(file, Loader=SafeLoader)
+		if logs_in_file:
+			self.logs = logs_in_file
+		
+		self.events = list(self.logs.keys())
+			
+
+		# Changing Working Directory to Experiment Directory		
 		sys.ps1 = self.header()
+		self.lastwd = os.getcwd()
+		os.chdir(self.exp_dir)
+		print(f"Working directory changed to: {os.getcwd()}")
 
+	
+	def __exit__(self):
+		self.close()
 
-
-	def __del__(self):
-		#with open(self.exp_file, "r") as f:
-		#	yaml.dump(self.logs, f)
-		pass
+	def close(self):
+		if self.unsaved: 
+			with open(self.log_file, "w") as f:
+				f.write(yaml.dump(self.logs))
+			print(f"Experiment logs updated: {self.log_file}")
+		if self.active:
+			print(f"Experiment {self.name} was closed.")
+			os.chdir(self.lastwd)
+			print(f"Working directory changed to: {os.getcwd()}")
+			sys.ps1 = ">>> "
+			self.active = False
 
 	def log_event(self, string):
 		"""
 		Format -> Event: datetime
 		"""
-		now = datetime.datetime.now() 
-		self.log[string] = str(now)
-		self.events += string
+		if self.active:
+			now = datetime.datetime.now() 
+			self.logs[string] = str(now)
+			self.events.append(string)
+			self.unsaved = True
+		else:
+			print("Experiment is not active. Pleace use exp_close() function or start a new experiment.")
+
+	def unique(self, string):
+		return not (string in self.logs)
 
 	def header(self):
-		return f"|| Experiment: {self.name} >>> "
+		return f"|| Experiment: {Fore.RED}{self.name}{Fore.RESET} >>> "
 
 if __name__ == "__main__":
 	exp = Experiment("test")

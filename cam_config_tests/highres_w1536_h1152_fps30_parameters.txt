@@ -1,9 +1,0 @@
-Camera parameters for videohighres_w1536_h1152_fps30
-
-RESOLUTION               ---> 1536x1152
-FRAMERATE                ---> 30
-ISO                      ---> 0
-ANALOG_GAIN              ---> 465/128
-DIGITAL_GAIN             ---> 1
-EXPOSURE_SPEED           ---> 32.979 ms
-EXPOSURE_MODE            ---> auto

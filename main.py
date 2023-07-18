@@ -3,10 +3,15 @@
 
 import logging
 import pprint
-
 import os
+import sys
+sys.path.append(os.path.abspath("./abcs"))
+import abcs
+
+
 import yaml
 from yaml.loader import SafeLoader
+from colorama import Fore
 
 # Hardware
 from cameras.selector import CameraSelector
@@ -16,10 +21,10 @@ from picolight import PicoLight
 
 # Other Resources
 from experiment import Experiment
-from utilities import fluff
+from utilities.fluff import pageheader, intro
 
-import sys
-sys.path.append(["./cameras/", "./lights/", "./abcs/"])
+
+#sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 
 
 
@@ -39,14 +44,15 @@ log.critical(pprint.pformat(device_metadata))
 
 
 ##3. Print Header
-print(fluff.header())
+print(pageheader())
 
 
 ## 4. Set Experiment
 print("All current experiments on the Microscope:")
 print(Experiment.list_all())
+print("\nCall intro() to get an introduction.")
 print("\n\n")
-print("Press Ctrl+Z to exit.")
+print("Press Ctrl+Z to exit or enter to ignore.")
 exp_name = input("Input the session/experiment name -> ")
 exp_name.strip()
 
@@ -56,8 +62,13 @@ if exp_name:
 
 
 ## 5. Set hardware resources
-pico = RPiPicoDevice(name=device_metadata["hardware"]["pico"][0], \
+
+picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
+           "normal" * (device_metadata["hardware"]["pico"][0] == "pico")
+
+pico = RPiPicoDevice.Select(picomode, name=device_metadata["hardware"]["pico"][1], \
 					 port='/dev/cu.usbmodem10')
+print(pico)
 if not pico.connected:
 	log.error("Could not get a pico device - exiting.")
 	exit(1)
@@ -69,48 +80,56 @@ lit = PicoLight(pico, "l1")
 log.info(lit)
 
 cam = CameraSelector(device_metadata["hardware"]["camera"])
-if not cam.connected:
+cam.open()
+if not cam.is_open():
 	log.error("Could not get a camera device - exiting.")
 	exit(1)
 cam.configure()
 log.info(cam)
 
-unique_check = False
-def capture(name, *args, **kwargs):
+
+# Defining variables for common modes
+video = "video"
+image = "image"
+unique_check = True   # Only asserted during experiment mode.
+def capture(action, name, *args, **kwargs):
 	"""
 	Default capture 
 	"""
-
-	if mode == None:
-		mode = "video"
+	print(f"cwd: {os.getcwd()}")
+	if action == None:
+		action = "video"
 	
 	# File  uniqueness check
-	if unique_check:
-		if name in os.listdir():
-			print("File already exists - ignoring the call.")
+	if unique_check and exp.active:
+		if not exp.unique(name):
+			print(f"{Fore.RED}File already exists - ignoring the call.{Fore.RESET}")
 			return
 	
 	# Capture call
-	cam.capture(name,  *args, **kwargs)
+	cam.capture(action, name,  *args, **kwargs)
 
 	# Reprint Experiment Header
-	if exp_name:
-		exp.log()
-		print(exp.header(), end="")
-
+	if exp or exp.active():
+		exp.log_event(name)
 
 
 def close_exp():
 	"""
 	Close experiment and reset the current directory to the original.
 	"""
-	exp_name = None
-	sys.ps1 = '>>> '
-	os.chdir(og_directory)
-	print("---\n\n")
+	exp.close()
+	print("--- Exiting experiment --\n")
+
+# Overloaded Exit function
+def exit():
+	if exp.active:
+		exp.close()
+	sys.exit()
 
 
 
+#print(sys.path)
 
 
 

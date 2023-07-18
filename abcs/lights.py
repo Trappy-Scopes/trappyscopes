@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-class Light:
+class AbstractLight:
 	"""
 	Object used to control the LED panel for lighting.
 	"""

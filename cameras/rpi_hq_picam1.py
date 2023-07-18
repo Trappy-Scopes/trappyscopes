@@ -1,6 +1,3 @@
-import sys
-sys.path.append("../abcs/")
-
 from abcs.camera import AbstractCamera
 from picamera import PiCamera
 from pprint import pprint

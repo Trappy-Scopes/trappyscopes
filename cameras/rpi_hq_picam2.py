@@ -1,18 +1,15 @@
-import sys
-sys.path.append("../abcs/")
-
-import abcs.Camera
+from abcs.camera import AbstractCamera
 
 
 from pprint import pprint
 import logger as log
 import numpy as np
 
-rom picamera2 import Picamera2, Preview
+from picamera2 import Picamera2, Preview
 from picamera2.outputs import FfmpegOutput
 from picamera2.encoders import H264Encoder, Quality
 
-class Camera(abcs.Camera):
+class Camera(AbstractCamera):
 	"""
 	Camera object framework specialised for Raspberry Pi HQ Camera.
 	Implementation used Picamera v2 python library.
@@ -20,7 +17,6 @@ class Camera(abcs.Camera):
 	config parameter can be used to pass a configuration dict.
 	"""
 	# 1
-	@abstractmethod
 	def __init__(self, config={}):
 		self.cam = Picamera2()
 		self.opentime_ns = time.perf_counter()
@@ -55,6 +51,9 @@ class Camera(abcs.Camera):
 		self.cam.close()
 		self.cam.open()
 		log.info("PiCamera2 Camera was opened.")
+
+	def is_open(self):
+		return self.cam.is_open
 
 	# 3
 	@abstractmethod

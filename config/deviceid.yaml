@@ -1,11 +1,11 @@
 # Do Not change ----------------
 name      : M1
-uuid      : 
+uuid      : null
 type      : microscope
 # ------------------------------
 
 hardware:
-  pico         : [pico1, null]
-  camera       : rpi_hq_picam2
+  pico         : [nullpico, pico1, null]
+  camera       : nullcamera
   illumination : CA_PWM_RGB_LED_5mm
 

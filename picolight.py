@@ -1,8 +1,8 @@
-from lights.abcs.lights import Light as abstractLight
-from picodevice import RPiPicoDevice
+from abcs.lights import AbstractLight
+#from picodevice import RPiPicoDevice
 
 
-class PicoLight(abstractLight):
+class PicoLight(AbstractLight):
 	"""
 	Specific implementation of RPiPico device and abcs.lights
 	to control lights on RPi Pico Microcontroller.
@@ -11,7 +11,7 @@ class PicoLight(abstractLight):
 	#1
 	def __init__(self, RPiPicoDevice, obj_name):
 		self.name = obj_name
-		self.pico = picodevice
+		self.pico = RPiPicoDevice
 
 	#2
 	def on(self, lux=1.0, channel=None):

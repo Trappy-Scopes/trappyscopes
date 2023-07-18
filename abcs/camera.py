@@ -12,6 +12,10 @@ class AbstractCamera:
 	def open(self):
 		pass
 
+	@abstractmethod
+	def is_open(self):
+		pass
+
 	# 3
 	@abstractmethod
 	def close(self):
