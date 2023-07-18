@@ -62,8 +62,8 @@ class RPiPicoDevice:
 
 				port_ = port + "0"
 
-			print(f"Attempting connection to — {port}")
-			self.pico = pyboard.Pyboard(port, 115200)
+			print(f"Attempting connection to — {port_}")
+			self.pico = pyboard.Pyboard(port_, 115200)
 			self.port = port_
 			self.connected = True
 		except:
