@@ -69,7 +69,7 @@ class Camera(AbstractCamera):
 
 		# Ignoring config_file option for now.
 
-		self.cam.controls({
+		self.cam.set_controls({
 			"ExposureTime": 1000,
 			
 			"AnalogueGain": 1,
