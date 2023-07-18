@@ -49,7 +49,7 @@ class Camera(AbstractCamera):
 	# 2
 	def open(self):
 		self.cam.close()
-		self.cam.open()
+		self.cam.start()
 		log.info("PiCamera2 Camera was opened.")
 
 	def is_open(self):
