@@ -6,7 +6,7 @@ import logging as log
 import numpy as np
 import time
 
-from picamera2 import Picamera2, Preview, draft
+from picamera2 import Picamera2, Preview
 from picamera2.outputs import FfmpegOutput
 from picamera2.encoders import H264Encoder, Quality
 
