@@ -4,6 +4,7 @@ from abcs.camera import AbstractCamera
 from pprint import pprint
 import logging as log
 import numpy as np
+import time
 
 from picamera2 import Picamera2, Preview
 from picamera2.outputs import FfmpegOutput
