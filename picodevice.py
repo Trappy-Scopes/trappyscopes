@@ -35,6 +35,7 @@ class RPiPicoDevice:
 		self.name = name
 		self.port = port
 		self.print_ = lambda string: print(string) if verbose else None
+		self.pico = None   # Actual device interface
 
 		if connect:
 			self.connect()
