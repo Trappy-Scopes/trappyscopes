@@ -98,14 +98,14 @@ class Camera(AbstractCamera):
 			self.modes[action](filename, tsec=tsec, **kwargs)
 
 	# 6
-	def preview(self, tsec=30):
+	def preview(self, tsec=30, preview=Preview.QT):
 
 		self.cam.configure(self.cam.create_preview_configuration())
 
 		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
-		self.cam.start_preview(Preview.DRM)
+		self.cam.start_preview(Preview.QT)
 		time.sleep(tsec)
-		self.cam.stop_preview(Preview.DRM)
+		self.cam.stop_preview(Preview.QT)
 
 	# 7
 	def state(self):
