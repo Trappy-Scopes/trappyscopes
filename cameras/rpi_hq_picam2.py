@@ -223,7 +223,7 @@ class Camera(AbstractCamera):
 		self.cam.configure(self.cam.create_video_configuration())
 		
 		self.cam.start_recording(self.encoderh264, filename, \
-								 Quality.HIGH, show_preview=True)
+								 Quality.HIGH, showpreview=True)
 		time.sleep(tsec)
 		self.cam.stop_recording()
 
