@@ -261,9 +261,11 @@ class Camera(AbstractCamera):
 		self.cam.configure(self.cam.create_video_configuration())
 		tsec = kwargs["tsec"]
 		output = FfmpegOutput(filename) # Opens a new file object
-		output.start()
-		time.sleep(tsec)
-		output.stop()
+		
+		self.cam.start_and_record_video(output, \
+								 show_preview=True, \
+								 duration=tsec)
+		self.cam.stop_preview()
 
 	# 
 	def __video_raw__(self, filename, *args, **kwargs):
