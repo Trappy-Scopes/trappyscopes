@@ -285,7 +285,7 @@ class Camera(AbstractCamera):
 		
 		# Check validity of the resolution
 		valid_res = [mode["size"] for mode in self.cam.sensor_modes]
-		print(calid_res)
+		print(valid_res)
 		if self.config["size"] not in any(valid_res):
 
 			log.error("Invalid resolution for raw capture. Capture cancelled.")
