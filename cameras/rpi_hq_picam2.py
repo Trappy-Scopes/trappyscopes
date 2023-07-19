@@ -100,7 +100,7 @@ class Camera(AbstractCamera):
 	# 6
 	def preview(self, tsec=30):
 
-		self.cam.configure(self.cam.create_video_configuration())
+		#self.cam.configure(self.cam.create_video_configuration())
 
 		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
 		self.cam.start_preview(Preview.QTGL)
