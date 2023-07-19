@@ -226,7 +226,7 @@ class Camera(AbstractCamera):
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
 								 show_preview=True, \
 								 duration=tsec)
-		filename.close()
+		#filename.close()
 		#time.sleep(tsec)
 		#self.cam.stop_recording()
 
