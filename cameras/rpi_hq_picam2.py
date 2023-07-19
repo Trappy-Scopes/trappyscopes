@@ -103,9 +103,9 @@ class Camera(AbstractCamera):
 		self.cam.configure(self.cam.create_preview_configuration())
 
 		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
-		self.cam.start_preview(Preview.QTGL)
+		self.cam.start_preview(Preview.DRM)
 		time.sleep(tsec)
-		self.cam.stop_preview()
+		self.cam.stop_preview(Preview.DRM)
 
 	# 7
 	def state(self):
