@@ -286,11 +286,11 @@ class Camera(AbstractCamera):
 		# Check validity of the resolution
 		valid_res = [mode["size"] for mode in self.cam.sensor_modes]
 		print(valid_res)
-		if self.config["size"] not in any(valid_res):
-
-			log.error("Invalid resolution for raw capture. Capture cancelled.")
-			log.debug(f"Use the following resolutions instead: {valid_res}")
-			return
+		#if self.config["size"] not in any(valid_res):
+		#
+		#	log.error("Invalid resolution for raw capture. Capture cancelled.")
+		#	log.debug(f"Use the following resolutions instead: {valid_res}")
+		#	return
 
 		# Pre-allocate array
 		array_shape = [int(tsec*fps), int(res[0]), int(res[1]), 3]
