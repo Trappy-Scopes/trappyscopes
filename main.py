@@ -129,6 +129,8 @@ exp = None
 if exp_name:
 	exp = Experiment(exp_name)
 
+## Test
+pico("l1.setVs(2,0,0)")
 
 #print(sys.path)
 

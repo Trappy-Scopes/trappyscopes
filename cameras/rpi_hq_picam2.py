@@ -223,10 +223,12 @@ class Camera(AbstractCamera):
 		#self.cam.configure(self.cam.create_video_configuration())
 		tsec = kwargs["tsec"]
 		self.cam.start_and_record_video(filename, encoder=self.encoderh264, \
-								 quality=Quality.HIGH, show_preview=True, \
+								 show_preview=True, \
 								 duration=tsec)
 		#time.sleep(tsec)
 		#self.cam.stop_recording()
+
+		# quality=Quality.HIGH
 
 	# 
 	def __video_noprev__(self, filename, *args, **kwargs):
@@ -238,10 +240,12 @@ class Camera(AbstractCamera):
 		#self.cam.configure(self.cam.create_video_configuration())
 		tsec = kwargs["tsec"]
 		self.cam.start_and_record_video(filename, encoder=self.encoderh264, \
-								 quality=Quality.HIGH, show_preview=False, \
+								 show_preview=False, \
 								 duration=tsec)
 		#time.sleep(tsec)
 		#self.cam.stop_recording()
+
+		#quality=Quality.HIGH, 
 
 	# 
 	def __videomp4__(self, filename, *args, **kwargs):
