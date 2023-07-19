@@ -222,9 +222,11 @@ class Camera(AbstractCamera):
 
 		#self.cam.configure(self.cam.create_video_configuration())
 		tsec = kwargs["tsec"]
+		filename = open(filename)
 		self.cam.start_and_record_video(filename, encoder=self.encoderh264, \
 								 show_preview=True, \
 								 duration=tsec)
+		filename.close()
 		#time.sleep(tsec)
 		#self.cam.stop_recording()
 
