@@ -220,12 +220,13 @@ class Camera(AbstractCamera):
 		RPi Hardware supports processing upto 1080p30.
 		"""
 
-		self.cam.configure(self.cam.create_video_configuration())
+		#self.cam.configure(self.cam.create_video_configuration())
 		
 		self.cam.start_and_record_video(filename, encoder=self.encoderh264, \
-								 quality=Quality.HIGH, show_preview=True)
-		time.sleep(tsec)
-		self.cam.stop_recording()
+								 quality=Quality.HIGH, show_preview=True, \
+								 duration=tsec)
+		#time.sleep(tsec)
+		#self.cam.stop_recording()
 
 	# 
 	def __video_noprev__(self, filename, *args, **kwargs):
@@ -234,12 +235,13 @@ class Camera(AbstractCamera):
 		Recommended for high fps recordings.
 		"""
 
-		self.cam.configure(self.cam.create_video_configuration())
+		#self.cam.configure(self.cam.create_video_configuration())
 		
 		self.cam.start_and_record_video(filename, encoder=self.encoderh264, \
-								 quality=Quality.HIGH, show_preview=False)
-		time.sleep(tsec)
-		self.cam.stop_recording()
+								 quality=Quality.HIGH, show_preview=False, \
+								 duration=tsec)
+		#time.sleep(tsec)
+		#self.cam.stop_recording()
 
 	# 
 	def __videomp4__(self, filename, *args, **kwargs):
