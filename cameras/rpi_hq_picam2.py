@@ -89,9 +89,13 @@ class Camera(AbstractCamera):
 		time.sleep(0.2) # Sync Delay
 
 	# 5
-	def capture(self, action, filepath, tsec=1,
-				iterations=1, itr_delay_s=0, init_delay_s=0, *args, **kwargs):
-		self.modes[action.lower().strip()](*args, **kwargs)
+	def capture(self, action, filename, tsec=1,
+				iterations=1, itr_delay_s=0, init_delay_s=0, **kwargs):
+		action = action.lower().strip()
+		if action != "preview":
+			self.modes[action](tsec=tsec, **kwargs)
+		else:
+			self.modes[action](filename, tsec=tsec, **kwargs)
 
 	# 6
 	def preview(self, tsec=30):
@@ -163,7 +167,7 @@ class Camera(AbstractCamera):
 	### Capture mode implementations
 
 	# 
-	def __image__(self, filename, tsec=3, *args, **kwargs):
+	def __image__(self, filename, *args, **kwargs):
 		"""
 		Capture a png image.
 		tsec is ignored.
@@ -172,7 +176,7 @@ class Camera(AbstractCamera):
 		self.cam.capture_file(filename, format='png')
 
 	# 
-	def __image_trig__(self, *args, **kwargs):
+	def __image_trig__(self, filename, *args, **kwargs):
 		"""
 		Capture PNG image when the `Enter` key is pressed.
 		"""
@@ -190,13 +194,18 @@ class Camera(AbstractCamera):
 		self.cam.stop_preview()
 
 	# 
-	def __timelapse__(self, filenames, frames, delay_s=0, *args, **kwargs):
+	def __timelapse__(self, filename, *args, **kwargs):
 		"""
 		Captures a timelapse sequence in jpeg format.
 		filenames: is preceeded by the capture sequence number.
 		frames: number of frames that must be captured.
 		delay_s (optional) : Delay between images in seconds.
 		"""
+		filenames = args[0]
+
+		if not all(["frames", "delay_s"]) in kwargs:
+			raise KeyError("Either arguments missing: frames and/or delay_s")
+
 
 		filenames_ = "{:03d}" + filenames
 		self.cam.start_and_capture_files( \
@@ -205,7 +214,7 @@ class Camera(AbstractCamera):
 			show_preview = True)
 
 	# 
-	def __video__(self, filename, tsec=30, *args, **kwargs):
+	def __video__(self, filename, *args, **kwargs):
 		"""
 		Record an h264 video.
 		RPi Hardware supports processing upto 1080p30.
@@ -219,7 +228,7 @@ class Camera(AbstractCamera):
 		self.cam.stop_recording()
 
 	# 
-	def __video_noprev__(self, filename, tsec=30, *args, **kwargs):
+	def __video_noprev__(self, filename, *args, **kwargs):
 		"""
 		Record a video without preview in h264 format.
 		Recommended for high fps recordings.
@@ -233,7 +242,7 @@ class Camera(AbstractCamera):
 		self.cam.stop_recording()
 
 	# 
-	def __videomp4__(self, filename, tsec=30, *args, **kwargs):
+	def __videomp4__(self, filename, *args, **kwargs):
 		"""
 		Record an MP4 file using Ffmpeg.
 		Timestamps are not passed to Ffmpeg. Hence they are estimated.
@@ -254,7 +263,7 @@ class Camera(AbstractCamera):
 		pass
 
 	# 
-	def __ndarray__(self, filename=None, tsec=30):
+	def __ndarray__(self, filename, *args, **kwargs):
 		"""
 		Capture to ndarray object. NOT IMPLEMENTED
 		If filename is passed. The ndarray is packed to a .npy binary file.
