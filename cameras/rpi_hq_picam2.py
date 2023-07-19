@@ -272,7 +272,8 @@ class Camera(AbstractCamera):
 		"""
 		Captures in raw binary unncoded format. NOT IMPLEMENTED.
 		"""
-		pass
+		self.cam.configure(self.cam.create_video_configuration())
+		tsec = kwargs["tsec"]
 
 	# 
 	def __ndarray__(self, filename, *args, **kwargs):
@@ -282,12 +283,15 @@ class Camera(AbstractCamera):
 		tsec: Capture time in seconds. Number of frames captured is tsec*framerrate.
 		Shape of the captured array: frame X Width(px) X Height(px).
 		"""
+
+		# Need to set RGB888 format first
 		
 		# Check validity of the resolution
 		tsec = kwargs["tsec"]
 		fps = 30
 		valid_res = [mode["size"] for mode in self.cam.sensor_modes]
 		print(valid_res)
+		res = [2028, 1080]
 		#if self.config["size"] not in any(valid_res):
 		#
 		#	log.error("Invalid resolution for raw capture. Capture cancelled.")
@@ -295,9 +299,11 @@ class Camera(AbstractCamera):
 		#	return
 
 		# Pre-allocate array
-		array_shape = [int(tsec*fps), int(res[0]), int(res[1]), 3]
+		array_shape = [int(tsec*fps), int(res[0]), int(res[1]), 4]
 		self.array = np.ndarray(*array_shape)
 		print(self.array.shape)
+
+		self.cam.capture_arrays("main")
 
 	# 
 	def __stream__(self, stream):
