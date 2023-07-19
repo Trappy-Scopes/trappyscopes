@@ -7,7 +7,7 @@ import numpy as np
 import time
 
 from picamera2 import Picamera2, Preview
-from picamera2.outputs import FfmpegOutput
+from picamera2.outputs import FfmpegOutput, FileOutput
 from picamera2.encoders import H264Encoder, Quality
 
 class Camera(AbstractCamera):
@@ -222,8 +222,8 @@ class Camera(AbstractCamera):
 
 		#self.cam.configure(self.cam.create_video_configuration())
 		tsec = kwargs["tsec"]
-		filename = open(filename)
-		self.cam.start_and_record_video(filename, encoder=self.encoderh264, \
+		output = FileOutput(filename)
+		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
 								 show_preview=True, \
 								 duration=tsec)
 		filename.close()
@@ -241,7 +241,8 @@ class Camera(AbstractCamera):
 
 		#self.cam.configure(self.cam.create_video_configuration())
 		tsec = kwargs["tsec"]
-		self.cam.start_and_record_video(filename, encoder=self.encoderh264, \
+		output = FileOutput(filename)
+		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
 								 show_preview=False, \
 								 duration=tsec)
 		#time.sleep(tsec)
