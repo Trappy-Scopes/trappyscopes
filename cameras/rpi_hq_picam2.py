@@ -262,7 +262,7 @@ class Camera(AbstractCamera):
 		tsec = kwargs["tsec"]
 		output = FfmpegOutput(filename) # Opens a new file object
 		
-		self.cam.start_and_record_video(output, \
+		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
 								 show_preview=True, \
 								 duration=tsec)
 		self.cam.stop_preview()
