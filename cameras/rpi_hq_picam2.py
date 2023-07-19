@@ -173,7 +173,7 @@ class Camera(AbstractCamera):
 		tsec is ignored.
 		"""
 		self.cam.configure(self.cam.create_still_configuration())
-		self.cam.capture_file(filename)
+		self.cam.start_and_capture_file(filename)
 
 	# 
 	def __image_trig__(self, filename, *args, **kwargs):
