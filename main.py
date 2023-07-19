@@ -110,7 +110,7 @@ def close_exp():
 
 # Overloaded Exit function
 def exit():
-	if exp.active:
+	if exp and exp.active:
 		exp.close()
 	sys.exit()
 
