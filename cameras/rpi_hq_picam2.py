@@ -174,6 +174,7 @@ class Camera(AbstractCamera):
 		"""
 		self.cam.configure(self.cam.create_still_configuration())
 		self.cam.start_and_capture_file(filename)
+		self.cam.stop_preview()
 
 	# 
 	def __image_trig__(self, filename, *args, **kwargs):
