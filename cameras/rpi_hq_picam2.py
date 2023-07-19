@@ -92,7 +92,7 @@ class Camera(AbstractCamera):
 	def capture(self, action, filename, tsec=1,
 				iterations=1, itr_delay_s=0, init_delay_s=0, **kwargs):
 		action = action.lower().strip()
-		if action != "preview":
+		if action == "preview":
 			self.modes[action](tsec=tsec, **kwargs)
 		else:
 			self.modes[action](filename, tsec=tsec, **kwargs)
