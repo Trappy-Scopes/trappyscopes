@@ -284,6 +284,8 @@ class Camera(AbstractCamera):
 		"""
 		
 		# Check validity of the resolution
+		tsec = kwargs["tsec"]
+		fps = 30
 		valid_res = [mode["size"] for mode in self.cam.sensor_modes]
 		print(valid_res)
 		#if self.config["size"] not in any(valid_res):
