@@ -221,7 +221,7 @@ class Camera(AbstractCamera):
 		"""
 
 		#self.cam.configure(self.cam.create_video_configuration())
-		
+		tsec = kwargs["tsec"]
 		self.cam.start_and_record_video(filename, encoder=self.encoderh264, \
 								 quality=Quality.HIGH, show_preview=True, \
 								 duration=tsec)
@@ -236,7 +236,7 @@ class Camera(AbstractCamera):
 		"""
 
 		#self.cam.configure(self.cam.create_video_configuration())
-		
+		tsec = kwargs["tsec"]
 		self.cam.start_and_record_video(filename, encoder=self.encoderh264, \
 								 quality=Quality.HIGH, show_preview=False, \
 								 duration=tsec)
