@@ -213,7 +213,7 @@ class Camera(AbstractCamera):
 			num_files = frames, delay = delay_s, \
 			show_preview = True)
 
-	# 
+	# OK
 	def __video__(self, filename, *args, **kwargs):
 		"""
 		Record an h264 video.
@@ -233,7 +233,7 @@ class Camera(AbstractCamera):
 
 		# quality=Quality.HIGH
 
-	# 
+	# OK
 	def __video_noprev__(self, filename, *args, **kwargs):
 		"""
 		Record a video without preview in h264 format.
@@ -259,7 +259,7 @@ class Camera(AbstractCamera):
 		"""
 
 		self.cam.configure(self.cam.create_video_configuration())
-
+		tsec = kwargs["tsec"]
 		output = FfmpegOutput(filename) # Opens a new file object
 		output.start()
 		time.sleep(tsec)
