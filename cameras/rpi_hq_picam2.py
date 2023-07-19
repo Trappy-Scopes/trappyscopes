@@ -105,7 +105,7 @@ class Camera(AbstractCamera):
 		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
 		self.cam.start_preview(Preview.QT)
 		time.sleep(tsec)
-		self.cam.stop_preview(Preview.QT)
+		self.cam.stop_preview()
 
 	# 7
 	def state(self):
@@ -226,6 +226,7 @@ class Camera(AbstractCamera):
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
 								 show_preview=True, \
 								 duration=tsec)
+		self.cam.stop_preview()
 		#filename.close()
 		#time.sleep(tsec)
 		#self.cam.stop_recording()
