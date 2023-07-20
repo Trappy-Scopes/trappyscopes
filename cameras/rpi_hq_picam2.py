@@ -114,7 +114,7 @@ class Camera(AbstractCamera):
 	# 7
 	def state(self):
 		state_ = {}
-		state_.update(self.controls)
+		state_.update(self.config)
 		state_.update(self.cam.camera_properties)
 		return state_
 
