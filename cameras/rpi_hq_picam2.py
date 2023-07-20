@@ -47,7 +47,7 @@ class Camera(AbstractCamera):
 		# Configurations
 		self.still_config = self.cam.create_video_configuration()
 		self.video_config = self.cam.create_video_configuration()
-		self.preview_config = self.create_still_configuration()
+		self.preview_config = self.cam.create_still_configuration()
 
 
 		# Configuration Setting Functions
