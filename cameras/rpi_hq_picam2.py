@@ -272,7 +272,7 @@ class Camera(AbstractCamera):
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
-								 show_preview=False, config=self.video_config\
+								 show_preview=False, config=self.video_config, \
 								 duration=tsec)
 		#time.sleep(tsec)
 		#self.cam.stop_recording()
