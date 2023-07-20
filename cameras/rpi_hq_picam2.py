@@ -69,6 +69,7 @@ class Camera(AbstractCamera):
 	# 3
 	def close(self):
 		self.cam.close()
+		self.encoderh264.close()
 		log.info("PiCamera2 Camera was closed.")
 
 	# 4
@@ -80,7 +81,7 @@ class Camera(AbstractCamera):
 
 		# Ignoring config_file option for now.
 		self.config["controls"] = {
-			"ExposureTime": 1000,
+			#"ExposureTime": 1000,
 			
 			"AnalogueGain": 1,
 			"AeEnable"    : False,
@@ -272,7 +273,7 @@ class Camera(AbstractCamera):
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
-								 show_preview=False, config=self.video_config, \
+								 show_preview=False, config=self.video_config, 	\
 								 duration=tsec)
 		#time.sleep(tsec)
 		#self.cam.stop_recording()
