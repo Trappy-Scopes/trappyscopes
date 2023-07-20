@@ -71,12 +71,6 @@ class Camera(AbstractCamera):
 		The rest are set based on the capture mode.
 		"""
 
-		# TODO add code to set fps and resolution
-		print(f"Setting fps:{fps} and resolution:{res}")
-		self.video_config.update({"size": tuple(res), "fps":fps})
-		self.still_config.update({"size": tuple(res), "fps":fps})
-		self.preview_config.update({"size": tuple(res), "fps":fps})
-
 		# Ignoring config_file option for now.
 		self.config["controls"] = {
 			"ExposureTime": 1000,
@@ -95,6 +89,17 @@ class Camera(AbstractCamera):
 
 			}
 		self.cam.set_controls(self.config["controls"])
+
+		print(f"Setting fps:{fps} and resolution:{res}")
+		frameduration = int((1/fps)*1**6)
+		framedurationlim = (frameduration, frameduration)
+		
+		self.still_config["size"] = tuple(res)
+		self.still_config["controls"]["FrameDurationLimits": framedurationlim]
+		self.video_config["size"] = tuple(res)
+		self.video_config["controls"]["FrameDurationLimits": framedurationlim]
+		self.preview_config["size"] = tuple(res)
+		self.preview_config["controls"]["FrameDurationLimits": framedurationlim]
 
 		time.sleep(0.2) # Sync Delay
 
