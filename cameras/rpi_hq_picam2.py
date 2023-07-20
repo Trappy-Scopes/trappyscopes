@@ -102,11 +102,11 @@ class Camera(AbstractCamera):
 		framedurationlim = (frameduration, frameduration)
 		
 		self.still_config["size"] = tuple(res)
-		self.still_config["controls"]["FrameDurationLimits": framedurationlim]
+		self.still_config["controls"]["FrameDurationLimits"] = framedurationlim
 		self.video_config["size"] = tuple(res)
-		self.video_config["controls"]["FrameDurationLimits": framedurationlim]
+		self.video_config["controls"]["FrameDurationLimits"] = framedurationlim
 		self.preview_config["size"] = tuple(res)
-		self.preview_config["controls"]["FrameDurationLimits": framedurationlim]
+		self.preview_config["controls"]["FrameDurationLimits"] = framedurationlim
 
 		time.sleep(0.2) # Sync Delay
 
