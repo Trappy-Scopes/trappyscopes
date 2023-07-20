@@ -1,6 +1,6 @@
 from abcs.camera import AbstractCamera
 
-
+from pprint.format as ppformat
 from pprint import pprint
 import logging as log
 import numpy as np
@@ -137,7 +137,7 @@ class Camera(AbstractCamera):
 	def __repr__(self):
 		time_now = time.perf_counter()
 		return f"<PiCamera2 - {(time_now - self.opentime_ns):.3f}s>" + \
-			   pprint.format(self.status())
+			   ppformat(self.status())
 
 	# --- Implementation Specific functions ---
 
