@@ -136,7 +136,7 @@ class Camera(AbstractCamera):
 	# 9
 	def __repr__(self):
 		time_now = time.perf_counter()
-		return f"<PiCamera2 - {time_now - self.opentime_ns:3d}s>" + \
+		return f"<PiCamera2 - {(time_now - self.opentime_ns):3d}s>" + \
 			   pprint.format(self.status())
 
 	# --- Implementation Specific functions ---
