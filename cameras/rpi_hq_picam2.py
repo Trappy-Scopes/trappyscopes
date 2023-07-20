@@ -50,6 +50,13 @@ class Camera(AbstractCamera):
 		self.preview_config = self.create_still_configuration()
 
 
+		# Configuration Setting Functions
+		self.config_default =  lambda : self.configure(res=(1980, 1080), fps=30)
+		self.config_default2 = lambda : self.configure(res=(2028, 1080), fps=30)
+		self.config_largeres = lambda : self.configure(res=(4056, 3040), fps=10)
+		self.config_largefps = lambda : self.configure(res=(1332, 990), fps=120)
+
+
 	# 2
 	def open(self):
 		self.cam.close()
@@ -102,12 +109,6 @@ class Camera(AbstractCamera):
 		self.preview_config["controls"]["FrameDurationLimits": framedurationlim]
 
 		time.sleep(0.2) # Sync Delay
-
-	# Functions for specific configurations
-	self.config_default =  lambda : self.configure(res=(1980, 1080), fps=30)
-	self.config_default2 = lambda : self.configure(res=(2028, 1080), fps=30)
-	self.config_largeres = lambda : self.configure(res=(4056, 3040), fps=10)
-	self.config_largefps = lambda : self.configure(res=(1332, 990), fps=120)
 
 	# 5
 	def capture(self, action, filename, tsec=1,
