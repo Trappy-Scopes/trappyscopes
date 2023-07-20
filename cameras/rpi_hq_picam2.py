@@ -44,6 +44,10 @@ class Camera(AbstractCamera):
 
 		self.config = config
 
+		# Configurations
+		self.still_config = self.cam.create_video_configuration()
+		self.video_config = self.cam.create_video_configuration()
+		self.preview_config = self.create_still_configuration()
 
 
 	# 2
@@ -68,7 +72,10 @@ class Camera(AbstractCamera):
 		"""
 
 		# TODO add code to set fps and resolution
-
+		print(f"Setting fps:{fps} and resolution:{res}")
+		self.video_config.update({"size": tuple(res), "fps":fps})
+		self.still_config.update({"size": tuple(res), "fps":fps})
+		self.preview_config.update({"size": tuple(res), "fps":fps})
 
 		# Ignoring config_file option for now.
 		self.config["controls"] = {
@@ -90,6 +97,12 @@ class Camera(AbstractCamera):
 		self.cam.set_controls(self.config["controls"])
 
 		time.sleep(0.2) # Sync Delay
+
+	# Functions for specific configurations
+	self.config_default =  lambda : self.configure(res=(1980, 1080), fps=30)
+	self.config_default2 = lambda : self.configure(res=(2028, 1080), fps=30)
+	self.config_largeres = lambda : self.configure(res=(4056, 3040), fps=10)
+	self.config_largefps = lambda : self.configure(res=(1332, 990), fps=120)
 
 	# 5
 	def capture(self, action, filename, tsec=1,
