@@ -67,7 +67,8 @@ class Camera(AbstractCamera):
 		The rest are set based on the capture mode.
 		"""
 
-		# TODO add code to set fps and resolution		
+		# TODO add code to set fps and resolution
+
 
 		# Ignoring config_file option for now.
 		self.config["controls"] = {
@@ -111,14 +112,14 @@ class Camera(AbstractCamera):
 		time.sleep(tsec)
 		self.cam.stop_preview()
 
-	# 7
+	# 7 TODo Rethink
 	def state(self):
 		state_ = {}
 		state_.update(self.config)
 		state_.update(self.cam.camera_properties)
 		return state_
 
-	# 8
+	# 8 #TODO
 	def help(self):
 		"""
 		Prints docstrings for all capture modes.
@@ -135,8 +136,7 @@ class Camera(AbstractCamera):
 	# 9
 	def __repr__(self):
 		time_now = time.perf_counter()
-		return f"<PiCamera2 - {(time_now - self.opentime_ns):.3f}s>" + \
-			   pformat(self.state())
+		return f"<PiCamera2 - op for{(time_now - self.opentime_ns):.3f}s>"
 
 	# --- Implementation Specific functions ---
 
