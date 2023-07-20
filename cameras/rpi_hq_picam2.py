@@ -136,7 +136,7 @@ class Camera(AbstractCamera):
 	def __repr__(self):
 		time_now = time.perf_counter()
 		return f"<PiCamera2 - {(time_now - self.opentime_ns):.3f}s>" + \
-			   pformat(self.status())
+			   pformat(self.state())
 
 	# --- Implementation Specific functions ---
 
@@ -145,12 +145,12 @@ class Camera(AbstractCamera):
 		self.config = self.cam.align_configuration(self.config)
 		log.info(f"Camera config: {self.config}")
 
-	# 11
-	def autofocus(self):
+	# 11 - Not implemented by PiCamera2 for RPi HQ Camera
+	#def autofocus(self):
 		"""
 		Trigger Autofocus cycle. Returns the success status.
 		"""
-		return self.cam.autofocus_cycle()
+	#	return self.cam.autofocus_cycle()
 
 	# 12
 	def timestamp(self, mode, *args, **kwargs):
@@ -160,7 +160,7 @@ class Camera(AbstractCamera):
 		"""
 		Returns the Metadata from the last frame.
 		"""
-		md = self.frame_metadata()
+		md = self.cam.capture_metadata()
 		return md
 
 	def lux_state(self):
