@@ -127,6 +127,7 @@ class Camera(AbstractCamera):
 
 		helpdict = {}
 		for mode in self.modes:
+			print(self.modes[mode])
 			helpdict[mode] = self.modes[mode].__doc__.strip("\n")
 		print("PiCamera2 Capture Modes:")
 		pprint(helpdict)
