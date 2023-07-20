@@ -200,7 +200,7 @@ class Camera(AbstractCamera):
 		tsec is ignored.
 		"""
 		self.cam.configure(self.cam.create_still_configuration())
-		self.cam.start_and_capture_file(filename)
+		self.cam.start_and_capture_file(filename, config=self.still_config)
 		self.cam.stop_preview()
 
 	# 
@@ -211,7 +211,7 @@ class Camera(AbstractCamera):
 
 		# Maybe set trigger prompt in the title bar of the window.
 		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
-		self.cam.configure(self.cam.create_still_configuration())
+		self.cam.configure(self.still_config)
 		
 		self.cam.start_preview(Preview.QTGL)
 		
@@ -252,7 +252,7 @@ class Camera(AbstractCamera):
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
-								 show_preview=True, \
+								 show_preview=True, config=self.video_config, \
 								 duration=tsec)
 		self.cam.stop_preview()
 		#filename.close()
@@ -272,7 +272,7 @@ class Camera(AbstractCamera):
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
-								 show_preview=False, \
+								 show_preview=False, config=self.video_config\
 								 duration=tsec)
 		#time.sleep(tsec)
 		#self.cam.stop_recording()
@@ -291,7 +291,7 @@ class Camera(AbstractCamera):
 		output = FfmpegOutput(filename) # Opens a new file object
 		
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
-								 show_preview=True, \
+								 show_preview=True, config=self.video_config, \
 								 duration=tsec)
 		self.cam.stop_preview()
 

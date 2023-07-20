@@ -71,7 +71,7 @@ cam = CameraSelector(device_metadata["hardware"]["camera"])
 if not cam.is_open():
 	log.error("Could not get a camera device - exiting.")
 	exit(1)
-cam.configure()
+#cam.configure()
 log.info(cam)
 
 

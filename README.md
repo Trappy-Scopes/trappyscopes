@@ -121,7 +121,18 @@ The default mode for parsing a device ID structure is to first cast each field t
 
 #### Stream Configurations
 
-+ 
+```mermaid
+flowchart LR
+	Camera
+	
+	Camera -.stream.- main
+	Camera  -.stream.- lowres
+	Camera  -.stream.- lowres
+
+
+```
+
+
 
 
 
@@ -154,7 +165,6 @@ The default mode for parsing a device ID structure is to first cast each field t
 + DONE: Fix abcs import issues.
 11. Camera Abstract class add `is_open()` method. `configure()` change of kwargs.
 + DONE: Check if `Experiment` class changes current wd of the python kernal.
-
 
 
 
