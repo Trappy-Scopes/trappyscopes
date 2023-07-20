@@ -37,6 +37,7 @@ class Camera(AbstractCamera):
 					  "stream"		 : self.__stream__
 					 }
 
+
 		# Video Encoders and image quality parameters
 		self.encoderh264 = H264Encoder()
 		self.cam.options["quality"] = 95
@@ -61,15 +62,16 @@ class Camera(AbstractCamera):
 		log.info("PiCamera2 Camera was closed.")
 
 	# 4
-	def configure(self, fps=30, res=[1920, 1080],  config=None):
+	def configure(self, fps=30, res=[1920, 1080],  config=None, mode=None):
 		"""
 		Configure the base settings of the camera.
 		The rest are set based on the capture mode.
 		"""
 
-		# Ignoring config_file option for now.
+		# TODO add code to set fps and resolution		
 
-		self.cam.set_controls({
+		# Ignoring config_file option for now.
+		self.config["controls"] = {
 			"ExposureTime": 1000,
 			
 			"AnalogueGain": 1,
@@ -84,13 +86,16 @@ class Camera(AbstractCamera):
 			"Contrast"    : 1.0, # [0.0, 32.0]
 			"Brightness"  : 0.0, # [-1.0, 1-0]
 
-			})
+			}
+		self.cam.set_controls(self.config["controls"])
 
 		time.sleep(0.2) # Sync Delay
 
 	# 5
 	def capture(self, action, filename, tsec=1,
 				iterations=1, itr_delay_s=0, init_delay_s=0, **kwargs):
+		# Iterations	
+
 		action = action.lower().strip()
 		if action == "preview":
 			self.modes[action](tsec=tsec, **kwargs)
@@ -99,7 +104,7 @@ class Camera(AbstractCamera):
 
 	# 6
 	def preview(self, tsec=30, preview=Preview.QT):
-
+		# Doesnt work
 		self.cam.configure(self.cam.create_preview_configuration())
 
 		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
@@ -109,7 +114,10 @@ class Camera(AbstractCamera):
 
 	# 7
 	def state(self):
-		return self.cam.camera_properties
+		state_ = {}
+		state.extend(self.controls)
+		state_.extend(self.cam.camera_properties)
+		return state_
 
 	# 8
 	def help(self):
@@ -119,7 +127,7 @@ class Camera(AbstractCamera):
 
 		helpdict = {}
 		for mode in self.modes:
-			helpdict[mode] = self.mode[mode].__doc__.strip("\n")
+			helpdict[mode] = self.modes[mode].__doc__.strip("\n")
 		print("PiCamera2 Capture Modes:")
 		pprint(helpdict)
 
@@ -166,7 +174,7 @@ class Camera(AbstractCamera):
 	
 	### Capture mode implementations
 
-	# 
+	# OK
 	def __image__(self, filename, *args, **kwargs):
 		"""
 		Capture a png image.

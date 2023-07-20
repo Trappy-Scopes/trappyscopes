@@ -106,11 +106,43 @@ The default mode for parsing a device ID structure is to first cast each field t
 
 
 
+### PiCamera 2 Library
+
++ There are `streams`, `outputs`, and `encoders`. All of these need to be created and connected for the camera to work.
++ QT windows are blocking in nature. It is important to understand how to make them async and non-blocking.
+
+#### Basic SpaceTime Constants
+
++ default: fps=30, res = 1980X1080
++ default2 : fps=30, res = 2028X1080
+
++ largeres : fps=10, res=4056X3040
++ largefps : fps=120.03, res=1332X990
+
+#### Stream Configurations
+
++ 
+
+
+
+#### Modes of operation:
+
+0. "preview" : Gray window
+1. "image": Working corretly, however the startup overhead is significant.
+2. "image_trig" : Gray window and process blocks indefinately after trigger.  
+3. "timelapse"	  : Not tested 
+4. "video"	      : Ok
+5. "videomp4"     : Ok   
+6. "video_noprev" : Ok 
+7. "video_raw"    : Implemented  
+8. "ndarray"		  : Not implemented
+9. "stream"		    : Not implemented
+
 
 ### TODO
 
-0. `pyboard` seems to be corrupt. Replace it. Or check if the error only persists if no device is connected.
-1. Fix Camera selector
++ DONE: `pyboard` seems to be corrupt. Replace it. Or check if the error only persists if no device is connected.
++ DONE: Fix Camera selector
 2. Clean scope-cli folder.
 + DONE: Fix experiment class
 4. Review each function of PiCamera 2 control layer.
@@ -119,7 +151,10 @@ The default mode for parsing a device ID structure is to first cast each field t
 + CANCELLED: Device declaration before the fluff.header() should dump formatted yaml instead of a python dict.
 + DONE:  Add Living Physics, IGC to the fluff.header().
 9. Interpretor ascelation from `python3` to `python`.
-10. Fix abcs import issues.
++ DONE: Fix abcs import issues.
 11. Camera Abstract class add `is_open()` method. `configure()` change of kwargs.
 + DONE: Check if `Experiment` class changes current wd of the python kernal.
-13. 
+
+
+
+
