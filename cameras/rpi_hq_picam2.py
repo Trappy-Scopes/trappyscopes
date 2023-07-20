@@ -1,6 +1,6 @@
 from abcs.camera import AbstractCamera
 
-from pprint.format as ppformat
+import pprint.format as ppformat
 from pprint import pprint
 import logging as log
 import numpy as np
