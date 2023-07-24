@@ -138,13 +138,32 @@ class Camera(AbstractCamera):
 	# 5
 	def capture(self, action, filename, tsec=1,
 				iterations=1, itr_delay_s=0, init_delay_s=0, **kwargs):
-		# TODO Iterations	
+		"""
+		init_delay does not include camara mode changes applied at 
+		the beginning which might be of the order of 100s of ms.
+		"""	
 
 		action = action.lower().strip()
-		if action == "preview":
-			self.modes[action](tsec=tsec, **kwargs)
+		if iterations == 1:
+			if action == "preview":
+				self.modes[action](tsec=tsec, **kwargs)
+			else:
+				self.modes[action](filename, tsec=tsec, **kwargs)
 		else:
-			self.modes[action](filename, tsec=tsec, **kwargs)
+			if action == "preview":
+				self.modes[action](tsec=tsec, **kwargs)
+			else:
+				filename_stubs = filename.split(".")
+				filenames_ = [f"{filename_stubs[0]}_{i}.{filename_stubs[1]}" \
+				for i in range(iterations)]
+				print(filenames_)
+				time.sleep(init_delay_s)
+				for i in range(iterations):
+					filename_ = filenames_[i]
+					print(f"{i}. Capturing file: {filename_}")
+					self.modes[action](filename, tsec=tsec, **kwargs)
+					print(f"{i}. Sleeping for {itr_delay_s}s.")
+					time.sleep(itr_delay_s)
 
 	# 6
 	def preview(self, tsec=30, preview=Preview.QT):
