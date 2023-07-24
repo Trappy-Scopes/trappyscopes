@@ -1,6 +1,7 @@
 from abcs.camera import AbstractCamera
 
 from pprint import pprint, pformat
+from copy import deepcopy
 import logging as log
 import numpy as np
 import time
@@ -17,21 +18,29 @@ class Camera(AbstractCamera):
 	config parameter can be used to pass a configuration dict.
 	"""
 	# 1
-	def __init__(self, config={}):
+	def __init__(self):
+		
 		self.cam = Picamera2()
 		self.opentime_ns = time.perf_counter()
 		log.info("PiCamera2 Camera was opened.") # Constructor opens the cam.
 
+
+		# Preview Window Settings
+		self.preview_type = Preview.QT
+		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
+
+
+
 		# Capture Modes for this implementation
 		self.modes = {
 					  "preview"      : self.preview,
-					  "image"        : self.__image__,
-					  "image_trig"   : self.__image_trig__,
+					  "img"          : self.__image__,
+					  "img_trig"     : self.__image_trig__,
 					  "timelapse"	 : self.__timelapse__,
-					  "video"	     : self.__video__,
-					  "videomp4"     : self.__videomp4__,
-					  "video_noprev" : self.__video_noprev__,
-					  "video_raw"    : self.__video_raw__,
+					  "vid"	         : self.__video__,
+					  "vidmp4"       : self.__videomp4__,
+					  "vid_noprev"   : self.__video_noprev__,
+					  "vid_raw"      : self.__video_raw__,
 					  "ndarray"		 : self.__ndarray__,
 					  "stream"		 : self.__stream__
 					 }
@@ -42,13 +51,20 @@ class Camera(AbstractCamera):
 		self.cam.options["quality"] = 95
 		self.cam.options["compress_level"] = 0
 
-		self.config = config
+
+		# Specific config and controls that deviate from the PiCamera defaults.
+		self.config = {}
+		self.controls = {}
 
 		# Configurations
-		self.still_config = self.cam.create_video_configuration()
-		self.video_config = self.cam.create_video_configuration()
-		self.preview_config = self.cam.create_still_configuration()
+		self.config_map = {}
+		self.config_map["preview"] = self.cam.create_preview_configuration()
+		self.config_map["still"] = self.cam.create_still_configuration()
+		self.config_map["video"] = self.cam.create_video_configuration()
 
+		self.config_map["still"]["lores"] = {}
+		self.config_map["still"]["display"] = "lores" # Turn on preview
+		
 
 		# Configuration Setting Functions
 		self.config_default =  lambda : self.configure(res=(1980, 1080), fps=30)
@@ -56,13 +72,21 @@ class Camera(AbstractCamera):
 		self.config_largeres = lambda : self.configure(res=(4056, 3040), fps=10)
 		self.config_largefps = lambda : self.configure(res=(1332, 990), fps=120)
 
+		# Set initial conditions
+		self.mode_ = "video" 	# Current Mode - ["preview", "still", "video"]
+		self.config_default() 	# Configure default resoltion and fps
+		self.cam.configure(self.config_map["video"])
+		time.sleep(0.2)
 
 	# 2
 	def open(self):
-		self.cam.close()
+		self.close()
 		self.cam.start()
+		self.encoderh264 = H264Encoder()
+		self.opentime_ns = time.perf_counter()
 		log.info("PiCamera2 Camera was opened.")
 
+	# 3
 	def is_open(self):
 		return self.cam.is_open
 
@@ -73,14 +97,15 @@ class Camera(AbstractCamera):
 		log.info("PiCamera2 Camera was closed.")
 
 	# 4
-	def configure(self, fps=30, res=[1920, 1080],  config=None, mode=None):
+	def configure(self, fps=30, res=[1920, 1080], config=None):
 		"""
-		Configure the base settings of the camera.
+		Configure the base settings of the camera. Both the [stream] configurations and controls.
 		The rest are set based on the capture mode.
+		Ignoring config_file option for now.
 		"""
 
-		# Ignoring config_file option for now.
-		self.config["controls"] = {
+		# CONTROLS
+		self.controls = {
 			#"ExposureTime": 1000,
 			
 			"AnalogueGain": 1,
@@ -94,27 +119,26 @@ class Camera(AbstractCamera):
 			#"NoiseReductionMode" : draft.NoiseReductionModeEnum.Off, # Or use Fast
 			"Contrast"    : 1.0, # [0.0, 32.0]
 			"Brightness"  : 0.0, # [-1.0, 1-0]
-
 			}
-		self.cam.set_controls(self.config["controls"])
+		self.cam.set_controls(self.controls)
 
+
+		# CONFIGURATIONS
 		print(f"Setting fps:{fps} and resolution:{res}")
 		frameduration = int((1/fps)*1**6)
 		framedurationlim = (frameduration, frameduration)
 		
-		self.still_config["size"] = tuple(res)
-		self.still_config["controls"]["FrameDurationLimits"] = framedurationlim
-		self.video_config["size"] = tuple(res)
-		self.video_config["controls"]["FrameDurationLimits"] = framedurationlim
-		self.preview_config["size"] = tuple(res)
-		self.preview_config["controls"]["FrameDurationLimits"] = framedurationlim
 
+		for mode_ in self.config_map:
+			self.config_map[mode_]["size"] = tuple(res)
+			self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
+														 framedurationlim
 		time.sleep(0.2) # Sync Delay
 
 	# 5
 	def capture(self, action, filename, tsec=1,
 				iterations=1, itr_delay_s=0, init_delay_s=0, **kwargs):
-		# Iterations	
+		# TODO Iterations	
 
 		action = action.lower().strip()
 		if action == "preview":
@@ -124,33 +148,39 @@ class Camera(AbstractCamera):
 
 	# 6
 	def preview(self, tsec=30, preview=Preview.QT):
-		# Doesnt work
-		self.cam.configure(self.cam.create_preview_configuration())
+		"""
+		Start a preview. Defaults for 30seconds. 
+		Infinite preview or pre-emptive termination is not supported. 
+		"""
+		self.set_mode_config("preview")
 
-		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
-		self.cam.start_preview(Preview.QT)
+		self.cam.start_preview(self.preview_type)
 		time.sleep(tsec)
 		self.cam.stop_preview()
 
 	# 7 TODo Rethink
 	def state(self):
+		"""
+		Returns a dictionary of the parameter settings of the camera.
+		"""
 		state_ = {}
-		state_.update(self.config)
+		state_["config"] = self.config
+		state_["controls"] = self.controls
 		state_.update(self.cam.camera_properties)
 		return state_
 
-	# 8 #TODO
+	# 8
 	def help(self):
 		"""
 		Prints docstrings for all capture modes.
 		"""
-
 		helpdict = {}
 		for mode in self.modes:
 			print(self.modes[mode])
-			helpdict[mode] = self.modes[mode].__doc__.strip("\n")
+			helpdict[mode] = self.modes[mode].__doc__.strip("\n").strip("\t")
 		print("PiCamera2 Capture Modes:")
-		pprint(helpdict)
+		for z in zip(self.modes.keys(), helpdict):
+			pprint(z)
 
 
 	# 9
@@ -162,19 +192,18 @@ class Camera(AbstractCamera):
 
 	# 10
 	def optimize(self):
+		# TODO Redo for all three configurations
 		self.config = self.cam.align_configuration(self.config)
-		log.info(f"Camera config: {self.config}")
-
-	# 11 - Not implemented by PiCamera2 for RPi HQ Camera
-	#def autofocus(self):
-		"""
-		Trigger Autofocus cycle. Returns the success status.
-		"""
-	#	return self.cam.autofocus_cycle()
+		log.info(f"Camera config optimized to: {self.config}")
+		self.cam.configure(self.config)
 
 	# 12
 	def timestamp(self, mode, *args, **kwargs):
-		pass
+		tsec = kwargs["tsec"]
+		for i in range(tsec*self.get_fps()):
+			f_md = self.frame_metadata()
+			print(f"{i}. {self.time.time_ns()}")
+
 
 	def frame_metadata(self):
 		"""
@@ -191,6 +220,14 @@ class Camera(AbstractCamera):
 		return {"lux": md["Lux"], "color_temp": md["ColorGains"]}
 
 
+	def set_mode_config(self, mode):
+		if self.mode_ != mode:
+			self.close()	   # Close Camera
+			self.mode_ = mode
+			self.cam.configure(self.config_map[mode])
+			self.open()		  # Open Camera
+			time.sleep(0.2)
+
 	
 	### Capture mode implementations
 
@@ -200,29 +237,25 @@ class Camera(AbstractCamera):
 		Capture a png image.
 		tsec is ignored.
 		"""
-		self.cam.configure(self.cam.create_still_configuration())
-		self.cam.start_and_capture_file(filename, config=self.still_config)
+		self.set_mode_config("still")
+		self.cam.start_and_capture_file(filename)
 		self.cam.stop_preview()
 
-	# 
+	# NOK
 	def __image_trig__(self, filename, *args, **kwargs):
 		"""
 		Capture PNG image when the `Enter` key is pressed.
 		"""
-
-		# Maybe set trigger prompt in the title bar of the window.
-		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
-		self.cam.configure(self.still_config)
+		self.set_mode_config("still")
 		
-		self.cam.start_preview(Preview.QTGL)
-		
+		self.cam.start_preview(Preview.QT)
 		_ = input("Waiting for image trigger: Enter key...")
 		self.cam.capture_file(filename, format='png')
 		print("Capture completed.")
 
 		self.cam.stop_preview()
 
-	# 
+	# NOk
 	def __timelapse__(self, filename, *args, **kwargs):
 		"""
 		Captures a timelapse sequence in jpeg format.
@@ -230,18 +263,19 @@ class Camera(AbstractCamera):
 		frames: number of frames that must be captured.
 		delay_s (optional) : Delay between images in seconds.
 		"""
-		filenames = args[0]
-
 		if not all(["frames", "delay_s"]) in kwargs:
 			raise KeyError("Either arguments missing: frames and/or delay_s")
 
+		self.set_mode_config("still")
 
-		filenames_ = "{:03d}" + filenames
+		filenames_ = "{:03d}" + filename
 		self.cam.start_and_capture_files( \
 			name=filenames_, init_delay=0, \
-			num_files = frames, delay = delay_s, \
+			num_files = kwargs["frames"], delay = kwargs["delay_s"], \
 			show_preview = True)
+		self.cam.stop_preview()
 
+	
 	# OK
 	def __video__(self, filename, *args, **kwargs):
 		"""
@@ -250,16 +284,14 @@ class Camera(AbstractCamera):
 		"""
 
 		#self.cam.configure(self.cam.create_video_configuration())
+		self.set_mode_config("video")
+
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
-								 show_preview=True, config=self.video_config, \
+								 show_preview=True, \
 								 duration=tsec)
 		self.cam.stop_preview()
-		#filename.close()
-		#time.sleep(tsec)
-		#self.cam.stop_recording()
-
 		# quality=Quality.HIGH
 
 	# OK
@@ -268,16 +300,13 @@ class Camera(AbstractCamera):
 		Record a video without preview in h264 format.
 		Recommended for high fps recordings.
 		"""
+		self.set_mode_config("video")
 
-		#self.cam.configure(self.cam.create_video_configuration())
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
-								 show_preview=False, config=self.video_config, 	\
+								 show_preview=False, \
 								 duration=tsec)
-		#time.sleep(tsec)
-		#self.cam.stop_recording()
-
 		#quality=Quality.HIGH, 
 
 	# Ok
@@ -286,13 +315,13 @@ class Camera(AbstractCamera):
 		Record an MP4 file using Ffmpeg.
 		Timestamps are not passed to Ffmpeg. Hence they are estimated.
 		"""
+		self.set_mode_config("video")
 
-		self.cam.configure(self.cam.create_video_configuration())
 		tsec = kwargs["tsec"]
-		output = FfmpegOutput(filename) # Opens a new file object
+		output = FfmpegOutput(filename) # Opens a new encoder file object
 		
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
-								 show_preview=True, config=self.video_config, \
+								 show_preview=True, \
 								 duration=tsec)
 		self.cam.stop_preview()
 
@@ -301,7 +330,7 @@ class Camera(AbstractCamera):
 		"""
 		Captures in raw binary unncoded format. NOT IMPLEMENTED.
 		"""
-		self.cam.configure(self.cam.create_video_configuration())
+		self.set_mode_config("video") #Probably not necessary
 		tsec = kwargs["tsec"]
 
 	# 

@@ -111,7 +111,7 @@ The default mode for parsing a device ID structure is to first cast each field t
 + There are `streams`, `outputs`, and `encoders`. All of these need to be created and connected for the camera to work.
 + QT windows are blocking in nature. It is important to understand how to make them async and non-blocking.
 
-#### Basic SpaceTime Constants
+#### Stream Configurations
 
 + default: fps=30, res = 1980X1080
 + default2 : fps=30, res = 2028X1080
@@ -119,20 +119,51 @@ The default mode for parsing a device ID structure is to first cast each field t
 + largeres : fps=10, res=4056X3040
 + largefps : fps=120.03, res=1332X990
 
-#### Stream Configurations
+**Configuration and Control Structures:**
+
++ "preview" : used for previews. — no auto adjustments.
++ "still" : used for images. — no auto adjustments.
++ "video" : used for videos — no auto adjustments.
++ "default" : default video configuration — all auto adjustments enabled as in defaults.
+
+**Image Formats:** 
+
+1. For most operations: `XBGR8888` : [R, G, B, 255]. It is the default.
+2. For Raw Captures, it must be set to: `BGR888` : [R, G, B]
+
+#### PiCamera 2 Harware-ISP Model
 
 ```mermaid
 flowchart LR
-	Camera
 	
-	Camera -.stream.- main
-	Camera  -.stream.- lowres
-	Camera  -.stream.- lowres
+	Camera --> CSI-2-Receiver --> Memory --> raw-stream
+																Memory --> ISP(ISP<br>Image Signal Processor)
+																ISP --> main-stream
+																ISP --> lowres-stream
+	
+	
+	Camera-Memory -.stream.- main
+	Camera-Memory  -.stream.- lores
+	Camera-Memory  -.stream.- raw
+	Controls -.sets.-> Camera
+	
+	main --- Streams
+	lores --- Streams
+	raw --- Streams
+	
+	Configuration -.sets.-> Streams
+	Streams --> Encoder
+	Encoder --> OutputObject
+	Encoder <-.- H264Encoder([H264Encoder])
+	OutputObject --> Capture[[Capture]]
+	OutputObject <-.- FFmpegOutput([FFmpegOutput])
+	OutputObject <-.- FileOutput([FileOutput])
 
 
 ```
 
-
++ The main and lores streams need to have the same `colour_space` whereas, the raw stream has the camera hardware defined color space. **The choise is left to the PiCamera2 autosettings.**
++ 
 
 
 
