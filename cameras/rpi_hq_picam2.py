@@ -168,7 +168,7 @@ class Camera(AbstractCamera):
 				for i in range(iterations):
 					filename_ = filenames_[i]
 					print(f"{i}. Capturing file: {filename_}")
-					self.modes[action](filename, tsec=tsec, **kwargs)
+					self.modes[action](filename_, tsec=tsec, **kwargs)
 					print(f"{i}. Sleeping for {itr_delay_s}s.")
 					time.sleep(itr_delay_s)
 
@@ -212,7 +212,7 @@ class Camera(AbstractCamera):
 	# 9
 	def __repr__(self):
 		time_now = time.perf_counter()
-		return f"<PiCamera2 - op for{(time_now - self.opentime_ns):.3f}s>"
+		return f"<PiCamera2 - op for {(time_now - self.opentime_ns):.2f}s>"
 
 	# --- Implementation Specific functions ---
 
@@ -255,6 +255,7 @@ class Camera(AbstractCamera):
 			self.mode_ = mode
 			self.cam.configure(self.config_map[mode])
 			self.close()	   # Close Camera
+			time.sleep(0.5)
 			self.open()		  # Open Camera
 			time.sleep(0.2)
 
