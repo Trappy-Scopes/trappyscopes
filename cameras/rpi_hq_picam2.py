@@ -81,8 +81,8 @@ class Camera(AbstractCamera):
 		self.config_map["still"] = self.cam.create_still_configuration()
 		self.config_map["video"] = self.cam.create_video_configuration()
 
-		self.config_map["still"]["lores"] = {}
-		self.config_map["still"]["display"] = "lores" # Turn on preview
+		#self.config_map["still"]["lores"] = {}
+		#self.config_map["still"]["display"] = "lores" # Turn on preview
 		
 		self.config_map["preview"]["controls"] = self.controls
 		self.config_map["still"]["controls"] = self.controls
