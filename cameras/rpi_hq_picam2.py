@@ -19,7 +19,7 @@ class Camera(AbstractCamera):
 	"""
 
 	default_controls = {
-			"ExposureTime": 1000,
+			#"ExposureTime": 1000,
 			
 			"AnalogueGain": 1,
 			"AeEnable"    : False,
