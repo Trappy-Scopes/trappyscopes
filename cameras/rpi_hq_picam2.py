@@ -167,9 +167,9 @@ class Camera(AbstractCamera):
 				time.sleep(init_delay_s)
 				for i in range(iterations):
 					filename_ = filenames_[i]
-					print(f"{i}: {time.time.ns()}. Capturing file: {filename_} :")
+					print(f"{i}: {time.time_ns()}. Capturing file: {filename_} :")
 					self.modes[action](filename_, tsec=tsec, **kwargs)
-					print(f"{i}:  {time.time.ns()}. Sleeping for {itr_delay_s}s.")
+					print(f"{i}:  {time.time_ns()}. Sleeping for {itr_delay_s}s.")
 					time.sleep(itr_delay_s)
 
 	# 6
