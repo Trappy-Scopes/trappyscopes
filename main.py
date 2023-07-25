@@ -76,8 +76,8 @@ log.info(cam)
 
 
 # Defining variables for common modes
-video = "video"
-image = "image"
+vid = "vid"
+img = "img"
 unique_check = True   # Only asserted during experiment mode.
 def capture(action, name, *args, **kwargs):
 	"""

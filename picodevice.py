@@ -20,7 +20,7 @@ class RPiPicoDevice:
 		print("-"*10)
 
 	def potential_port(): #TODO
-		print("All availbale ports:")
+		print("All availbale ports:")s
 		import serial.tools.list_ports as list_ports
 		all_ports = list(list_ports.comports())
 		potential_ports = [port for port in all_ports \
@@ -36,6 +36,7 @@ class RPiPicoDevice:
 		self.port = port
 		self.print_ = lambda string: print(string) if verbose else None
 		self.pico = None   # Actual device interface
+		self.fs = {}       # A symbolic representation of the Filesystem on the device. 
 
 		if connect:
 			self.connect()
@@ -95,6 +96,50 @@ class RPiPicoDevice:
 		"""
 		self.__call__('exec(open("main.py").read())')
 
+	def scan_root(self):
+		"""
+		Scan the filesystem on the pico device
+		"""
+		self.fs = {key:None for key in self.pico.fs_listdir(".")}
+		return self.fs
+	
+	
+	def sync_files(self, files, root=False):
+		"""
+		
+		root [optional] : Syncs the file in the root location of the 
+		pico filesystem.
+		"""
+		
+		files_ = list(deepcopy(files))
+		if os.path.isdir(files):
+			files = [os.path.abspath(file) for file in os.listdir(files)]
+			if root:
+				folder = "."
+			else:
+				folder = os.path.basename(os.path.dirname(files))
+		elif os.path.isfile(files):
+			files = list(files)
+			folder = "."
+			
+
+		log.info(f"Syncing files: {files} to {folder} on pico device.")
+		# Check if the current foldername is in the root
+		self.scan_root()
+
+			# If it doesn't exist, create it
+			if folder in self.fs.keys() and folder != ".":
+				self.pico.fs_mkdir(folder)
+				log.info(f"Cretaed folder on pico filesystem: {folder}")
+
+
+		# Then do a for loop of file-syncs
+		for i, file in enumerate(files):
+			self.pico.fs_cp(file, os.path.join(folder, \
+								  os.path.basename(files_[i])))
+			log.info(f"Wrote file to pico fs: {file}")
+
+
 
 class NullRPiPicoDevice(RPiPicoDevice):
 
@@ -132,6 +177,13 @@ class NullRPiPicoDevice(RPiPicoDevice):
 		self.print_("exec_main: All calls are ignored by the NullRPiPicoDevice device.")
 		return None
 
+	def scan_root(self):
+		self.print_("scan_root: All calls are ignored by the NullRPiPicoDevice device.")
+		return None
+
+	def sync_files(self, files, root=False):
+		self.print_("sync_files: All calls are ignored by the NullRPiPicoDevice device.")
+		return None
 
 
 class PicoProxyDevice:

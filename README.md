@@ -196,6 +196,7 @@ flowchart LR
 + DONE: Fix abcs import issues.
 11. Camera Abstract class add `is_open()` method. `configure()` change of kwargs.
 + DONE: Check if `Experiment` class changes current wd of the python kernal.
-
+12. What is the ideal ExposureTime?
+13. Should a monolithic configuration structure be used for all 3 modes in picamera2?
 
 

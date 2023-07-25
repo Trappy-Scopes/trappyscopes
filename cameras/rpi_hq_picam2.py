@@ -17,6 +17,24 @@ class Camera(AbstractCamera):
 
 	config parameter can be used to pass a configuration dict.
 	"""
+
+	default_controls = {
+			"ExposureTime": 1000,
+			
+			"AnalogueGain": 1,
+			"AeEnable"    : False,
+			"AwbEnable"   : False,
+			#"ColorGains"  : (1,1), # AWB[0.0, 32.0]. Setting disables Auto AWB
+			#"Afmode": controls.AfModeEnums.Manual,
+
+			"Sharpness"   : 0, # [0.0, 16.0]
+			"Saturation"  : 1.0, # Set 0 for grayscale. [0.0, 32.0]
+			#"NoiseReductionMode" : draft.NoiseReductionModeEnum.Off, # Or use Fast
+			"Contrast"    : 1.0, # [0.0, 32.0]
+			"Brightness"  : 0.0, # [-1.0, 1-0]
+			}
+
+
 	# 1
 	def __init__(self):
 		
@@ -27,6 +45,7 @@ class Camera(AbstractCamera):
 
 		# Preview Window Settings
 		self.preview_type = Preview.QT
+		self.win_title_fields = []
 		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
 
 
@@ -54,7 +73,7 @@ class Camera(AbstractCamera):
 
 		# Specific config and controls that deviate from the PiCamera defaults.
 		self.config = {}
-		self.controls = {}
+		self.controls = Camera.default_controls
 
 		# Configurations
 		self.config_map = {}
@@ -65,6 +84,9 @@ class Camera(AbstractCamera):
 		self.config_map["still"]["lores"] = {}
 		self.config_map["still"]["display"] = "lores" # Turn on preview
 		
+		self.config_map["preview"]["controls"] = self.controls
+		self.config_map["still"]["controls"] = self.controls
+		self.config_map["video"]["controls"] = self.controls
 
 		# Configuration Setting Functions
 		self.config_default =  lambda : self.configure(res=(1980, 1080), fps=30)
@@ -82,7 +104,7 @@ class Camera(AbstractCamera):
 	def open(self):
 		self.close()
 		self.cam.start()
-		self.encoderh264 = H264Encoder()
+		#self.encoderh264 = H264Encoder()
 		self.opentime_ns = time.perf_counter()
 		log.info("PiCamera2 Camera was opened.")
 
@@ -93,11 +115,11 @@ class Camera(AbstractCamera):
 	# 3
 	def close(self):
 		self.cam.close()
-		self.encoderh264.close()
+		#self.encoderh264.close()
 		log.info("PiCamera2 Camera was closed.")
 
 	# 4
-	def configure(self, fps=30, res=[1920, 1080], config=None):
+	def configure(self, fps=None, res=None, config=None):
 		"""
 		Configure the base settings of the camera. Both the [stream] configurations and controls.
 		The rest are set based on the capture mode.
@@ -105,34 +127,19 @@ class Camera(AbstractCamera):
 		"""
 
 		# CONTROLS
-		self.controls = {
-			#"ExposureTime": 1000,
-			
-			"AnalogueGain": 1,
-			"AeEnable"    : False,
-			"AwbEnable"   : False,
-			#"ColorGains"  : (1,1), # AWB[0.0, 32.0]. Setting disables Auto AWB
-			#"Afmode": controls.AfModeEnums.Manual,
-
-			"Sharpness"   : 0, # [0.0, 16.0]
-			"Saturation"  : 1.0, # Set 0 for grayscale. [0.0, 32.0]
-			#"NoiseReductionMode" : draft.NoiseReductionModeEnum.Off, # Or use Fast
-			"Contrast"    : 1.0, # [0.0, 32.0]
-			"Brightness"  : 0.0, # [-1.0, 1-0]
-			}
 		self.cam.set_controls(self.controls)
 
 
 		# CONFIGURATIONS
-		print(f"Setting fps:{fps} and resolution:{res}")
-		frameduration = int((1/fps)*1**6)
-		framedurationlim = (frameduration, frameduration)
-		
+		if res != None and fps != None:
+			print(f"Setting fps:{fps} and resolution:{res}")
+			frameduration = int((1/fps)*1**6)
+			framedurationlim = (frameduration, frameduration)
 
-		for mode_ in self.config_map:
-			self.config_map[mode_]["size"] = tuple(res)
-			self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
-														 framedurationlim
+			for mode_ in self.config_map:
+				self.config_map[mode_]["size"] = tuple(res)
+				self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
+															 framedurationlim
 		time.sleep(0.2) # Sync Delay
 
 	# 5
@@ -240,12 +247,70 @@ class Camera(AbstractCamera):
 
 
 	def set_mode_config(self, mode):
+		"""
+		Sets the camera configuration for the three main modes: ["preview",
+		"still", "video"].
+		"""
 		if self.mode_ != mode:
 			self.close()	   # Close Camera
 			self.mode_ = mode
 			self.cam.configure(self.config_map[mode])
 			self.open()		  # Open Camera
 			time.sleep(0.2)
+
+
+	def autoadjust(self, wb=True, exposure=True):
+		"""
+		Autoadjust "ExposureTime", "AnalogueGain", and "ColourGains".
+		wb [optonal] : Adjusts the white balance (Red - Blue Ratio).
+		exposure [optional] : Adjusts the exposure time of the camera.
+		"""
+		control_struct = {}
+		if wb:
+			control_struct.update({"AwbEnable": 1})
+		if exposure:
+			control_struct.update({"AeEnable": 1})
+
+		self.cam.start_preview(self.preview_type)
+
+		self.cam.stop()
+		self.cam.configure(self.cam.create_video_configuration()) #Instead of this only upodate specific fields
+		self.cam.start()
+
+		time.sleep(1) # Wait for autoadjustments
+
+		self.cam.set_controls({"AwbEnable": 0, "AeEnable": 0})
+		time.sleep(5) # For checking the results.
+		
+		
+		self.cam.stop_preview()
+		self.cam.title_fields = self.win_title_fields
+
+		# Push the updates to the controls structure and update the camera.
+		ExposureTime = self.cam.video_configuration.ExposureTime
+		ColorGains =  self.cam.video_configuration.ColorGains
+		
+		print(f"Autoadjusted -> ExposureTime: {ExposureTime} and ColorGains: {ColorGains}")
+		print("Pushing the values to Camera Controls.")
+		
+		self.controls["ExposureTime"] = ExposureTime
+		self.controls["ColorGains"] = ColorGains
+		for mode in self.config_map:
+			self.config_map[mode]["controls"] = self.controls
+		self.configure()
+		self.set_mode_config(self.mode_)
+
+	def get_fps(self):
+		"""
+		Uses the Video Configuration as the default configuraation.
+		"""
+		return self.cam.video_configuration.controls.FrameRate
+
+	def get_res(self):
+		"""
+		Uses the Video Configuration as the default configuraation.
+		"""
+		return self.cam.video_configuration.size
 
 	
 	### Capture mode implementations
