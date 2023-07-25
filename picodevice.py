@@ -127,10 +127,10 @@ class RPiPicoDevice:
 		# Check if the current foldername is in the root
 		self.scan_root()
 
-			# If it doesn't exist, create it
-			if folder in self.fs.keys() and folder != ".":
-				self.pico.fs_mkdir(folder)
-				log.info(f"Cretaed folder on pico filesystem: {folder}")
+		# If it doesn't exist, create it
+		if folder in self.fs.keys() and folder != ".":
+			self.pico.fs_mkdir(folder)
+			log.info(f"Cretaed folder on pico filesystem: {folder}")
 
 
 		# Then do a for loop of file-syncs
