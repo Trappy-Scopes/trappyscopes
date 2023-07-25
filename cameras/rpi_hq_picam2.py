@@ -96,7 +96,7 @@ class Camera(AbstractCamera):
 
 		# Set initial conditions
 		self.mode_ = "video" 	# Current Mode - ["preview", "still", "video"]
-		self.config_default() 	# Configure default resoltion and fps
+		#self.config_default() 	# Configure default resoltion and fps
 		self.cam.configure(self.config_map["video"])
 		time.sleep(0.2)
 
@@ -252,9 +252,9 @@ class Camera(AbstractCamera):
 		"still", "video"].
 		"""
 		if self.mode_ != mode:
-			self.close()	   # Close Camera
 			self.mode_ = mode
 			self.cam.configure(self.config_map[mode])
+			self.close()	   # Close Camera
 			self.open()		  # Open Camera
 			time.sleep(0.2)
 
