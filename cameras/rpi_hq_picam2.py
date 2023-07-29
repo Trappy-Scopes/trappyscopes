@@ -149,7 +149,7 @@ class Camera(AbstractCamera):
 		init_delay does not include camara mode changes applied at 
 		the beginning which might be of the order of 100s of ms.
 		"""	
-
+		TODO Add a better way to determine precision timing than ns_tick
 		action = action.lower().strip()
 		if iterations == 1:
 			if action == "preview":
