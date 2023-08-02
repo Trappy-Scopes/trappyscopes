@@ -17,7 +17,7 @@ class SyncEngine:
 		if deviceid["git_sync"]:
 			print("Attempting git sync.")
 			output = subprocess.check_output(["git", "pull"])
-			output = output.encode()
+			output = output.decode()
 			if not "Already up to date." in output:
 				print("Restarting script after syncing updates.")
 				os.execv(sys.argv[0], sys.argv)
