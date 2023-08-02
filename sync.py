@@ -10,7 +10,7 @@ class SyncEngine:
 		Does not call pico sync
 		"""
 		SyncEngine.git_sync(deviceid)
-		SyncEngine.fsync(device)
+		SyncEngine.fsync(deviceid)
 
 
 	def git_sync(deviceid):
