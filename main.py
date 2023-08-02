@@ -22,7 +22,7 @@ from picolight import PicoLight
 # Other Resources
 from experiment import Experiment
 from utilities.fluff import pageheader, intro
-
+from sync import SyncEngine
 
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 
@@ -38,6 +38,11 @@ print("-"*100)
 ## 2. Load device ID an metadata
 with open("config/deviceid.yaml") as deviceid:
 	device_metadata = yaml.load(deviceid, Loader=SafeLoader)
+
+## -------- Synchronize ------------
+SyncEngine.sync_all(device_metadata)
+## ---------------------------------
+
 print("\nDevice: ")
 print("-------")
 log.critical(pprint.pformat(device_metadata))

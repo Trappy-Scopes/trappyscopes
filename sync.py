@@ -1,30 +1,39 @@
 import time
 import config.common
 import os
+import subprocess
 
 class SyncEngine:
 
 	def sync_all(deviceid):
-		
-		print("Attempting git sync.")
-		git_sync(deviceid)
+		"""
+		Does not call pico sync
+		"""
+		SyncEngine.git_sync(deviceid)
+		SyncEngine.fsync(device)
 
 
 	def git_sync(deviceid):
 		if deviceid["git_sync"]:
-			os.system("git pull")
+			print("Attempting git sync.")
+			output = subprocess.check_output(["git", "pull"])
+			if not "Already up to date." in output:
+				print("Restarting script after syncing updates.")
+				os.execv(sys.argv[0], sys.argv)
 
 	def fsync(deviceid):
 		if deviceid["file_server"]:
+			print("Attempting file server sync.")
 			datadir = config.common.DATA_DIR
 			if not datadir.endswith("/"):
 				datadir += "/"
 			os.system(["rsync", "-ar", datadir, \
 					   deviceid["file_server"]])
 
-	def pico_fsync(deviceid, pico):
-		if not "null" in str(deviceid["pico"][2]):
-			pico.sync_files("./cameras/")
-			pico.sync_files("./lights/")
+	def pico_fsync(pico):
+		
+		print("Attempting pico device sync.")
+		pico.sync_files("./cameras/")
+		pico.sync_files("./lights/")
 
-			pico.sync(os.path.join(config.root, "/Trappy-Scopes/pico_firmware/")
+		pico.sync(os.path.join(config.root, "/Trappy-Scopes/pico_firmware/"))
