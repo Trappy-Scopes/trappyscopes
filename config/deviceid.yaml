@@ -1,11 +1,15 @@
-# Do Not change ----------------
-name      : M1
-uuid      : null
-type      : microscope
-# ------------------------------
-
+name: MDev
+uuid: null
+type: microscope
 hardware:
-  pico         : [nullpico, pico1, null]
-  camera       : nullcamera
-  illumination : CA_PWM_RGB_LED_5mm
-
+  pico:
+  - nullpico
+  - pico1
+  - nullpico
+  camera: nullcamera
+  illumination: CA_PWM_RGB_LED_5mm
+git_sync: true
+write_server: ssd1
+file_server: null
+auto_fsync: true
+auto_pico_fsync: true

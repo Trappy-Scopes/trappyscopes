@@ -71,19 +71,17 @@ class Camera(AbstractCamera):
 		self.cam.options["compress_level"] = 0
 
 
-		# Specific config and controls that deviate from the PiCamera defaults.
-		self.config = {}
-		self.controls = Camera.default_controls
-
-		# Configurations
-		self.config_map = {}
+		# Monolithic Configurations
+		self.controls = self.cam.default_controls
+		self.config = self.cam.create_video_configuration()
+		self.config["controls"] = self.controls
+		
 		self.config_map["preview"] = self.cam.create_preview_configuration()
 		self.config_map["still"] = self.cam.create_still_configuration()
 		self.config_map["video"] = self.cam.create_video_configuration()
 
 		#self.config_map["still"]["lores"] = {}
 		#self.config_map["still"]["display"] = "lores" # Turn on preview
-		
 		self.config_map["preview"]["controls"] = self.controls
 		self.config_map["still"]["controls"] = self.controls
 		self.config_map["video"]["controls"] = self.controls
@@ -96,15 +94,13 @@ class Camera(AbstractCamera):
 
 		# Set initial conditions
 		self.mode_ = "video" 	# Current Mode - ["preview", "still", "video"]
-		#self.config_default() 	# Configure default resoltion and fps
-		self.cam.configure(self.config_map["video"])
-		time.sleep(0.2)
+		self.config_default() 	# Configure default resoltion and fps
+		
 
 	# 2
 	def open(self):
 		self.close()
 		self.cam.start()
-		#self.encoderh264 = H264Encoder()
 		self.opentime_ns = time.perf_counter()
 		log.info("PiCamera2 Camera was opened.")
 
@@ -115,13 +111,14 @@ class Camera(AbstractCamera):
 	# 3
 	def close(self):
 		self.cam.close()
-		#self.encoderh264.close()
 		log.info("PiCamera2 Camera was closed.")
 
 	# 4
 	def configure(self, fps=None, res=None, config=None):
 		"""
-		Configure the base settings of the camera. Both the [stream] configurations and controls.
+		Configure the base settings of the camera. 
+		Both the [stream] configurations and controls.
+		
 		The rest are set based on the capture mode.
 		Ignoring config_file option for now.
 		"""
@@ -136,11 +133,14 @@ class Camera(AbstractCamera):
 			frameduration = int((1/fps)*1**6)
 			framedurationlim = (frameduration, frameduration)
 
+			self.config["size"] = tuple(res)
+			self.config["controls"]["FrameDurationLimits"] = framedurationlim
+
 			for mode_ in self.config_map:
 				self.config_map[mode_]["size"] = tuple(res)
 				self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
 															 framedurationlim
-		time.sleep(0.2) # Sync Delay
+		time.sleep(3) # Sync Delay
 
 	# 5
 	def capture(self, action, filename, tsec=1,
@@ -178,8 +178,6 @@ class Camera(AbstractCamera):
 		Start a preview. Defaults for 30seconds. 
 		Infinite preview or pre-emptive termination is not supported. 
 		"""
-		self.set_mode_config("preview")
-
 		self.cam.start_preview(self.preview_type)
 		time.sleep(tsec)
 		self.cam.stop_preview()
@@ -191,7 +189,6 @@ class Camera(AbstractCamera):
 		"""
 		state_ = {}
 		state_["config"] = self.config
-		state_["controls"] = self.controls
 		state_.update(self.cam.camera_properties)
 		return state_
 
@@ -216,20 +213,20 @@ class Camera(AbstractCamera):
 
 	# --- Implementation Specific functions ---
 
-	# 10
+
 	def optimize(self):
 		# TODO Redo for all three configurations
 		self.config = self.cam.align_configuration(self.config)
 		log.info(f"Camera config optimized to: {self.config}")
 		self.cam.configure(self.config)
+		time.sleep(3)
 
-	# 12
+
 	def timestamp(self, mode, *args, **kwargs):
 		tsec = kwargs["tsec"]
 		for i in range(tsec*self.get_fps()):
 			f_md = self.frame_metadata()
 			print(f"{i}. {self.time.time_ns()}")
-
 
 	def frame_metadata(self):
 		"""
@@ -296,10 +293,11 @@ class Camera(AbstractCamera):
 		
 		self.controls["ExposureTime"] = ExposureTime
 		self.controls["ColorGains"] = ColorGains
-		for mode in self.config_map:
-			self.config_map[mode]["controls"] = self.controls
+		#for mode in self.config_map:
+		#	self.config_map[mode]["controls"] = self.controls
 		self.configure()
-		self.set_mode_config(self.mode_)
+		
+		#self.set_mode_config(self.mode_)
 
 	def get_fps(self):
 		"""
@@ -311,7 +309,7 @@ class Camera(AbstractCamera):
 		"""
 		Uses the Video Configuration as the default configuraation.
 		"""
-		return self.cam.video_configuration.size
+		return self.cam.video_configuration.main.size
 
 	
 	### Capture mode implementations
@@ -322,7 +320,7 @@ class Camera(AbstractCamera):
 		Capture a png image.
 		tsec is ignored.
 		"""
-		self.set_mode_config("still")
+		#self.set_mode_config("still")
 		self.cam.start_and_capture_file(filename)
 		self.cam.stop_preview()
 
@@ -331,10 +329,11 @@ class Camera(AbstractCamera):
 		"""
 		Capture PNG image when the `Enter` key is pressed.
 		"""
-		self.set_mode_config("still")
+		#self.set_mode_config("still")
 		
-		self.cam.start_preview(Preview.QT)
+		self.cam.start_preview(self.preview_type)
 		_ = input("Waiting for image trigger: Enter key...")
+		
 		self.cam.capture_file(filename, format='png')
 		print("Capture completed.")
 
@@ -351,8 +350,9 @@ class Camera(AbstractCamera):
 		if not all(["frames", "delay_s"]) in kwargs:
 			raise KeyError("Either arguments missing: frames and/or delay_s")
 
-		self.set_mode_config("still")
+		#self.set_mode_config("still")
 
+		self.cam.start_preview(self.preview_type)
 		filenames_ = "{:03d}" + filename
 		self.cam.start_and_capture_files( \
 			name=filenames_, init_delay=0, \
@@ -369,10 +369,11 @@ class Camera(AbstractCamera):
 		"""
 
 		#self.cam.configure(self.cam.create_video_configuration())
-		self.set_mode_config("video")
+		#self.set_mode_config("video")
 
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
+		
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
 								 show_preview=True, \
 								 duration=tsec)
@@ -385,7 +386,7 @@ class Camera(AbstractCamera):
 		Record a video without preview in h264 format.
 		Recommended for high fps recordings.
 		"""
-		self.set_mode_config("video")
+		#self.set_mode_config("video")
 
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
@@ -400,7 +401,7 @@ class Camera(AbstractCamera):
 		Record an MP4 file using Ffmpeg.
 		Timestamps are not passed to Ffmpeg. Hence they are estimated.
 		"""
-		self.set_mode_config("video")
+		#self.set_mode_config("video")
 
 		tsec = kwargs["tsec"]
 		output = FfmpegOutput(filename) # Opens a new encoder file object
