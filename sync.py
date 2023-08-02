@@ -1,21 +1,30 @@
 import time
 import config.common
+import os
 
-def git_sync(deviceid):
-	if deviceid["git_sync"]:
-		os.system("git pull")
+class SyncEngine:
 
-def fsync(deviceid):
-	if deviceid["file_server"]:
-		datadir = config.common.DATA_DIR
-		if not datadir.endswith("/"):
-			datadir += "/"
-		os.system(["rsync", "-ar", datadir, \
-				   deviceid["file_server"]])
+	def sync_all(deviceid):
+		
+		print("Attempting git sync.")
+		git_sync(deviceid)
 
-def pico_fsync(deviceid, pico):
-	if not "null" in str(deviceid["pico"][2]):
-		pico.sync_files("./cameras/")
-		pico.sync_files("./lights/")
 
-		pico.sync(os.path.join(config.root, "/Trappy-Scopes/pico_firmware/")
+	def git_sync(deviceid):
+		if deviceid["git_sync"]:
+			os.system("git pull")
+
+	def fsync(deviceid):
+		if deviceid["file_server"]:
+			datadir = config.common.DATA_DIR
+			if not datadir.endswith("/"):
+				datadir += "/"
+			os.system(["rsync", "-ar", datadir, \
+					   deviceid["file_server"]])
+
+	def pico_fsync(deviceid, pico):
+		if not "null" in str(deviceid["pico"][2]):
+			pico.sync_files("./cameras/")
+			pico.sync_files("./lights/")
+
+			pico.sync(os.path.join(config.root, "/Trappy-Scopes/pico_firmware/")
