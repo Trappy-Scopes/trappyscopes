@@ -139,7 +139,7 @@ class Camera(AbstractCamera):
 			#for mode_ in self.config_map:
 			#	self.config_map[mode_]["size"] = tuple(res)
 			#	self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
-															 framedurationlim
+			#												 framedurationlim
 		time.sleep(3) # Sync Delay
 
 	# 5
