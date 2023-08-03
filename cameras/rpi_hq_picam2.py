@@ -136,9 +136,9 @@ class Camera(AbstractCamera):
 			self.config["size"] = tuple(res)
 			self.config["controls"]["FrameDurationLimits"] = framedurationlim
 
-			for mode_ in self.config_map:
-				self.config_map[mode_]["size"] = tuple(res)
-				self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
+			#for mode_ in self.config_map:
+			#	self.config_map[mode_]["size"] = tuple(res)
+			#	self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
 															 framedurationlim
 		time.sleep(3) # Sync Delay
 
@@ -250,7 +250,7 @@ class Camera(AbstractCamera):
 		"""
 		if self.mode_ != mode:
 			self.mode_ = mode
-			self.cam.configure(self.config_map[mode])
+			#self.cam.configure(self.config_map[mode])
 			self.close()	   # Close Camera
 			time.sleep(0.5)
 			self.open()		  # Open Camera
