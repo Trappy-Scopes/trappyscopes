@@ -72,7 +72,7 @@ class Camera(AbstractCamera):
 
 
 		# Monolithic Configurations
-		self.controls = self.cam.default_controls
+		self.controls = self.default_controls
 		self.config = self.cam.create_video_configuration()
 		self.config["controls"] = self.controls
 		
