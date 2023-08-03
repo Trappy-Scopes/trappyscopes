@@ -76,15 +76,15 @@ class Camera(AbstractCamera):
 		self.config = self.cam.create_video_configuration()
 		self.config["controls"] = self.controls
 		
-		self.config_map["preview"] = self.cam.create_preview_configuration()
-		self.config_map["still"] = self.cam.create_still_configuration()
-		self.config_map["video"] = self.cam.create_video_configuration()
+		#self.config_map["preview"] = self.cam.create_preview_configuration()
+		#self.config_map["still"] = self.cam.create_still_configuration()
+		#self.config_map["video"] = self.cam.create_video_configuration()
 
 		#self.config_map["still"]["lores"] = {}
 		#self.config_map["still"]["display"] = "lores" # Turn on preview
-		self.config_map["preview"]["controls"] = self.controls
-		self.config_map["still"]["controls"] = self.controls
-		self.config_map["video"]["controls"] = self.controls
+		#self.config_map["preview"]["controls"] = self.controls
+		#self.config_map["still"]["controls"] = self.controls
+		#self.config_map["video"]["controls"] = self.controls
 
 		# Configuration Setting Functions
 		self.config_default =  lambda : self.configure(res=(1980, 1080), fps=30)
