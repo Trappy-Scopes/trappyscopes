@@ -242,6 +242,10 @@ class Camera(AbstractCamera):
 		md = self.frame_metadata()
 		return {"lux": md["Lux"], "color_temp": md["ColorGains"]}
 
+	def lux(self):
+		md = self.frame_metadata()
+		return md["Lux"]
+
 
 	def set_mode_config(self, mode):
 		"""

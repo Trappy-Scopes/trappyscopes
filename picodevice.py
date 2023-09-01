@@ -19,7 +19,7 @@ class RPiPicoDevice:
 			print(port)
 		print("-"*10)
 
-	def potential_port(): #TODO
+	def potential_ports(): #TODO
 		print("All availbale ports:")
 		import serial.tools.list_ports as list_ports
 		all_ports = list(list_ports.comports())

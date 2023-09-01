@@ -10,7 +10,7 @@ def CameraSelector(device, *args, **kwargs):
 	
 	if device == "rpi_hq_picam1":
 		from rpi_hq_picam1 import Camera
-		return  Camera(*args, **kwargs)
+		return Camera(*args, **kwargs)
 	
 	if device == "alliedvision":
 		from alliedvision import Camera

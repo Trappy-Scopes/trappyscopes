@@ -23,7 +23,7 @@ def device_perma_state():
 
 		   # Hardware/Raspberry Pi Settings
 		   "rpi_mac_address" : mac_str,
-		   "rpi_ip_address"  : ip_address = gethostbyname(gethostname()),
+		   "rpi_ip_address"  : gethostbyname(gethostname()),
 		   "rpi_username"    : gethostname(),
 		   "rpi_os"          : platform.system(),
 		   "rpi_os_release"  : platform.release(),

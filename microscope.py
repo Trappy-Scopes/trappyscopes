@@ -21,6 +21,66 @@ Prototype 2
 """
 
 
+class MicroscopeAssembly:
+
+	def __init__(name, cam=None, lit=None, pico=None, exp=exp):
+		self.pico = pico
+		self.cam = cam
+		self.lit = lit
+
+		self.unique_check = True   # Only asserted during experiment mode.
+		self.exp = exp
+
+	def init(self, deviceid):
+		picomode = "null" * (deviceid["hardware"]["pico"][0] == "nullpico") + \
+		           "normal" * (deviceid["hardware"]["pico"][0] == "pico")
+
+		pico = RPiPicoDevice.Select(picomode, name=device_metadata["hardware"]["pico"][1], \
+							 port=None)
+		print(pico)
+		if not pico.connected:
+			log.error("Could not get a pico device - exiting.")
+			exit(1)
+		pico.exec_main()
+		log.info(pico)
+
+		#lit = LightSelector(device_metadata["hardware"]["illumination"])
+		lit = PicoLight(pico, "l1")
+		log.info(lit)
+
+		cam = CameraSelector(deviceid["hardware"]["camera"])
+		#cam.open() # Camera should be already open upon creation.
+		print(cam)
+		if not cam.is_open():
+			log.error("Could not get a camera device - exiting.")
+			exit(1)
+		#cam.configure()
+		log.info(cam)
+
+
+		
+	def capture(self, action, name, *args, **kwargs):
+		"""
+		Default capture 
+		"""
+		print(f"cwd: {os.getcwd()}")
+		if action == None:
+			action = "video"
+		
+		# File  uniqueness check
+		if unique_check and exp.active:
+			if not exp.unique(name):
+				print(f"{Fore.RED}File already exists - ignoring the call.{Fore.RESET}")
+				return
+			
+			# Capture call
+			cam.capture(action, name,  *args, **kwargs)
+
+			# Reprint Experiment Header
+			if exp or exp.active():
+				exp.log_event(name)
+
+
 class Microscope:
 
 	"""
