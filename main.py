@@ -40,7 +40,7 @@ with open("config/deviceid.yaml") as deviceid:
 	device_metadata = yaml.load(deviceid, Loader=SafeLoader)
 
 ## -------- Synchronize ------------
-SyncEngine.sync_all(device_metadata)
+SyncEngine.git_sync(device_metadata)
 ## ---------------------------------
 
 print("\nDevice: ")
@@ -117,6 +117,8 @@ def close_exp():
 def exit():
 	if exp and exp.active:
 		exp.close()
+	if device_metadata["auto_fsync"]:
+		SyncEngine.fsync(device_metadata)
 	sys.exit()
 
 

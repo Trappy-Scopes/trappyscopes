@@ -35,8 +35,16 @@ class SSHLayer(SSHClient):
 	def __exit__(self):
 		self.close()
 
+"""
+Idiom:
+
+user --creates--> MicroscopeHive --creates--> SSHHive + NullMicroscopeObjects
+"""
+
+
 class SSHHive:
 	pass
+
 class MicroscopeHive(ParallelSSHClient):
 	"""
 	A collection of ssh clients.

@@ -1,6 +1,6 @@
 import platform
 from logging import log
-
+from pprint import pprint
 from utilities import pyboard
 
 class RPiPicoDevice:
@@ -18,14 +18,17 @@ class RPiPicoDevice:
 		for port in all_ports:
 			print(port)
 		print("-"*10)
+		return [str(port) for port in all_ports]
 
 	def potential_ports(): #TODO
-		print("All availbale ports:")
+		#print("All availbale ports:")
 		import serial.tools.list_ports as list_ports
 		all_ports = list(list_ports.comports())
+		all_ports = [str(port) for port in all_ports]
 		potential_ports = [port for port in all_ports \
-						   if port.__contains__("/dev/cu.") \
-						   or port.__contains__("/dev/ttyACM")]
+						   if str(port).__contains__("/dev/cu.") \
+						   or str(port).__contains__("/dev/ttyACM")]
+		return(potential_ports)
 
 	# -- Object defination
 	def __init__(self, port=None, name="pico", verbose=True, connect=True):
@@ -47,6 +50,18 @@ class RPiPicoDevice:
 	def disconnect(self):
 		self.pico.exit_raw_repl()
 
+
+	def __connect__(self, port):
+		try:
+			port = port.strip()
+			print(f"Attempting connection to — {port}")
+			self.pico = pyboard.Pyboard(port, 115200)
+			self.port = port_
+			self.connected = True
+			print("yes")
+		except:
+			print("Connection failed!")
+			pass
 
 	def connect(self, port=None):
 		# Try connection
@@ -71,17 +86,23 @@ class RPiPicoDevice:
 			for i in range(1, 6):
 				port_ = port + str(i)
 				print(port_)
-				try:
-					self.pico = pyboard.Pyboard(port_ + str(i), 115200)
-					self.port = port_
-				except:
-					pass
+				self.__connect__(port_)
+				if self.connected:
+					break
+
+		
+		if not self.connected:
+			for pport in RPiPicoDevice.potential_ports():
+				if "Board in FS mode" in pport:
+					print(pport.split(" ")[0])
+					self.__connect__(port=pport.split(" ")[0])
 
 		if self.connected:
 			self.pico.enter_raw_repl()
 			print(f"{self.name} -connected-to-> {self.port}")
 		else:
 			print("No Pico device found. Not connected.")
+			RPiPicoDevice.all_ports()
 
 
 	def __call__(self, command):
@@ -168,7 +189,7 @@ class NullRPiPicoDevice(RPiPicoDevice):
 
 	def __call__(self, command):
 		self.print_(f"{command}: All calls are ignored by the NullRPiPicoDevice device.")
-		return None
+		return ""
 
 	def exec_main(self):
 		"""
@@ -234,3 +255,8 @@ class PicoProxyDevice:
 		else:
 			self.picodevice(f"{self.name}.{command}")
 
+if __name__ == "__main__":
+	input_ = input("Will test filesync on pico: type yes to continue")
+	if input_ == "yes":
+		pico = RPiPicoDevice(connect=False)
+		pico.__connect__("/dev/cu.usbmodem101")

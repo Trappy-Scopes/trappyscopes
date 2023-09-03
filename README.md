@@ -73,6 +73,34 @@ flowchart
 	
 ```
 
+## Hardware firmware
+The hardware firmware is synched to the pico device in parts. 
+
+**Pico Connection and FS Sync:**
+
+```mermaid
+graph TD
+	pico(Pico)
+	
+	open --mode--> pico
+	sync --mode--> pico
+	
+```
+
+```mermaid
+---
+title: "Pico Open Protocol"
+---
+graph TD
+	Open-Pico --> connect-to-board -.-> Sync
+	Sync --up--> pico_firmware[[pico_firmware]]
+	Sync --up--> lights[[lights]]
+	logs[[logs]] --down--> Sync
+	
+```
+
+
+
 
 ### Device ID
 
@@ -198,5 +226,7 @@ flowchart LR
 + DONE: Check if `Experiment` class changes current wd of the python kernal.
 12. What is the ideal ExposureTime?
 13. Should a monolithic configuration structure be used for all 3 modes in picamera2?
-
+14. Change file_server to sync_server
+15. Add `--dry-run`confirmation during file sync operations. Two modes: "off", "on", "ask user".
+16. 
 

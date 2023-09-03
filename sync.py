@@ -3,6 +3,7 @@ import config.common
 import os
 import subprocess
 import sys
+import colorama
 
 class SyncEngine:
 
@@ -17,24 +18,36 @@ class SyncEngine:
 	def git_sync(deviceid):
 		if deviceid["git_sync"]:
 			print("Attempting git sync.")
-			output = subprocess.check_output(["git", "pull"])
+			output = subprocess.check_output(["git", "pull", "--recurse-submodules"])
 			output = output.decode()
 			if not "Already up to date." in output:
-				print("Restarting script after syncing updates.")
-				os.execv(sys.argv[0], sys.argv)
+				print(f"{colorama.Fore.RED}Please restart script. Updates were pulled.{colorama.Fore.RESET}")
+				sys.exit()
+		else:
+			print("Skipping git sync...")
 
 	def fsync(deviceid):
+		"""
+		a : recursively sync while preserving timestamps, etc
+		v : verbose
+		h : human readable numbers
+		P : progress report
+
+		"""
 		if deviceid["file_server"]:
-			print("Attempting file server sync.")
 			datadir = config.common.DATA_DIR
+			print(colorama.Fore.BLUE)
+			print("Attempting file server sync.")
+			print(f"From: {datadir}\nTo: {deviceid['file_server']}")
 			if not datadir.endswith("/"):
 				datadir += "/"
-			os.system(["rsync", "-ar", datadir, \
-					   deviceid["file_server"]])
 
+			subprocess.run(["rsync", "-avhi", "--stats", datadir, deviceid['file_server']])
+			print(colorama.Fore.RESET)
 	def pico_fsync(pico):
 		
 		print("Attempting pico device sync.")
+		pico.sync_files("./utilities/pico_firmware/")
 		pico.sync_files("./cameras/")
 		pico.sync_files("./lights/")
 

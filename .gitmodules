@@ -1,0 +1,3 @@
+[submodule "utilities/pico_firmware"]
+	path = utilities/pico_firmware
+	url = https://github.com/Trappy-Scopes/pico_firmware.git

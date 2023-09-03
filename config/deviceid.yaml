@@ -10,6 +10,6 @@ hardware:
   illumination: CA_PWM_RGB_LED_5mm
 git_sync: true
 write_server: ssd1
-file_server: null
+file_server: /Volumes/ssd1/scopeportintest
 auto_fsync: true
 auto_pico_fsync: true
