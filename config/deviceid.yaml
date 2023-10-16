@@ -8,8 +8,8 @@ hardware:
   - nullpico
   camera: nullcamera
   illumination: CA_PWM_RGB_LED_5mm
-git_sync: true
+git_sync: false
 write_server: ssd1
-file_server: /Volumes/ssd1/scopeportintest
+file_server: smb://files1.igc.gulbenkian.pt/igc/folders/LP/yatharth
 auto_fsync: true
 auto_pico_fsync: true

@@ -20,20 +20,21 @@ class SyncEngine:
 			print("Attempting git sync.")
 			output = subprocess.check_output(["git", "pull", "--recurse-submodules"])
 			output = output.decode()
+			print(f"{colorama.Fore.YELLOW}output{colorama.Fore.RESET}")
 			if not "Already up to date." in output:
 				print(f"{colorama.Fore.RED}Please restart script. Updates were pulled.{colorama.Fore.RESET}")
 				sys.exit()
 		else:
 			print("Skipping git sync...")
 
-	def fsync(deviceid):
+	def fsync(deviceid, remote=False):
 		"""
 		a : recursively sync while preserving timestamps, etc
 		v : verbose
 		h : human readable numbers
 		P : progress report
-
 		"""
+		
 		if deviceid["file_server"]:
 			datadir = config.common.DATA_DIR
 			print(colorama.Fore.BLUE)
@@ -41,9 +42,13 @@ class SyncEngine:
 			print(f"From: {datadir}\nTo: {deviceid['file_server']}")
 			if not datadir.endswith("/"):
 				datadir += "/"
-
-			subprocess.run(["rsync", "-avhi", "--stats", datadir, deviceid['file_server']])
+			if not remote:
+				subprocess.run(["rsync", "-avhi", "--stats", datadir, deviceid['file_server']])
+			else:
+				print("Implementation missing!")
 			print(colorama.Fore.RESET)
+	
+
 	def pico_fsync(pico):
 		
 		print("Attempting pico device sync.")

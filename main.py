@@ -27,6 +27,15 @@ from sync import SyncEngine
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 
 
+## 0. Check script files
+scriptfiles = None
+if len(sys.argv) > 1:
+	scriptfiles = [os.path.abspath(file) for file in sys.argv[1:]]
+	scriptfiles = [file for file in scriptfiles if ".py" in file]
+
+print("Scripts that will be loaded: ")
+print(scriptfiles)
+
 
 ## 1. Setlogging and device state
 og_directory = os.getcwd()
@@ -135,6 +144,18 @@ exp_name.strip()
 exp = None
 if exp_name:
 	exp = Experiment(exp_name)
+
+
+
+## Run Scriot file
+if len(sys.argv) > 1:
+	#Experiment.run(sys.argv[1])
+	#__import__(sys.argv[1], globals(), locals())
+	for exefile in scriptfiles:
+		with open(exefile) as f:
+			exec(f.read(), globals())
+##
+
 
 ## Test
 pico("l1.setVs(2,2,0)")

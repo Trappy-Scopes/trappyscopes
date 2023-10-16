@@ -2,7 +2,22 @@
 Control Layer Interface for the Microscopes that sit on the Raspberry Pi.
 
 
+## Start-up
 
++ Start control layer utility with `python main.py`.
++ On Raspian (Linux machine), and during experiments, use `trappyscope` utility, that sets real-time priority on the thread. It only works for Linux.
++ Usage:
+```bash
+python main.py <script1> <script2> <script3>
+trappyscope <script1> <script2> <script3>
+```
++ The scripts are executed in sequence and can be used to load pre-defined experimental protocols.
+
++ Alternatively, to load a script/execute a script, use on REPL:
+
+```python
+LoadScript("scriptfile.py")
+```
 
 
 ## An `Experiment`
@@ -38,7 +53,7 @@ flowchart
 	Setup --> Loading --> Deletion
 ```
 
-
+### LoadScript utility
 
 
 
@@ -228,5 +243,6 @@ flowchart LR
 13. Should a monolithic configuration structure be used for all 3 modes in picamera2?
 14. Change file_server to sync_server
 15. Add `--dry-run`confirmation during file sync operations. Two modes: "off", "on", "ask user".
-16. 
+16. Add flags to the main.py file with option to skip the mandatory exp check.
+17. 
 

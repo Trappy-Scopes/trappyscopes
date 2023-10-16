@@ -129,6 +129,17 @@ class Experiment:
 	def header(self):
 		return f"|| Experiment: {Fore.RED}{self.name}{Fore.RESET} >>> "
 
+
+	def run(script):
+		print(f"{Fore.RED} Executing script: {script}{Fore.RESET}")
+		#with open(script) as f:
+		#    exec(f.read(), globals())
+		#script = script.split(".")[0]
+		__import__(script, globals(), locals())
+
+	def toggle_beacon(pico):
+		pico("beacon.toggle()")
+
 if __name__ == "__main__":
 	exp = Experiment("test")
 	pprint(exp.list_all())
