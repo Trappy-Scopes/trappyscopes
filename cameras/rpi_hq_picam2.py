@@ -64,7 +64,7 @@ class Camera(AbstractCamera):
 		pprint(self.camconfig)
 
 		self.controls = self.camconfig["controls"]
-		self.res = seld.camconfig["size"]
+		self.res = self.camconfig["size"]
 		self.config = self.cam.create_video_configuration()
 		self.config["controls"] = self.controls
 		
