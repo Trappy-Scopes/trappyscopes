@@ -92,6 +92,8 @@ log.info(cam)
 # Defining variables for common modes
 vid = "vid"
 img = "img"
+vidmp4 = "vidmp4"
+preview = "preview"
 unique_check = True   # Only asserted during experiment mode.
 def capture(action, name, *args, **kwargs):
 	"""

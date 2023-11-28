@@ -157,7 +157,7 @@ class Camera(AbstractCamera):
 		#TODO Add a better way to determine precision timing than ns_tick
 		
 		print("For debug: cam properties:")
-		pprint(self.cam.camera_properties)
+		pprint(self.cam.video_configuration)
 
 		action = action.lower().strip()
 		
@@ -496,8 +496,14 @@ class Camera(AbstractCamera):
 		"""
 		Record an MP4 file using Ffmpeg.
 		Timestamps are not passed to Ffmpeg. Hence they are estimated.
+		timestamping is enabled.
 		"""
 		#self.set_mode_config("video")
+
+		if self.en_pre_callback:
+			self.cam.pre_callback = __pre_timestamp__
+		if self.en_post_callback:
+			self.cam.en_post_callback == __post_timestamp__
 
 		tsec = kwargs["tsec"]
 		output = FfmpegOutput(filename) # Opens a new encoder file object
@@ -506,6 +512,9 @@ class Camera(AbstractCamera):
 								 show_preview=True, \
 								 duration=tsec)
 		self.cam.stop_preview()
+
+		### Dump callbacks to file
+		self.__do_callback_file_dumps__()
 
 	# 
 	def __video_raw__(self, filename, *args, **kwargs):
