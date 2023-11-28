@@ -280,6 +280,7 @@ class Camera(AbstractCamera):
 
 		if self.en_post_callback:
 			self.post_callbackfile.write(self.post_buffer.getvalue())
+			print(self.post_buffer.getvalue())
 			self.en_post_callback = False
 			self.post_callbackfile.flush()
 			self.post_callbackfile.close()
