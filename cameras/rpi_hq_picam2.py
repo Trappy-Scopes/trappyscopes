@@ -287,9 +287,9 @@ class Camera(AbstractCamera):
 			## disable callbacks
 			self.cam.post_callback = None
 
-	def __pre_timestamp__(self):
+	def __pre_timestamp__(self, request):
 		self.pre_buffer.write("{}{}".format(time.perf_counter(), "\n"))
-	def __post_timestamp__(self):
+	def __post_timestamp__(self, request):
 		self.post_buffer.write("{}{}".format(time.perf_counter(), "\n"))
 	
 
