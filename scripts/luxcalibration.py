@@ -1,7 +1,7 @@
 import datetime
 
 # Start experiment
-exp = Experiment(f"calibration/lux-{datetime.datetime()}")
+exp = Experiment(f"calibration/lux")
 
 colors = {}
 colors["r"] = 0.0
