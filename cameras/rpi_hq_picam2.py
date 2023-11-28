@@ -5,6 +5,7 @@ from copy import deepcopy
 import logging as log
 import numpy as np
 import time
+import yaml
 from yaml.loader import SafeLoader
 from io import StringIO 
 import gc
