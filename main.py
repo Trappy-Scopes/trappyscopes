@@ -58,7 +58,7 @@ log.critical(pprint.pformat(device_metadata))
 
 
 ##3. Print Header
-print(pageheader())
+#print(pageheader())
 
 
 
