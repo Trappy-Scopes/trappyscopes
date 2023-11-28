@@ -31,6 +31,8 @@ class MicroscopeAssembly:
 		self.unique_check = True   # Only asserted during experiment mode.
 		self.exp = exp
 
+		self.node = Node()
+
 	def init(self, deviceid):
 		picomode = "null" * (deviceid["hardware"]["pico"][0] == "nullpico") + \
 		           "normal" * (deviceid["hardware"]["pico"][0] == "pico")

@@ -3,22 +3,37 @@ from logging import log
 from pprint import pprint
 from utilities import pyboard
 
+
+"""
+TODO: 
+
++ Connectin protocol
++ Auto Connect Framework, Auto detect framework
++ Webrepl, Handshake
+"""
+
 class RPiPicoDevice:
 
 	def Select(mode, *args, **kwargs):
+		"""
+		Object selector factory function
+		"""
 		if mode == "null":
 			return NullRPiPicoDevice(*args, **kwargs)
 		else:
 			return RPiPicoDevice(*args, **kwargs)
 
 	def all_ports():
-		print("All availbale ports:")
 		import serial.tools.list_ports as list_ports
 		all_ports = list(list_ports.comports())
+		return [str(port) for port in all_ports]
+
+	def print_all_ports():
+		print("All availbale ports:")
+		all_ports = RPiPicoDevice.all_ports()
 		for port in all_ports:
 			print(port)
 		print("-"*10)
-		return [str(port) for port in all_ports]
 
 	def potential_ports(): #TODO
 		#print("All availbale ports:")
@@ -35,6 +50,7 @@ class RPiPicoDevice:
 		#TODO: Add Eception
 
 		self.connected = False
+		
 		self.name = name
 		self.port = port
 		self.print_ = lambda string: print(string) if verbose else None
@@ -51,56 +67,59 @@ class RPiPicoDevice:
 		self.pico.exit_raw_repl()
 
 
-	def __connect__(self, port):
+	def connect(self, port):
 		try:
 			port = port.strip()
 			print(f"Attempting connection to — {port}")
 			self.pico = pyboard.Pyboard(port, 115200)
-			self.port = port_
+			self.port = port
 			self.connected = True
-			print("yes")
+			print(f"Connected to port: {self.port}")
 		except:
 			print("Connection failed!")
 			pass
 
-	def connect(self, port=None):
-		# Try connection
-		try:
-			if self.port == None:
-				if platform.system() == "Linux":
-					print("Plateform is Linux.")
-					port = '/dev/ttyACM'
-				elif platform.system() == "Darwin":
-					print("Plateform is Darwin (MacOS).")
-					port = '/dev/cu.usbmodem10'
-				else:
-					print("Unsupported Plateform.")
+	def auto_connect(self, port=None):
+		"""
+		Function tries and connects to the first valid RPiPico Device
+		connected to the 
+		"""
 
-				port_ = port + "0"
-
-			print(f"Attempting connection to — {port_}")
-			self.pico = pyboard.Pyboard(port_, 115200)
-			self.port = port_
-			self.connected = True
-		except:
-			for i in range(1, 6):
-				port_ = port + str(i)
-				print(port_)
-				self.__connect__(port_)
-				if self.connected:
-					break
+		if self.port == None:
+			if platform.system() == "Linux":
+				#print("Plateform is Linux.")
+				port = '/dev/ttyACM'
+			elif platform.system() == "Darwin":
+				#print("Plateform is Darwin (MacOS).")
+				port = '/dev/cu.usbmodem10'
+			else:
+				print("Unsupported Plateform.")
+				return
+		
+		# Try Sequential connections
+		#for i in range(0, 6):
+		#	try:	
+		#			port_ = port + str(i)
+		#			print(port_)
+		#			self.__connect__(port_)
+		#			if self.connected:
+		#				break
+		#	except:
+		#		pass
 
 		
-		if not self.connected:
-			for pport in RPiPicoDevice.potential_ports():
-				if "Board in FS mode" in pport:
-					print(pport.split(" ")[0])
-					self.__connect__(port=pport.split(" ")[0])
+		# Selective Port Connections based on System Scan
+		for pport in RPiPicoDevice.potential_ports():
+			if "Board in FS mode" in pport:
+				print(pport.split(" ")[0])
+				self.connect(port=pport.split(" ")[0])
 
-		if self.connected:
-			self.pico.enter_raw_repl()
-			print(f"{self.name} -connected-to-> {self.port}")
-		else:
+			if self.connected:
+				self.pico.enter_raw_repl()
+				print(f"{self.name} -connected-to-> {self.port}")
+				break
+		
+		if not self.connected:
 			print("No Pico device found. Not connected.")
 			RPiPicoDevice.all_ports()
 
@@ -129,7 +148,7 @@ class RPiPicoDevice:
 		"""
 		
 		root [optional] : Syncs the file in the root location of the 
-		pico filesystem.
+		pico filesystem, without creating a folder.
 		"""
 		
 		files_ = list(deepcopy(files))

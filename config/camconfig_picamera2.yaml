@@ -1,0 +1,12 @@
+controls:
+  FrameRate      : 20
+  ExposureTime   : 50000 # Microseconds
+  AwbEnable      : False
+  AeEnable       : False
+  AnalogueGain   : 3     # Range not specified
+  Brightness     : 0.3   # -1.0 to 1.0
+  Contrast       : 2.5   # 0.0 to 32.0
+  ColourGains    : [0.0, 0.0] 
+  Sharpness      : 1.0   # 0.0 to 16.0
+  Saturation     : 0.5   # 0.0 to 16.0
+size: [1920, 1080]

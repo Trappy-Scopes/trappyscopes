@@ -5,6 +5,9 @@ from copy import deepcopy
 import logging as log
 import numpy as np
 import time
+from yaml.loader import SafeLoader
+from io import StringIO 
+import gc
 
 from picamera2 import Picamera2, Preview
 from picamera2.outputs import FfmpegOutput, FileOutput
@@ -18,23 +21,6 @@ class Camera(AbstractCamera):
 	config parameter can be used to pass a configuration dict.
 	"""
 
-	default_controls = {
-			#"ExposureTime": 1000,
-			
-			"AnalogueGain": 1,
-			"AeEnable"    : False,
-			"AwbEnable"   : False,
-			#"ColorGains"  : (1,1), # AWB[0.0, 32.0]. Setting disables Auto AWB
-			#"Afmode": controls.AfModeEnums.Manual,
-
-			"Sharpness"   : 0, # [0.0, 16.0]
-			"Saturation"  : 1.0, # Set 0 for grayscale. [0.0, 32.0]
-			#"NoiseReductionMode" : draft.NoiseReductionModeEnum.Off, # Or use Fast
-			"Contrast"    : 1.0, # [0.0, 32.0]
-			"Brightness"  : 0.0, # [-1.0, 1-0]
-			}
-
-
 	# 1
 	def __init__(self):
 		
@@ -47,8 +33,6 @@ class Camera(AbstractCamera):
 		self.preview_type = Preview.QT
 		self.win_title_fields = []
 		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
-
-
 
 		# Capture Modes for this implementation
 		self.modes = {
@@ -72,7 +56,14 @@ class Camera(AbstractCamera):
 
 
 		# Monolithic Configurations
-		self.controls = self.default_controls
+
+		with open("config/camconfig_picamera2.yaml") as file:
+			self.camconfig = yaml.load(file, Loader=SafeLoader)
+		print("Camera configuration loaded: ")
+		pprint(self.camconfig)
+
+		self.controls = self.camconfig["controls"]
+		self.res = seld.camconfig["size"]
 		self.config = self.cam.create_video_configuration()
 		self.config["controls"] = self.controls
 		
@@ -93,8 +84,19 @@ class Camera(AbstractCamera):
 		self.config_largefps = lambda : self.configure(res=(1332, 990), fps=120)
 
 		# Set initial conditions
-		self.mode_ = "video" 	# Current Mode - ["preview", "still", "video"]
-		self.config_default() 	# Configure default resoltion and fps
+		self.mode = "video" 	# Current Mode - ["preview", "still", "video"]
+
+		self.status = "standby"
+		self.all_states = ["standby", "acq", "waiting"]
+
+
+		### Pre and Post Callbacks (implemented per frame)
+		self.en_pre_callback = False
+		self.pre_buffer = StringIO()
+		self.pre_callbackfile = None
+		self.en_post_callback = False
+		self.post_buffer = StringIO()
+		self.post_callbackfile = None
 		
 
 	# 2
@@ -102,7 +104,7 @@ class Camera(AbstractCamera):
 		self.close()
 		self.cam.start()
 		self.opentime_ns = time.perf_counter()
-		log.info("PiCamera2 Camera was opened.")
+		log.info(f"PiCamera2 Camera was opened: {self.opentime_ns}")
 
 	# 3
 	def is_open(self):
@@ -111,9 +113,11 @@ class Camera(AbstractCamera):
 	# 3
 	def close(self):
 		self.cam.close()
-		log.info("PiCamera2 Camera was closed.")
+		now = time.perf_counter()
+		log.info(f"PiCamera2 Camera was closed: {now} : duration {now-self.opentime_ns:.2f}s")
 
 	# 4
+	### NOk
 	def configure(self, fps=None, res=None, config=None):
 		"""
 		Configure the base settings of the camera. 
@@ -144,20 +148,28 @@ class Camera(AbstractCamera):
 
 	# 5
 	def capture(self, action, filename, tsec=1,
-				iterations=1, itr_delay_s=0, init_delay_s=0, **kwargs):
+				it=1, it_delay_s=0, init_delay_s=0, **kwargs):
 		"""
 		init_delay does not include camara mode changes applied at 
 		the beginning which might be of the order of 100s of ms.
 		"""	
 		#TODO Add a better way to determine precision timing than ns_tick
+		
+		print("For debug: cam properties:")
+		pprint(self.cam.camera_properties)
+
 		action = action.lower().strip()
-		if iterations == 1:
+		
+		if it == 1:
 			if action == "preview":
+				self.status = "acq"
 				self.modes[action](tsec=tsec, **kwargs)
 			else:
+				self.status = "acq"
 				self.modes[action](filename, tsec=tsec, **kwargs)
 		else:
 			if action == "preview":
+				self.status = "acq"
 				self.modes[action](tsec=tsec, **kwargs)
 			else:
 				filename_stubs = filename.split(".")
@@ -165,12 +177,19 @@ class Camera(AbstractCamera):
 				for i in range(iterations)]
 				print(filenames_)
 				time.sleep(init_delay_s)
-				for i in range(iterations):
+				
+				for i in range(it):
 					filename_ = filenames_[i]
 					print(f"{i}: {time.time_ns()}. Capturing file: {filename_} :")
+					
+					self.status = "acq"
 					self.modes[action](filename_, tsec=tsec, **kwargs)
+					self.status = "waiting"
+					
 					print(f"{i}:  {time.time_ns()}. Sleeping for {itr_delay_s}s.")
-					time.sleep(itr_delay_s)
+					
+					time.sleep(it_delay_s)
+		self.status = "standby"
 
 	# 6
 	def preview(self, tsec=30, preview=Preview.QT):
@@ -211,6 +230,70 @@ class Camera(AbstractCamera):
 		time_now = time.perf_counter()
 		return f"<PiCamera2 - op for {(time_now - self.opentime_ns):.2f}s>"
 
+
+
+
+	## Callback functions
+	
+	# 10 
+	def en_pre_timestamps(self, filename):
+		"""
+		Need to be enabled before every acqusition.
+		"""
+		self.en_pre_callback = True
+
+		## Clear buffer for use
+		self.pre_buffer.truncate(0)
+		self.pre_buffer.seek(0)
+
+		## Open file in appendmode
+		self.pre_callbackfile = open(filename, "a")
+
+	# 11
+	def en_post_timestamps(self, filename):
+		"""
+		Need to be enabled before every acqusition.
+		"""
+		self.en_post_callback = True
+
+		## Clear buffer for use
+		self.post_buffer.truncate(0)
+		self.post_buffer.seek(0)
+
+		## Open file in appendmode
+		self.post_callbackfile = open(filename, "a")
+
+	# 11
+	def __do_callback_file_dumps__(self):
+		"""
+		Dumps the buffers to file.
+		"""
+		if self.en_pre_callback:
+			self.pre_callbackfile.write(self.pre_buffer.getvalue())
+			self.en_pre_callback = False
+			self.pre_callbackfile.flush()
+			self.pre_callbackfile.close()
+
+			## disable callbacks
+			self.cam.pre_callback = None
+
+		if self.en_post_callback:
+			self.post_callbackfile.write(self.post_buffer.getvalue())
+			self.en_post_callback = False
+			self.post_callbackfile.flush()
+			self.post_callbackfile.close()
+
+			## disable callbacks
+			self.cam.post_callback = None
+
+	def __pre_timestamp__(self):
+		self.pre_buffer.write("{}{}".format(time.perf_counter(), "\n"))
+	def __post_timestamp__(self):
+		self.post_buffer.write("{}{}".format(time.perf_counter(), "\n"))
+	
+
+
+	#### TODO Not evaluated at this point
 	# --- Implementation Specific functions ---
 
 
@@ -370,19 +453,27 @@ class Camera(AbstractCamera):
 		"""
 		Record an h264 video.
 		RPi Hardware supports processing upto 1080p30.
+		timestamping is allowed for this mode.
 		"""
 
 		#self.cam.configure(self.cam.create_video_configuration())
 		#self.set_mode_config("video")
 
+		if self.en_pre_callback:
+			self.cam.pre_callback = __pre_timestamp__
+		if self.en_post_callback:
+			self.cam.en_post_callback == __post_timestamp__
+
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
-		
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
 								 show_preview=True, \
 								 duration=tsec)
 		self.cam.stop_preview()
 		# quality=Quality.HIGH
+
+		### Dump callbacks to file
+		self.__do_callback_file_dumps__()
 
 	# OK
 	def __video_noprev__(self, filename, *args, **kwargs):

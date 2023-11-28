@@ -23,4 +23,3 @@ class AbstractSpectrophotometer:
 	def set_gain(self):
 		pass
 
-	def 
