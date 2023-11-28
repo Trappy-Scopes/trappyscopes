@@ -463,7 +463,7 @@ class Camera(AbstractCamera):
 		if self.en_pre_callback:
 			self.cam.pre_callback = self.__pre_timestamp__
 		if self.en_post_callback:
-			self.cam.en_post_callback == self.__post_timestamp__
+			self.cam.post_callback == self.__post_timestamp__
 
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
@@ -503,7 +503,7 @@ class Camera(AbstractCamera):
 		if self.en_pre_callback:
 			self.cam.pre_callback = self.__pre_timestamp__
 		if self.en_post_callback:
-			self.cam.en_post_callback == self.__post_timestamp__
+			self.cam.post_callback == self.__post_timestamp__
 
 		tsec = kwargs["tsec"]
 		output = FfmpegOutput(filename) # Opens a new encoder file object
