@@ -461,9 +461,9 @@ class Camera(AbstractCamera):
 		#self.set_mode_config("video")
 
 		if self.en_pre_callback:
-			self.cam.pre_callback = __pre_timestamp__
+			self.cam.pre_callback = self.__pre_timestamp__
 		if self.en_post_callback:
-			self.cam.en_post_callback == __post_timestamp__
+			self.cam.en_post_callback == self.__post_timestamp__
 
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
@@ -501,9 +501,9 @@ class Camera(AbstractCamera):
 		#self.set_mode_config("video")
 
 		if self.en_pre_callback:
-			self.cam.pre_callback = __pre_timestamp__
+			self.cam.pre_callback = self.__pre_timestamp__
 		if self.en_post_callback:
-			self.cam.en_post_callback == __post_timestamp__
+			self.cam.en_post_callback == self.__post_timestamp__
 
 		tsec = kwargs["tsec"]
 		output = FfmpegOutput(filename) # Opens a new encoder file object
