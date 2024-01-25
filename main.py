@@ -138,7 +138,7 @@ def close_exp():
 def exit():
 	if exp:
 		if exp.active:
-		exp.close()
+			exp.close()
 	if device_metadata["auto_fsync"]:
 		SyncEngine.fsync(device_metadata)
 	sys.exit()
