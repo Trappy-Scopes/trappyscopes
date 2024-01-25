@@ -164,9 +164,10 @@ class RPiPicoDevice:
 			
 
 		log.info(f"Syncing files: {files} to {folder} on pico device.")
+		
+
 		# Check if the current foldername is in the root
 		self.scan_root()
-
 		# If it doesn't exist, create it
 		if folder in self.fs.keys() and folder != ".":
 			self.pico.fs_mkdir(folder)
@@ -274,8 +275,23 @@ class PicoProxyDevice:
 		else:
 			self.picodevice(f"{self.name}.{command}")
 
+
 if __name__ == "__main__":
 	input_ = input("Will test filesync on pico: type yes to continue")
 	if input_ == "yes":
 		pico = RPiPicoDevice(connect=False)
-		pico.__connect__("/dev/cu.usbmodem101")
+		pico.auto_connect()
+		pico.exec_main()
+		pico.pico.enter_raw_repl()
+		#pico.pico.follow(10)
+		#pico.pico.exec("do()")
+		#pico.pico.follow(10)
+		#print(dir(pico.pico.serial))
+		#from time import sleep
+		#while True:
+		#	print(".")
+		#	r = pico.pico.serial.readline().decode('utf-8').strip()
+		#	print(r)
+		#	sleep(0.5)
+		
+		#pico.pico.follow()

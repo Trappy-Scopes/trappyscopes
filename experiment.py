@@ -140,6 +140,12 @@ class Experiment:
 	def toggle_beacon(pico):
 		pico("beacon.toggle()")
 
+class Calibration(Experiment):
+	
+	def __init__(self, name):
+		super().__init__(name)
+		self.exp_dir = os.path.join(config.common.CALIB_DIR, name)
+
 if __name__ == "__main__":
 	exp = Experiment("test")
 	pprint(exp.list_all())

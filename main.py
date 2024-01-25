@@ -27,7 +27,14 @@ from sync import SyncEngine
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 
 
-## 0. Check script files
+print("\n\n")
+## 0. Setlogging and device state
+og_directory = os.getcwd()
+log = logging.Logger("main")
+log.setLevel(0)
+
+
+## 1. Check script files
 scriptfiles = None
 if len(sys.argv) > 1:
 	scriptfiles = [os.path.abspath(file) for file in sys.argv[1:]]
@@ -37,13 +44,6 @@ print("Scripts that will be loaded: ")
 print(scriptfiles)
 
 
-## 1. Setlogging and device state
-og_directory = os.getcwd()
-log = logging.Logger("main")
-log.setLevel(0)
-print("-"*100)
-
-
 ## 2. Load device ID an metadata
 with open("config/deviceid.yaml") as deviceid:
 	device_metadata = yaml.load(deviceid, Loader=SafeLoader)
@@ -51,19 +51,21 @@ with open("config/deviceid.yaml") as deviceid:
 ## -------- Synchronize ------------
 SyncEngine.git_sync(device_metadata)
 ## ---------------------------------
-
+print("-"*100)
 print("\nDevice: ")
 print("-------")
 log.critical(pprint.pformat(device_metadata))
-
+scopeid = device_metadata["name"]
 
 ##3. Print Header
-#print(pageheader())
+print(pageheader())
 
 
 
 ## 4. Set hardware resources
 
+## TODO concise
+print("----- LIGHTS -----")
 picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
            "normal" * (device_metadata["hardware"]["pico"][0] == "pico")
 
@@ -80,6 +82,7 @@ log.info(pico)
 lit = PicoLight(pico, "l1")
 log.info(lit)
 
+print("\n\n----- CAMERA -----")
 cam = CameraSelector(device_metadata["hardware"]["camera"])
 #cam.open() # Camera should be already open upon creation.
 if not cam.is_open():
@@ -136,12 +139,17 @@ def exit():
 
 ## 4. Set Experiment
 print("All current experiments on the Microscope:")
-print(Experiment.list_all())
+pprint.pprint(Experiment.list_all())
+exp_name = None
 print("\nCall intro() to get an introduction.")
-print("\n\n")
-print("Press Ctrl+Z to exit or enter to ignore.")
-exp_name = input("Input the session/experiment name -> ")
-exp_name.strip()
+print("----- ACTION -----")
+if not scriptfiles:
+	
+	print("\n\n")
+	
+	print("Press Ctrl+Z to exit or enter to ignore.")
+	exp_name = input("Input the session/experiment name -> ")
+	exp_name.strip()
 
 exp = None
 if exp_name:
@@ -156,12 +164,11 @@ if len(sys.argv) > 1:
 	for exefile in scriptfiles:
 		with open(exefile) as f:
 			exec(f.read(), globals())
-##
+##------
 
 
 ## Test
-pico("l1.setVs(2,2,0)")
-
+#pico("l1.setVs(2,2,0)")
 #print(sys.path)
 
 

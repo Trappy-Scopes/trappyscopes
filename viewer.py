@@ -103,6 +103,7 @@ class Viewer(QtWidgets.QMainWindow):
 
         ## Add widgets into each dock ----------------------------
         self.widgets = {}
+        self.update = 0
 
         ## Dock 1 - Camera view
         self.widgets["cam"] = pg.ImageView()
@@ -174,13 +175,15 @@ class Viewer(QtWidgets.QMainWindow):
         Check this 50 value. What is it?
         """
         def all_curve_updates():
+            self.update += 1
             for mon in ["mon1", "mon2"]:
                 for data in self.data[mon]:
                     data.update_curve()
+            print(f"Update : {self.update}", end='\r')
 
         self.timer = pg.QtCore.QTimer()
         self.timer.timeout.connect(all_curve_updates)
-        self.timer.start(50)
+        self.timer.start(100)
 
 class JupyterConsoleWidget(inprocess.QtInProcessRichJupyterWidget):
     """
@@ -205,4 +208,5 @@ if __name__ == '__main__':
     print("Launching Trappy-Scopes Viewer")
     view = Viewer()
     view.console_exec("execfile('main.py')")
+    view.monitor_updater()
     pg.exec()

@@ -43,6 +43,7 @@ with open("config/deviceid.yaml", "w") as f:
 
 # DATA_DIR ---
 DATA_DIR = os.path.join(os.path.expanduser("~"), "experiments")
+CALIB_DIR = os.path.join(os.path.expanduser("~"), "calibration")
 if not deviceid["write_server"]:
 	DATA_DIR = deviceid["write_server"]
 

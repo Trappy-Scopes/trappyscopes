@@ -47,6 +47,5 @@ class AbstractCamera:
 	@abstractmethod
 	def __repr__(self):
 		pass
-
 	
 	

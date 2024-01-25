@@ -11,5 +11,5 @@ hardware:
 git_sync: false
 write_server: ssd1
 file_server: smb://files1.igc.gulbenkian.pt/igc/folders/LP/yatharth
-auto_fsync: true
+auto_fsync: false
 auto_pico_fsync: true
