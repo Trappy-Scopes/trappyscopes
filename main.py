@@ -3,6 +3,7 @@
 
 import logging
 import pprint
+from pprint import pprint as ppprint
 import os
 import sys
 sys.path.append(os.path.abspath("./abcs"))
@@ -32,7 +33,7 @@ print("\n\n")
 og_directory = os.getcwd()
 log = logging.Logger("main")
 log.setLevel(0)
-
+exp = None      # For crash safety
 
 ## 1. Check script files
 scriptfiles = None

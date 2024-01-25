@@ -24,10 +24,15 @@ class Camera(AbstractCamera):
 
 	# 5
 	def capture(self, action, filepath, tsec=1,
-				iterations=1, itr_delay_s=0, init_delay_s=0):
+				it=1, it_delay_s=0, init_delay_s=0):
 		# Write a dummy file
-		with open(filepath, "w"):
-			pass 
+		for i in range(it):
+			if it == 1:
+				with open(filepath, "w"):
+					pass
+			else:
+				with open(f"{i}_{filepath}", "w"):
+					pass
 
 	# 6
 	def preview(self, tsec=30):
