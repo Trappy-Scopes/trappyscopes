@@ -6,7 +6,7 @@
 
 # Device specific config
 *deviceid.yaml
-/config/deviceid.yaml
+./config/deviceid.yaml
 
 
 # Byte-compiled / optimized / DLL files
