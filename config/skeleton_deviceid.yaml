@@ -1,0 +1,12 @@
+name: null
+uuid: null
+type: null
+hardware:
+  pico: null
+  camera: null
+  illumination: null
+git_sync: null
+write_server: null
+file_server: null
+auto_fsync: null
+auto_pico_fsync: null
