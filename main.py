@@ -59,9 +59,9 @@ log.critical(pprint.pformat(device_metadata))
 scopeid = device_metadata["name"]
 
 ##3. Print Header
-from colorama import init
-init()
-ppprint(pageheader())
+#from colorama import init
+#init()
+print(pageheader())
 
 
 

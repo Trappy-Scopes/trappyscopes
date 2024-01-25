@@ -50,7 +50,7 @@ _____
 
 """
 	#return "%s%s%s"%(Fore.CYAN, text, Fore.RESET)
-	return f"{Fore.CYAN}{text}{Fore.RESET}"
+	return f"{''}{text}{''}"
 
 
 
