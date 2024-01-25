@@ -73,7 +73,8 @@ picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
            "normal" * (device_metadata["hardware"]["pico"][0] == "pico")
 
 pico = RPiPicoDevice.Select(picomode, name=device_metadata["hardware"]["pico"][1], \
-					 port=None)
+	   connect=False)
+pico.auto_connect()
 print(pico)
 if not pico.connected:
 	log.error("Could not get a pico device - exiting.")
@@ -142,7 +143,7 @@ def exit():
 
 ## 4. Set Experiment
 print("All current experiments on the Microscope:")
-pprint.pprint(Experiment.list_all())
+ppprint(Experiment.list_all())
 exp_name = None
 print("\nCall intro() to get an introduction.")
 print("----- ACTION -----")
