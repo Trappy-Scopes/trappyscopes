@@ -49,8 +49,8 @@ _____
         Living Physics Group, Instituto Gulbenkian de Ciência, Oeiras, PT
 
 """
-	#return "%s%s%s"%(Fore.CYAN, text, Fore.RESET)
-	return f"{''}{text}{''}"
+	return "%s%s%s"%(Fore.CYAN, text, Fore.RESET)
+	#return f"{}{text}{""}"
 
 
 
