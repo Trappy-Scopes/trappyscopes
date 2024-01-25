@@ -6,7 +6,7 @@ def install_py_libs(required_libs):
 			__import__(lib)
 			print(lib, "exists!")
 		except ImportError:
-			pip.main(['install', lib])
+			pip.main(['install', lib, "--break-system-packages"])
 			print(lib, "was installed!")
 
 
