@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: utf-16 -*-
+# -*- coding: utf-8 -*-
 
 import logging
 import pprint
@@ -59,7 +59,7 @@ log.critical(pprint.pformat(device_metadata))
 scopeid = device_metadata["name"]
 
 ##3. Print Header
-print(str(pageheader()).decode("utf-8"))
+print(str(pageheader()).encode("utf-8"))
 
 
 
