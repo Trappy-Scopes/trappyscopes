@@ -100,7 +100,7 @@ log.info(cam)
 vid = "vid"
 img = "img"
 vidmp4 = "vidmp4"
-preview = "preview"
+prev = "preview"
 unique_check = True   # Only asserted during experiment mode.
 def capture(action, name, *args, **kwargs):
 	"""
@@ -123,6 +123,9 @@ def capture(action, name, *args, **kwargs):
 	if exp or exp.active():
 		exp.log_event(name)
 
+def preview(tsec):
+	cam.preview(tsec=30)
+
 
 def close_exp():
 	"""
@@ -133,7 +136,8 @@ def close_exp():
 
 # Overloaded Exit function
 def exit():
-	if exp and exp.active:
+	if exp:
+		if exp.active:
 		exp.close()
 	if device_metadata["auto_fsync"]:
 		SyncEngine.fsync(device_metadata)

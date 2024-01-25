@@ -141,7 +141,7 @@ class Camera(AbstractCamera):
 			self.config["size"] = tuple(res)
 			self.config["controls"]["FrameDurationLimits"] = framedurationlim
 
-			#for mode_ in self.config_map:
+			#for mode_ in self.con gvfig_map:
 			#	self.config_map[mode_]["size"] = tuple(res)
 			#	self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
 			#												 framedurationlim
