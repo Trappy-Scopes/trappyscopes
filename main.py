@@ -59,7 +59,7 @@ log.critical(pprint.pformat(device_metadata))
 scopeid = device_metadata["name"]
 
 ##3. Print Header
-print(str(pageheader()).encode("utf-8"))
+ppprint(pageheader())
 
 
 
