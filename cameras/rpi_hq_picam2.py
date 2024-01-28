@@ -84,6 +84,11 @@ class Camera(AbstractCamera):
 		self.config_largeres = lambda : self.configure(res=(4056, 3040), fps=10)
 		self.config_largefps = lambda : self.configure(res=(1332, 990), fps=120)
 
+		self.config_cammode1 = lambda : self.configure(res=(2028, 1080), fps=50)
+		self.config_cammode2 = lambda : self.configure(res=(2028, 1520), fps=40)
+		self.config_cammode3 = lambda : self.configure(res=(1332, 990), fps=120)
+		self.config_cammode4 = lambda : self.configure(res=(4056, 3040), fps=10)
+
 		# Set initial conditions
 		self.mode = "video" 	# Current Mode - ["preview", "still", "video"]
 
@@ -131,6 +136,12 @@ class Camera(AbstractCamera):
 		# CONTROLS
 		self.cam.set_controls(self.controls)
 
+		if config:
+			with open(config) as file:
+				self.camconfig = yaml.load(file, Loader=SafeLoader)
+			print("Camera configuration loaded: ")
+			pprint(self.camconfig)
+
 
 		# CONFIGURATIONS
 		if res != None and fps != None:
@@ -141,6 +152,10 @@ class Camera(AbstractCamera):
 			self.config["size"] = tuple(res)
 			self.config["controls"]["FrameDurationLimits"] = framedurationlim
 
+
+			self.cam.video_configuration.controls.FrameRate = fps
+			self.cam.video_configuration.main.size = tuple(res[0], res[1])
+			self.cam.configure("video")
 			#for mode_ in self.con gvfig_map:
 			#	self.config_map[mode_]["size"] = tuple(res)
 			#	self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
