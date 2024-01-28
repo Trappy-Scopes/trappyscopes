@@ -111,10 +111,11 @@ def capture(action, name, *args, **kwargs):
 		action = "video"
 	
 	# File  uniqueness check
-	if unique_check and exp.active:
-		if not exp.unique(name):
-			print(f"{Fore.RED}File already exists - ignoring the call.{Fore.RESET}")
-			return
+	if unique_check
+		if exp.active:
+			if not exp.unique(name):
+				print(f"{Fore.RED}File already exists - ignoring the call.{Fore.RESET}")
+				return
 	
 	# Capture call
 	cam.capture(action, name,  *args, **kwargs)

@@ -176,7 +176,7 @@ class Camera(AbstractCamera):
 			else:
 				filename_stubs = filename.split(".")
 				filenames_ = [f"{filename_stubs[0]}_{i}.{filename_stubs[1]}" \
-				for i in range(iterations)]
+				for i in range(it)]
 				print(filenames_)
 				time.sleep(init_delay_s)
 				
