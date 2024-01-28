@@ -218,6 +218,7 @@ class Camera(AbstractCamera):
 					time.sleep(it_delay_s)
 		self.status = "standby"
 		self.__do_callback_file_dumps__()
+		gc.collect()
 
 
 	# 6
