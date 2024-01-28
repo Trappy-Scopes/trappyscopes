@@ -61,7 +61,7 @@ class Camera(AbstractCamera):
 		with open("config/camconfig_picamera2.yaml") as file:
 			self.camconfig = yaml.load(file, Loader=SafeLoader)
 		print("Camera configuration loaded: ")
-		pprint(self.camconfig)
+		#pprint(self.camconfig)
 
 		self.res = self.camconfig["size"]
 		self.controls = self.camconfig["controls"]
@@ -173,8 +173,8 @@ class Camera(AbstractCamera):
 		"""	
 		#TODO Add a better way to determine precision timing than ns_tick
 		
-		print("For debug: cam properties:")
-		pprint(self.cam.video_configuration)
+		#print("For debug: cam properties:")
+		#pprint(self.cam.video_configuration)
 
 		action = action.lower().strip()
 		
