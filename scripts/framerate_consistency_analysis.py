@@ -15,7 +15,7 @@ lit.setVs(0,0.5,0)
 for hour in [1, 4, 8, 16]:
 	name = f"{hour}_hour"
 	#cam.en_pre_timestamps(f"{name}_pre_callback_ts.txt")
-	capture(vidmp4, f"{name}.mp4", tsec=60, it=hour, it_delay_s=10)
+	capture(vidmp4, f"{name}.mp4", tsec=30, it=hour*2, it_delay_s=10)
 
 
 # Close experiment

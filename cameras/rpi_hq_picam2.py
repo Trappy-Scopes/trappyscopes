@@ -177,6 +177,14 @@ class Camera(AbstractCamera):
 				filename_stubs = filename.split(".")
 				filenames_ = [f"{filename_stubs[0]}_{i}.{filename_stubs[1]}" \
 				for i in range(it)]
+
+				pre_ts_filenames = filenames_ = [f"{filename_stubs[0]}_{i}_prets.txt" \
+				for i in range(it)]
+
+				post_ts_filenames = filenames_ = [f"{filename_stubs[0]}_{i}_postts.txt" \
+				for i in range(it)]
+
+
 				print(filenames_)
 				time.sleep(init_delay_s)
 				
@@ -192,6 +200,8 @@ class Camera(AbstractCamera):
 					
 					time.sleep(it_delay_s)
 		self.status = "standby"
+		self.__do_callback_file_dumps__()
+
 
 	# 6
 	def preview(self, tsec=30, preview=Preview.QT):
@@ -517,7 +527,7 @@ class Camera(AbstractCamera):
 		self.cam.stop_preview()
 
 		### Dump callbacks to file
-		self.__do_callback_file_dumps__()
+		#self.__do_callback_file_dumps__()
 
 	# 
 	def __video_raw__(self, filename, *args, **kwargs):
