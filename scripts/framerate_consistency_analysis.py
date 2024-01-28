@@ -9,7 +9,7 @@ exp = Experiment(f"{scopeid}_framerate_consistency_{dt}")
 sleep(2)
 
 #cam.config_cammode2()
-lit.setVs(0,0,0.5)
+lit.setVs(0.5,0,0.5)
 
 ## Capture for an hour
 for hour in [1, 4, 8, 16]:
