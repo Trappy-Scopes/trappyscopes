@@ -16,7 +16,7 @@ for hour in [1, 4, 8, 16]:
 	name = f"{hour}_hour"
 	cam.en_pre_timestamps(f"{name}_pre_callback_ts.txt")
 	print(f"FPS: {cam.cam.video_configuration.controls.FrameRate}")
-	capture(vidmp4, f"{name}.mp4", tsec=30, it=hour*2, it_delay_s=10)
+	capture(vidmp4, f"{name}.mp4", tsec=60*60, it=hour*2, it_delay_s=10)
 
 
 # Close experiment
