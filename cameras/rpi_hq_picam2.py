@@ -66,6 +66,7 @@ class Camera(AbstractCamera):
 		self.res = self.camconfig["size"]
 		self.controls = self.camconfig["controls"]
 		self.config = self.cam.create_video_configuration()
+		self.cam.configure(self.config)
 		self.config["controls"] = self.controls
 		
 		#self.config_map["preview"] = self.cam.create_preview_configuration()
