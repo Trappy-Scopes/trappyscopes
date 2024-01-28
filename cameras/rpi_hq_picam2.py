@@ -154,7 +154,7 @@ class Camera(AbstractCamera):
 
 
 			self.cam.video_configuration.controls.FrameRate = fps
-			self.cam.video_configuration.main.size = tuple(res[0], res[1])
+			self.cam.video_configuration.main.size = (res[0], res[1])
 			self.cam.configure("video")
 			#for mode_ in self.con gvfig_map:
 			#	self.config_map[mode_]["size"] = tuple(res)
