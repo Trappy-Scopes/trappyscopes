@@ -188,7 +188,7 @@ class Camera(AbstractCamera):
 					self.modes[action](filename_, tsec=tsec, **kwargs)
 					self.status = "waiting"
 					
-					print(f"{i}:  {time.time_ns()}. Sleeping for {itr_delay_s}s.")
+					print(f"{i}:  {time.time_ns()}. Sleeping for {it_delay_s}s.")
 					
 					time.sleep(it_delay_s)
 		self.status = "standby"
