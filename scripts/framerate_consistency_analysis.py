@@ -8,7 +8,7 @@ dt = str(datetime.date.today()).replace("-", "_")
 exp = Experiment(f"{scopeid}_framerate_consistency_{dt}")
 sleep(2)
 
-cam.config_cammode2()
+#cam.config_cammode2()
 lit.setVs(0,0.5,0)
 
 ## Capture for an hour
