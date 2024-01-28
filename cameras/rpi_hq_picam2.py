@@ -63,8 +63,8 @@ class Camera(AbstractCamera):
 		print("Camera configuration loaded: ")
 		pprint(self.camconfig)
 
-		self.controls = self.camconfig["controls"]
 		self.res = self.camconfig["size"]
+		self.controls = self.camconfig["controls"]
 		self.config = self.cam.create_video_configuration()
 		self.config["controls"] = self.controls
 		
@@ -91,7 +91,6 @@ class Camera(AbstractCamera):
 
 		# Set initial conditions
 		self.mode = "video" 	# Current Mode - ["preview", "still", "video"]
-
 		self.status = "standby"
 		self.all_states = ["standby", "acq", "waiting"]
 
@@ -134,7 +133,7 @@ class Camera(AbstractCamera):
 		"""
 
 		# CONTROLS
-		self.cam.set_controls(self.controls)
+		##self.cam.set_controls(self.controls)
 
 		if config:
 			with open(config) as file:
@@ -195,10 +194,10 @@ class Camera(AbstractCamera):
 				filenames_ = [f"{filename_stubs[0]}_{i}.{filename_stubs[1]}" \
 				for i in range(it)]
 
-				pre_ts_filenames = filenames_ = [f"{filename_stubs[0]}_{i}_prets.txt" \
+				pre_ts_filenames  = [f"{filename_stubs[0]}_{i}_prets.txt" \
 				for i in range(it)]
 
-				post_ts_filenames = filenames_ = [f"{filename_stubs[0]}_{i}_postts.txt" \
+				post_ts_filenames = [f"{filename_stubs[0]}_{i}_postts.txt" \
 				for i in range(it)]
 
 
