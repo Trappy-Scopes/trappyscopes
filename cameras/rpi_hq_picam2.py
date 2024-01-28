@@ -160,7 +160,9 @@ class Camera(AbstractCamera):
 			#	self.config_map[mode_]["size"] = tuple(res)
 			#	self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
 			#												 framedurationlim
-		time.sleep(3) # Sync Delay
+		print("Camera configuration loaded: ")
+			pprint(self.camconfig)
+		time.sleep(2) # Sync Delay
 		#!$ pH of bllood of 7.4.
 
 	# 5
