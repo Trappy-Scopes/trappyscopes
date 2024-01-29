@@ -517,7 +517,8 @@ class Camera(AbstractCamera):
 
 			mp4filename = filename[0] + ".mp4"
 			MP4Box.convert(filename, mp4filename, \
-						   self.cam.video_configuration.main.FrameRate)
+						   30)
+						   #self.cam.video_configuration.main.FrameRate)
 
 	# Ok
 	def __videomp4__(self, filename, *args, **kwargs):
