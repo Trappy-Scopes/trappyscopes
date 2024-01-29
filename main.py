@@ -24,7 +24,7 @@ from picolight import PicoLight
 from experiment import Experiment
 from utilities.fluff import pageheader, intro
 from sync import SyncEngine
-
+from time import sleep
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 
 
@@ -106,6 +106,8 @@ def capture(action, name, *args, **kwargs):
 	"""
 	Default capture 
 	"""
+	cam.open()
+	sleep(1)
 	print(f"cwd: {os.getcwd()}")
 	if action == None:
 		action = "video"
@@ -119,7 +121,7 @@ def capture(action, name, *args, **kwargs):
 	
 	# Capture call
 	cam.capture(action, name,  *args, **kwargs)
-
+	cam.close()
 	# Reprint Experiment Header
 	if exp or exp.active():
 		exp.log_event(name)
@@ -133,6 +135,7 @@ def close_exp():
 	Close experiment and reset the current directory to the original.
 	"""
 	exp.close()
+	cam.close()
 	print("--- Exiting experiment --\n")
 
 # Overloaded Exit function

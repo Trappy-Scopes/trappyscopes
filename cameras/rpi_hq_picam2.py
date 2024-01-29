@@ -32,8 +32,8 @@ class Camera(AbstractCamera):
 
 		# Preview Window Settings
 		self.preview_type = Preview.QT
-		self.win_title_fields = []
-		self.cam.title_fields = ["ExposureTime", "FrameDuration"]
+		self.win_title_fields = []                                 ##
+		self.cam.title_fields = ["ExposureTime", "FrameDuration"]  ##
 
 		# Capture Modes for this implementation
 		self.modes = {
@@ -57,27 +57,16 @@ class Camera(AbstractCamera):
 
 
 		# Monolithic Configurations
-
 		with open("config/camconfig_picamera2.yaml") as file:
 			self.camconfig = yaml.load(file, Loader=SafeLoader)
-		print("Camera configuration loaded: ")
+		#print("Camera configuration loaded: ")
 		#pprint(self.camconfig)
 
-		self.res = self.camconfig["size"]
 		self.controls = self.camconfig["controls"]
 		self.config = self.cam.create_video_configuration()
-		#self.cam.configure(self.config)
 		self.config["controls"] = self.controls
+		self.configure(self.config)
 		
-		#self.config_map["preview"] = self.cam.create_preview_configuration()
-		#self.config_map["still"] = self.cam.create_still_configuration()
-		#self.config_map["video"] = self.cam.create_video_configuration()
-
-		#self.config_map["still"]["lores"] = {}
-		#self.config_map["still"]["display"] = "lores" # Turn on preview
-		#self.config_map["preview"]["controls"] = self.controls
-		#self.config_map["still"]["controls"] = self.controls
-		#self.config_map["video"]["controls"] = self.controls
 
 		# Configuration Setting Functions
 		self.config_default =  lambda : self.configure(res=(1980, 1080), fps=30)
@@ -91,7 +80,7 @@ class Camera(AbstractCamera):
 		self.config_cammode4 = lambda : self.configure(res=(4056, 3040), fps=10)
 
 		# Set initial conditions
-		self.mode = "video" 	# Current Mode - ["preview", "still", "video"]
+		self.config_mode = "video" # Current Mode - ["preview", "still", "video"]
 		self.status = "standby"
 		self.all_states = ["standby", "acq", "waiting"]
 
@@ -141,6 +130,7 @@ class Camera(AbstractCamera):
 				self.camconfig = yaml.load(file, Loader=SafeLoader)
 			print("Camera configuration loaded: ")
 			pprint(self.camconfig)
+			### Set the config here
 
 
 		# CONFIGURATIONS
@@ -150,20 +140,16 @@ class Camera(AbstractCamera):
 			framedurationlim = (frameduration, frameduration)
 
 			self.config["size"] = tuple(res)
-			self.config["controls"]["FrameDurationLimits"] = framedurationlim
-
-
+			self.config["controls"]["FrameDurationLimits"] = (framedurationlim, frameduration)
 			self.cam.video_configuration.controls.FrameRate = fps
 			self.cam.video_configuration.main.size = (res[0], res[1])
-			self.cam.configure("video")
-			#for mode_ in self.con gvfig_map:
-			#	self.config_map[mode_]["size"] = tuple(res)
-			#	self.config_map[mode_]["controls"]["FrameDurationLimits"] = \
-			#												 framedurationlim
-			print("Camera configuration loaded: ")
+			
+			print("Camera configuration updated: ")
 			pprint(self.camconfig)
 		time.sleep(2) # Sync Delay
-		#!$ pH of bllood of 7.4.
+		self.cam.configure("video")
+		
+		#Random fact: pH of bllood of 7.4.
 
 	# 5
 	def capture(self, action, filename, tsec=1,
