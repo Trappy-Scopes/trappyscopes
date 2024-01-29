@@ -1,7 +1,7 @@
 import asyncio
 import os
 import subprocess
-
+import colorama
 class MP4Box:
 
 	def check():
