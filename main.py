@@ -123,7 +123,7 @@ def capture(action, name, *args, **kwargs):
 	
 	# Capture call
 	cam.capture(action, name,  *args, **kwargs)
-	cam.close()
+	#cam.close()
 	# Reprint Experiment Header
 	if exp or exp.active():
 		exp.log_event(name)
