@@ -16,7 +16,7 @@ class MP4Box:
 			print("MP4Box is installed!")
 		else:
 			print("MP4Box not found! Installing!")
-			output = subprocess.check_output(["sudo", "apt", "install", "gpac"])
+			output = subprocess.check_output(["sudo", "apt-get", "install", "-y", "gpac"])
 			output = output.decode()
 			print(f"{colorama.Fore.YELLOW}output{colorama.Fore.RESET}")
 
