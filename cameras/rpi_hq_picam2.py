@@ -65,7 +65,7 @@ class Camera(AbstractCamera):
 		self.controls = self.camconfig["controls"]
 		self.config = self.cam.create_video_configuration()
 		self.config["controls"] = self.controls
-		self.configure(self.config)
+		#self.configure(self.config)
 		
 
 		# Configuration Setting Functions
