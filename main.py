@@ -106,8 +106,9 @@ def capture(action, name, *args, **kwargs):
 	"""
 	Default capture 
 	"""
-	cam.open()
-	sleep(1)
+	if not cam.is_open():
+		cam.open()
+		sleep(1)
 	print(f"cwd: {os.getcwd()}")
 	if action == None:
 		action = "video"
