@@ -33,8 +33,8 @@ class MP4Box:
 		async def convert_async():
 		    await asyncio.sleep(5)
 		    process = await asyncio.create_subprocess_exec(
-		        "MP4Box", "-add", f"{infile}:fps={fps}",
-		        "-new", os.path.join("converted", outfile)
+		        "MP4Box", "-add", f"{infile}:fps={fps}", \
+		        "-new", os.path.join("converted", outfile), \
 		        stdout=asyncio.subprocess.PIPE,
 		        stderr=asyncio.subprocess.PIPE
 		    )
