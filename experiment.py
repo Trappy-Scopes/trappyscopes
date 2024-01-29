@@ -31,6 +31,7 @@ class Experiment:
 		os.mkdir(dir_)
 		os.mkdir(os.path.join(dir_, "postprocess"))
 		os.mkdir(os.path.join(dir_, "analysis"))
+		os.mkdir(os.path.join(dir_, "converted"))
 
 		# Copy payload to the dir_
 

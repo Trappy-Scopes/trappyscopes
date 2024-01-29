@@ -9,10 +9,14 @@ import yaml
 from yaml.loader import SafeLoader
 from io import StringIO 
 import gc
+import subprocess
+
 
 from picamera2 import Picamera2, Preview
 from picamera2.outputs import FfmpegOutput, FileOutput
 from picamera2.encoders import H264Encoder, Quality
+
+from utilities.mp4box import MP4Box
 
 class Camera(AbstractCamera):
 	"""
@@ -506,7 +510,14 @@ class Camera(AbstractCamera):
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
 								 show_preview=False, \
 								 duration=tsec)
-		#quality=Quality.HIGH, 
+
+		## Asyncronously autoconvert to MP4
+		if "mp4" in kwargs:
+			mp4filename = filename.rsplit(".", 1)
+
+			mp4filename = filename[0] + ".mp4"
+			MP4Box.convert(filename, mp4filename, \
+						   self.cam.video_configuration.main.FrameRate)
 
 	# Ok
 	def __videomp4__(self, filename, *args, **kwargs):

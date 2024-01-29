@@ -50,5 +50,9 @@ class Camera(AbstractCamera):
 	def __repr__(self):
 		return "NullCamera - It does nothing!"
 
+
+	def en_pre_timestamps(self, filename):
+		return
+
 	
 	

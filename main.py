@@ -101,6 +101,7 @@ vid = "vid"
 img = "img"
 vidmp4 = "vidmp4"
 prev = "preview"
+vid_noprev = "vid_noprev"
 unique_check = True   # Only asserted during experiment mode.
 def capture(action, name, *args, **kwargs):
 	"""

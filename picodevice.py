@@ -226,6 +226,10 @@ class NullRPiPicoDevice(RPiPicoDevice):
 		self.print_("sync_files: All calls are ignored by the NullRPiPicoDevice device.")
 		return None
 
+	def auto_connect(self, port=None):
+		self.print_("auto_connect: All calls are ignored by the NullRPiPicoDevice device.")
+		return None
+
 
 class PicoProxyDevice:
 	"""
