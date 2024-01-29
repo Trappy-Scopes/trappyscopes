@@ -145,6 +145,11 @@ def exit():
 			exp.close()
 	if device_metadata["auto_fsync"]:
 		SyncEngine.fsync(device_metadata)
+	try:
+		if cam:
+			cam.close()
+	except:
+		pass
 	sys.exit()
 
 
