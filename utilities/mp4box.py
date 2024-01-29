@@ -31,13 +31,13 @@ class MP4Box:
 		to file before the conversion begins.
 		"""
 		async def convert_async():
-		    await asyncio.sleep(5)
-		    process = await asyncio.create_subprocess_exec(
-		        "MP4Box", "-add", f"{infile}:fps={fps}", \
-		        "-new", os.path.join("converted", outfile), \
-		        stdout=asyncio.subprocess.PIPE,
-		        stderr=asyncio.subprocess.PIPE
-		    )
+			await asyncio.sleep(5)
+			process = await asyncio.create_subprocess_exec(
+				"MP4Box", "-add", f"{infile}:fps={fps}", \
+				"-new", os.path.join("converted", outfile), \
+				stdout=asyncio.subprocess.PIPE,
+				stderr=asyncio.subprocess.PIPE
+			)
 
 			await process.wait()
 			# Retrieve the output
