@@ -311,6 +311,7 @@ class Camera(AbstractCamera):
 			self.cam.post_callback = None
 
 	def __pre_timestamp__(self, request):
+		print(time.perf_counter())
 		self.pre_buffer.write("{}{}".format(time.perf_counter(), "\n"))
 	def __post_timestamp__(self, request):
 		print("!",end="")
