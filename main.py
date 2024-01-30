@@ -103,6 +103,7 @@ vidmp4 = "vidmp4"
 prev = "preview"
 vid_noprev = "vid_noprev"
 unique_check = True   # Only asserted during experiment mode.
+
 def capture(action, name, *args, **kwargs):
 	"""
 	Default capture 
@@ -110,8 +111,9 @@ def capture(action, name, *args, **kwargs):
 	if not cam.is_open():
 		cam.open()
 		sleep(1)
-	print(f"cwd: {os.getcwd()}")
-	if action == None:
+	print(f"acq: {name}")
+	
+	if not action:
 		action = "video"
 	
 	# File  uniqueness check
@@ -121,15 +123,19 @@ def capture(action, name, *args, **kwargs):
 				print(f"{Fore.RED}File already exists - ignoring the call.{Fore.RESET}")
 				return
 	
-	# Capture call
-	cam.capture(action, name,  *args, **kwargs)
+	# Capture call -------------------------------
+	cam.capture(action, name,  *args, **kwargs) #|
+	#### -----------------------------------------
+
 	#cam.close()
-	# Reprint Experiment Header
+	
 	if exp or exp.active():
 		exp.log_event(name)
 
 def preview(tsec):
-	cam.preview(tsec=30)
+	if cam:
+		if cam.is_open():
+			cam.preview(tsec=30)
 
 
 def close_exp():
@@ -137,7 +143,9 @@ def close_exp():
 	Close experiment and reset the current directory to the original.
 	"""
 	exp.close()
-	cam.close()
+	if cam:
+		if cam.is_open():
+			cam.close()
 	print("--- Exiting experiment --\n")
 
 # Overloaded Exit function
@@ -147,21 +155,20 @@ def exit():
 			exp.close()
 	if device_metadata["auto_fsync"]:
 		SyncEngine.fsync(device_metadata)
-	try:
-		if cam:
+	
+	if cam:
+		if cam.is_open():
 			cam.close()
-	except:
-		pass
 	sys.exit()
 
 
 
 ## 4. Set Experiment
+print("----- ACTION -----")
 print("All current experiments on the Microscope:")
 ppprint(Experiment.list_all())
 exp_name = None
 print("\nCall intro() to get an introduction.")
-print("----- ACTION -----")
 if not scriptfiles:
 	
 	print("\n\n")
