@@ -289,6 +289,7 @@ class Camera(AbstractCamera):
 		Dumps the buffers to file.
 		"""
 		if self.en_pre_callback:
+			print(f"Writing pre callbacks: {self.pre_callbackfile}")
 			self.pre_callbackfile.write(self.pre_buffer.getvalue())
 			self.en_pre_callback = False
 			self.pre_callbackfile.flush()
@@ -298,6 +299,7 @@ class Camera(AbstractCamera):
 			self.cam.pre_callback = None
 
 		if self.en_post_callback:
+			print(f"Writing post callbacks: {self.post_callbackfile}")
 			self.post_callbackfile.write(self.post_buffer.getvalue())
 			print(self.post_buffer.getvalue())
 			self.en_post_callback = False
