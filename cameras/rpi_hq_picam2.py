@@ -290,7 +290,7 @@ class Camera(AbstractCamera):
 		"""
 		if self.en_pre_callback:
 			print(f"Writing pre callbacks: {self.pre_callbackfile}")
-			print(self.pre_buffer.getvalue())
+			#print(self.pre_buffer.getvalue())
 			self.pre_callbackfile.write(self.pre_buffer.getvalue())
 			self.en_pre_callback = False
 			self.pre_callbackfile.flush()
