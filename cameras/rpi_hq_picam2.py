@@ -311,7 +311,6 @@ class Camera(AbstractCamera):
 			self.cam.post_callback = None
 
 	def __pre_timestamp__(self, request):
-		print(time.perf_counter())
 		self.pre_buffer.write("{}{}".format(time.perf_counter(), "\n"))
 	def __post_timestamp__(self, request):
 		print("!",end="")
@@ -508,6 +507,11 @@ class Camera(AbstractCamera):
 		Recommended for high fps recordings.
 		"""
 		#self.set_mode_config("video")
+
+		if self.en_pre_callback:
+			self.cam.pre_callback = self.__pre_timestamp__
+		if self.en_post_callback:
+			self.cam.post_callback == self.__post_timestamp__
 
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
