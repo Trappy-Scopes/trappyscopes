@@ -20,7 +20,7 @@ sleep(0)
 
 ## Go through different speeds
 exp.logs["speed_test"] = {}
-for i, speed in enumerate([0.1, 0.2, 0.5, 0.8, 0.95]):
+for i, speed in enumerate([0.05, 0.10, 0.15, 0.2, 0.25, 0.3, 0.5, 0.75, 0.8, 0.95]):
 	
 	print(f"Motor speed: {speed}")
 	exp.user_prompt("start")
@@ -34,7 +34,7 @@ for i, speed in enumerate([0.1, 0.2, 0.5, 0.8, 0.95]):
 	stop = time.perf_counter()
 
 	dur = stop-start
-	result = {"speed": speed, "freq":10,  "duration":dur, "mL":50}
+	result = {"speed": speed, "freq":10,  "duration":dur, "mL":50, "setup": "open_cylindrical_tubes", "overflow": None}
 	pprint.pprint(result)
 
 	exp.logs["speed_test"][i] = result
