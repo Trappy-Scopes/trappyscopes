@@ -26,7 +26,7 @@ for i, speed in enumerate([0.1, 0.2, 0.5, 0.8, 0.95]):
 	exp.user_prompt("start")
 	start = time.perf_counter()
 	
-	pico("motor.speed(speed)")
+	pico(f"motor.speed({speed})")
 	print("Speed updated.")
 	
 	exp.user_prompt(None, label="stop")  ## Press enter to stop
