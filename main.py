@@ -56,6 +56,7 @@ print("-"*100)
 print("\nDevice: ")
 print("-------")
 log.critical(pprint.pformat(device_metadata))
+global scopeid, scope_user
 scopeid = device_metadata["name"]
 
 ##3. Print Header
@@ -196,9 +197,20 @@ if len(sys.argv) > 1:
 ## Test
 #pico("l1.setVs(2,2,0)")
 #print(sys.path)
+scope_user = "ghost"
+def set_user(user):
+	print(f"{Fore.BLUE}trappy-scope says: {Fore.RESET}Hello! {user}.")
+	scope_user = user
+	if exp:
+		if exp.active:
+			exp.user = scope_user
+			sys.ps1 = exp.header()
+		else:
+			sys.ps1 = f"{Fore.BLUE}user:{scope_user}{Fore.RESET} || >>> "
 
-
-
-
+	elif user == "" or user == None:
+		sys.ps1 = ">>> "
+	else:
+		sys.ps1 = f"{Fore.BLUE}user:{scope_user}{Fore.RESET} || >>> "
 
 

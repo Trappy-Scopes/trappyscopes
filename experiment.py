@@ -62,12 +62,11 @@ class Experiment:
 		self.name = name
 		self.exp_dir = os.path.join(config.common.DATA_DIR, name)
 		self.log_file = os.path.join(self.exp_dir, "experiment.yaml")
-		
+		self.user = ""
 		self.logs = {}
 		self.events = []
 		self.unsaved = False # Flag that indicates unsaved changes
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
-
 		self.all_exps = Experiment.list_all()
 
 		# Check if the experiment exists
@@ -89,6 +88,13 @@ class Experiment:
 		
 		self.events = list(self.logs.keys())
 			
+
+		## Read scope-id
+		self.scopeid = ""
+		with open("config/deviceid.yaml") as deviceid:
+			device_metadata = yaml.load(deviceid, Loader=SafeLoader)
+			self.scopeid = device_metadata["name"]
+
 
 		# Changing Working Directory to Experiment Directory		
 		sys.ps1 = self.header()
@@ -129,7 +135,10 @@ class Experiment:
 		return not (string in self.logs)
 
 	def header(self):
-		return f"|| Experiment: {Fore.RED}{self.name}{Fore.RESET} >>> "
+		if self.user:
+			return f"{Fore.BLUE}user:{self.user}{Fore.RESET} || {Fore.YELLOW}‹‹{self.scopeid}››{Fore.RESET} Experiment: {Fore.RED}{self.name}{Fore.RESET} >>> "
+		else:
+			return f"|| {Fore.YELLOW}‹‹{self.scopeid}››{Fore.RESET} Experiment: {Fore.RED}{self.name}{Fore.RESET} >>> "
 
 
 	def run(script):
@@ -142,11 +151,68 @@ class Experiment:
 	def toggle_beacon(pico):
 		pico("beacon.toggle()")
 
+	def user_prompt(self, prompt, label=None):
+		prompt_ = prompt
+		if prompt == None:
+			prompt_ = "!!Any key!!"
+		prompt_string = f"==> Waiting for prompt : ```{prompt_}```  >>> "
+		
+		def conditional(inp):
+			print(inp)
+			if isinstance(inp, str):
+				inp = inp.strip()
+			if prompt != None:
+				return inp == prompt
+			else:
+				return True
+
+		if label:
+			self.log_event(f"user_prompt_requested : {label}")
+		else:
+			self.log_event(f"user_prompt_requested : {prompt}")
+
+		inp = "no_inp"
+		inp = input(f"{Fore.RED}{prompt_string}{Fore.RESET}")
+		while not conditional(inp):
+			inp = input(f"{Fore.RED}{prompt_string}{Fore.RESET}")
+		
+		print(f"{Fore.GREEN}--- prompt accepted : {prompt_} --- {Fore.RESET}")
+		if label:
+			self.log_event(f"user_prompt_received : {label}")
+		else:
+			self.log_event(f"user_prompt_received : {prompt}")
+
 class Calibration(Experiment):
 	
 	def __init__(self, name):
 		super().__init__(name)
 		self.exp_dir = os.path.join(config.common.CALIB_DIR, name)
+
+class Test(Experiment):
+
+	def check(self, callable, *args, **kwargs):
+		"""
+		Only fails if exceptions are raised. TODO
+		"""
+		self.checks = []
+		try:
+			callable(args, kwargs)
+			print(f"{Fore.GREEN}››{Fore.RESET} {callable} : {Fore.GREEN}{OK}{Fore.RESET}")
+			self.checks.append(0) ## Inverted
+
+		except e:
+			print(f"{Fore.RED}››{Fore.RESET} {callable} : {Fore.RED}{NOK}{Fore.RESET}")
+			print(Fore.RED)
+			### Print e
+			print(Fore.RESET)
+			self.checks.append(1) ## Inverted
+
+	def conclude(self):
+		if sum(self.checks) == 0:
+			print(f"{Fore.GREEN}All checks passed!{Fore.RESET}")
+		print(f"Checks: {Fore.BLUE}{sum(self.checks) / len(self.checks)} passed.{Fore.RESET}")
+
+
 
 if __name__ == "__main__":
 	exp = Experiment("test")

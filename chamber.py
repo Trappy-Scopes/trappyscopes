@@ -23,11 +23,24 @@ class Chamber:
 		self.diameter = diameter
 		if diameter == None:
 			if not frames == None:
-				rings = *Chamber.detect_ring(frames, **kwargs)
+				rings = Chamber.detect_ring(frames, **kwargs)
 				self.diameter = min([ring.diameter for ring in rings])
 
 	def region_detection(self):
 		"""
 		Does a region analysis and returns a region-props object.
+		"""
+		pass
+
+	def scan_particles(self):
+		"""
+		Detects particles (cells) in a given region. 
+		"""
+		pass
+
+
+	def detect_motion(self):
+		"""
+		Does low-processing motion detection on the feed.
 		"""
 		pass

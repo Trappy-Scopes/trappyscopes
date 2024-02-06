@@ -53,7 +53,44 @@ class SyncEngine:
 		
 		print("Attempting pico device sync.")
 		pico.sync_files("./utilities/pico_firmware/")
-		pico.sync_files("./cameras/")
-		pico.sync_files("./lights/")
+		#pico.sync_files("./cameras/")
+		#pico.sync_files("./lights/")
 
 		pico.sync(os.path.join(config.root, "/Trappy-Scopes/pico_firmware/"))
+
+	def check_nfs(server="smb://TrappyCloud"):
+		from smbprotocol.connection import Connection
+		from smbprotocol.session import Session
+		from smbprotocol.tree import Tree
+
+		# Replace these with your SMB server details
+		server_name = server
+		if "TrappyCloud" in server:
+			share_name = "G"
+		else:
+			share_name = "/"
+		guest_username = "guest"
+		guest_password = ""
+
+		# Connect to the SMB server
+		connection = Connection()
+		connection.connect(server_name)
+
+		# Authenticate as guest with an empty password
+		session = Session(connection, server_name, guest_username, guest_password)
+		session.connect()
+
+		# Connect to the shared folder
+		tree = Tree(session, share_name)
+
+		# Now you can perform operations on the shared folder, e.g., list files
+		print(f"Current composition of the nfs {server}:")
+		files = tree.list_directory("/")
+		for file_info in files:
+		    print(file_info)
+
+		# Don't forget to disconnect when done
+		tree.disconnect()
+		session.disconnect()
+		connection.disconnect()
+
