@@ -69,6 +69,8 @@ class Experiment:
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
 		self.all_exps = Experiment.list_all()
 
+		#TODO self.metadata = Metadata()
+
 		# Check if the experiment exists
 		if not os.path.join(config.common.DATA_DIR, self.name) in self.all_exps:
 			Experiment.new(self.name)
@@ -102,6 +104,7 @@ class Experiment:
 		os.chdir(self.exp_dir)
 		print(f"Working directory changed to: {os.getcwd()}")
 
+		print("Devnotes: Experiment class TODO: submodule Metadata object.")
 
 	
 	def __exit__(self):

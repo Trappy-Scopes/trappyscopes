@@ -25,6 +25,7 @@ from experiment import Experiment
 from utilities.fluff import pageheader, intro
 from sync import SyncEngine
 from time import sleep
+from devicetree import ScopeAssembly
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 
 
@@ -96,6 +97,10 @@ if not cam.is_open():
 #cam.configure()
 log.info(cam)
 
+#----
+print("\n\n----- SCOPE READY -----")
+device = ScopeAssembly()
+#
 
 # Defining variables for common modes
 vid = "vid"
@@ -165,7 +170,7 @@ def exit():
 
 
 ## 4. Set Experiment
-print("----- ACTION -----")
+print("\n\n----- ACTION -----")
 print("All current experiments on the Microscope:")
 ppprint(Experiment.list_all())
 exp_name = None

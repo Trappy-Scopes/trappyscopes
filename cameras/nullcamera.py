@@ -5,6 +5,7 @@ class Camera(AbstractCamera):
 
 	# 1
 	def __init__(self, *args, **kwargs):
+		print("NullCamera initialised.")
 		return
 
 	# 2
