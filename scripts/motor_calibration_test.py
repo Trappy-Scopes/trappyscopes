@@ -38,7 +38,7 @@ for i, speed in enumerate(speedset):
 	stop = time.perf_counter()
 
 	dur = stop-start
-	result = {"duty":pico("print('motor.duty')"), "speed": speed, "freq":10,  "duration":dur, "mL":50, "setup": "open_cylindrical_tubes", "overflow": None}
+	result = {"duty":pico("print(motor.duty)"), "speed": speed, "freq":10,  "duration":dur, "mL":50, "setup": "open_cylindrical_tubes", "overflow": None}
 	pprint.pprint(result)
 
 	exp.logs["speed_test"][i] = result
