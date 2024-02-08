@@ -1,6 +1,6 @@
 
 class Sensor:
-    
+    pass
 
 
 

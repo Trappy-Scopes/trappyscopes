@@ -17,7 +17,8 @@ for i in range(100):
 	test.check(cam.open)
 	test.check(cam.is_open)
 
-	sleeping_t = np.round(np.rand() * 10, 2)
+	#sleeping_t = np.round(np.rand() * 10, 2)
+	sleeping_t = 5
 	print(f"{i:2}. {time.perf_counter()} : Sleeping for: {sleeping_t:2} s.")
 	sleep(sleeping_t)
 	

@@ -5,6 +5,8 @@ from mcu_controls import MCUControls
 
 import yaml
 """
+Obsolete to ScopeAssembly class in devicetree.py. Salvage!
+
 Prototype 1
 -----------
 

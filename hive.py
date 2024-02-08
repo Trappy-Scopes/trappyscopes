@@ -3,7 +3,9 @@ from pssh.clients import ParallelSSHClient, SSHClient
 from pssh.utils import enable_host_logger
 enable_host_logger()
 
-
+"""
+SSH based multi-login systems. Almost obselete.
+"""
 
 class Device:
 
