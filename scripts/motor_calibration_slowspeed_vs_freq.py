@@ -47,7 +47,7 @@ for freq in freqset:
 	print("Iterating over: ", freq, "Hz")
 
 	pico(f"motor.fwdpin.freq({freq})")
-	pico(f"motor.rev.freq({freq})")
+	pico(f"motor.revpin.freq({freq})")
 	print(f"Fwd pin freq: {pico('print(motor.fwdpin.freq())')}")
 
 	for i, speed in enumerate(speedset):
