@@ -184,6 +184,7 @@ class Experiment:
 			self.log_event(f"user_prompt_received : {label}")
 		else:
 			self.log_event(f"user_prompt_received : {prompt}")
+		return inp
 
 class Calibration(Experiment):
 	

@@ -12,6 +12,8 @@ t = time.localtime(time.time())
 exp = Calibration(f"{scopeid}_motor_speedcontrol_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
 sleep(0)
 
+
+## Incase of additional pico board
 #motor_pico = RPiPicoDevice()
 #motor_pico.auto_connect()
 
@@ -44,7 +46,7 @@ for i, speed in enumerate(speedset):
 	stop = time.perf_counter()
 
 	dur = stop-start
-	result = {"duty":float(pico("print(motor.duty)").rstrip("\r\n")), "speed": speed, "freq":10,  "duration":dur, "mL":20, "setup": "syringe", "overflow": None}
+	result = {"duty":float(pico("print(motor.duty)").rstrip("\r\n")), "speed": speed, "freq":10,  "duration":dur, "mL":20	, "setup": "syringe", "overflow": None}
 	pprint.pprint(result)
 
 	exp.logs["speed_test"][i] = result
