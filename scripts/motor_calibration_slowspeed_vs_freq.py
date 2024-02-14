@@ -71,7 +71,7 @@ for freq in freqset:
 
 
 		## RT Terminal plotting
-		if result["succeess"]:
+		if result["success"]:
 			freqwise[freq]["duration"].append(dur)
 			freqwise[freq]["speed"].append(speed)
 		else:
