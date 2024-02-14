@@ -29,6 +29,7 @@ exp.logs["speed_test"] = []
 ## extensive
 speedset = [0.01, 0.02, 0.03, 0.04, 0.05]
 freqset =  [50, int(10**2), int(10**3), int(10**4), int(10**5)]
+freqset = freqset.reverse()
 
 print(f"Speeds: {speedset}")
 print(f"Will test {len(speedset)} sppeds!")
@@ -44,6 +45,10 @@ freqwise = {}
 for freq in freqset:
 	freqwise[freq] = {"duration": [], "speed":[]}
 	print("Iterating over: ", freq, "Hz")
+
+	pico(f"motor.fwdpin.freq = {freq}")
+	pico(f"motor.rev.freq = {freq}")
+	print(f"Fwd pin freq: {pico("print(motor.fwdpin.freq)")}")
 
 	for i, speed in enumerate(speedset):
 		
