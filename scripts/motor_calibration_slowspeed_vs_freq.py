@@ -42,7 +42,7 @@ freqwise = {}
 
 
 for freq in freqset:
-	freqwise[freq] = {"duration": [], "speed":[] }
+	freqwise[freq] = {"duration": [], "speed":[]}
 	print("Iterating over: ", freq, "Hz")
 
 	for i, speed in enumerate(speedset):
@@ -80,7 +80,8 @@ for freq in freqset:
 		plt.xlabel(f"duration for filling {fill_mL}mL (seconds)")
 		plt.ylabel("normalised speed")
 		for freq in freqwise:
-			plt.plot(freqwise[freq]["duration"], freqwise[freq]["speed"], label=f"{freq}Hz")
+			if freqwise[freq]["duration"]:
+				plt.plot(freqwise[freq]["duration"], freqwise[freq]["speed"], label=f"{freq}Hz")
 		plt.show()
 
 		
