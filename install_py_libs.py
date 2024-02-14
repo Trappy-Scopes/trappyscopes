@@ -11,6 +11,6 @@ def install_py_libs(required_libs):
 
 
 if __name__ == "__main__":
-	reqd_libs = ["pyyaml", "colorama", "nanoid", "plotext", "asciichart"]
+	reqd_libs = ["pyyaml", "colorama", "nanoid", "plotext", "asciichartpy"]
 
 	install_py_libs(reqd_libs)
