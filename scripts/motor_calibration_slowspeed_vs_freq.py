@@ -37,7 +37,12 @@ print(f"Freqs: {freqset}")
 print(f"Will test {len(freqset)} frequencies!")
 
 
+### RT Plot
+freqwise = {}
+
+
 for freq in freqset:
+	freqwise[freq] = {"duration": [], "speed":[] }
 	print("Iterating over: ", freq, "Hz")
 
 	for i, speed in enumerate(speedset):
@@ -55,12 +60,30 @@ for freq in freqset:
 		stop = time.perf_counter()
 
 		dur = stop-start
-		result = {"duty":float(pico("print(motor.duty)").rstrip("\r\n")), 
+		
+
+		
+		result = {"duty":(pico("print(motor.duty)").rstrip("\r\n")), 
 				  "speed": speed, "freq":freq,  "duration":dur, "mL":fill_mL,
 				  "setup": "open_cylinder", "overflow": 0, "success": (str(inp).strip() != "fail")}
 		pprint.pprint(result)
-
 		exp.logs["speed_test"].append(result)
+
+
+		## RT Terminal plotting
+		if result["succeess"]:
+			freqwise[freq]["duration"].append(dur)
+			freqwise[freq]["speed"].append(speed)
+		else:
+			print("Skipping point in RT plotting!")
+		plt.clf()
+		plt.xlabel(f"duration for filling {fill_mL}mL (seconds)")
+		plt.ylabel("normalised speed")
+		for freq in freqwise:
+			plt.plot(freqwise[freq]["duration"], freqwise[freq]["speed"], label=f"{freq}Hz")
+		plt.show()
+
+		
 
 pico("motor.hold()")
 exp.close()

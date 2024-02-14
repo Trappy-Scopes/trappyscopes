@@ -26,6 +26,7 @@ from utilities.fluff import pageheader, intro
 from sync import SyncEngine
 from time import sleep
 from devicetree import ScopeAssembly
+from terminalplot import *
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 
 
