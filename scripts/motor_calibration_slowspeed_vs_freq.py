@@ -72,7 +72,8 @@ for freq in freqset:
 		
 		result = {"duty":(pico("print(motor.duty)").rstrip("\r\n")), 
 				  "speed": speed, "freq":freq,  "duration":dur, "mL":fill_mL,
-				  "setup": "open_cylinder", "overflow": 0, "success": (str(inp).strip() != "fail")}
+				  "setup": "open_cylinder", "overflow": 0, "success": (str(inp).strip() != "fail"),
+				  "experiment_type": "pwm_freq_perturbation"}
 		pprint.pprint(result)
 		exp.logs["speed_test"].append(result)
 
