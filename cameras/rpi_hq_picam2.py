@@ -69,7 +69,7 @@ class Camera(AbstractCamera):
 		# Monolithic Configurations
 		with open("config/camconfig_picamera2.yaml") as file:
 			self.config = yaml.load(file, Loader=SafeLoader)
-		self.debug_mode = store_false
+		self.debug_mode = False
 		if self.debug_mode:
 			print("Camera configuration loaded: ")
 			pprint(self.config)
