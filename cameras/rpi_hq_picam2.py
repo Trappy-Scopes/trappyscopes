@@ -5,6 +5,7 @@ from copy import deepcopy
 import logging as log
 import numpy as np
 import time
+from threading import sleep
 import yaml
 from yaml.loader import SafeLoader
 from io import StringIO 
@@ -30,15 +31,16 @@ class Camera(AbstractCamera):
 	def __init__(self):
 		
 		self.cam = Picamera2()
+		self.cam_fsaddr = None   ## TODO
 		self.opentime_ns = time.perf_counter()
 		log.info("PiCamera2 Camera was opened.") # Constructor opens the cam.
 
 
 		# Preview Window Settings
-		self.preview_type = Preview.QT
-		self.win_title_fields = []                                 ##
+		self.preview_type = Preview.QTGL # Other options: Preview.DRM or Preview.QT
+		self.win_title_fields = ["ExposureTime", "FrameDuration"]  ##
 		self.cam.title_fields = ["ExposureTime", "FrameDuration"]  ##
-
+		
 		# Capture Modes for this implementation
 		self.modes = {
 					  "preview"      : self.preview,
@@ -53,6 +55,9 @@ class Camera(AbstractCamera):
 					  "stream"		 : self.__stream__
 					 }
 
+		## Capture the 4 different fundamental camera senor modes
+		self.sensor_modes = self.cam.sensor_modes
+
 
 		# Video Encoders and image quality parameters
 		self.encoderh264 = H264Encoder()
@@ -62,13 +67,12 @@ class Camera(AbstractCamera):
 
 		# Monolithic Configurations
 		with open("config/camconfig_picamera2.yaml") as file:
-			self.camconfig = yaml.load(file, Loader=SafeLoader)
-		#print("Camera configuration loaded: ")
-		#pprint(self.camconfig)
-
-		self.controls = self.camconfig["controls"]
-		self.config = self.cam.create_video_configuration()
-		self.config["controls"] = self.controls
+			self.config = yaml.load(file, Loader=SafeLoader)
+		self.debug_mode = store_false
+		if self.debug_mode:
+			print("Camera configuration loaded: ")
+			pprint(self.config)
+		self.def_config = self.config
 		#self.configure(self.config)
 		
 
@@ -83,16 +87,21 @@ class Camera(AbstractCamera):
 		self.config_cammode3 = lambda : self.configure(res=(1332, 990), fps=120)
 		self.config_cammode4 = lambda : self.configure(res=(4056, 3040), fps=10)
 
-		# Set initial conditions
+
+
+		# Set camera status flags
 		self.config_mode = "video" # Current Mode - ["preview", "still", "video"]
 		self.status = "standby"
 		self.all_states = ["standby", "acq", "waiting"]
 
 
-		### Pre and Post Callbacks (implemented per frame)
+		### Pre and Post Callbacks - timetagging and lux measurements
 		self.en_pre_callback = False
+		self.en_pre_lux_callback = False
 		self.pre_buffer = StringIO()
 		self.pre_callbackfile = None
+
+		self.en_post_lux_callback = False
 		self.en_post_callback = False
 		self.post_buffer = StringIO()
 		self.post_callbackfile = None
@@ -111,9 +120,10 @@ class Camera(AbstractCamera):
 
 	# 3
 	def close(self):
-		self.cam.close()
-		now = time.perf_counter()
-		log.info(f"PiCamera2 Camera was closed: {now} : duration {now-self.opentime_ns:.2f}s")
+		if self.cam.is_open:
+			self.cam.close()
+			now = time.perf_counter()
+			log.info(f"PiCamera2 Camera was closed: {now} : duration {now-self.opentime_ns:.2f}s")
 
 	# 4
 	### NOk
@@ -122,36 +132,71 @@ class Camera(AbstractCamera):
 		Configure the base settings of the camera. 
 		Both the [stream] configurations and controls.
 		
-		The rest are set based on the capture mode.
-		Ignoring config_file option for now.
+		TODO: change buffer_count
+		      maybe disable queue option
+			  display="lores" for enabling preview
+
 		"""
 
-		# CONTROLS
-		##self.cam.set_controls(self.controls)
 
+		## Custom configuration
 		if config:
-			with open(config) as file:
-				self.camconfig = yaml.load(file, Loader=SafeLoader)
-			print("Camera configuration loaded: ")
-			pprint(self.camconfig)
-			### Set the config here
 
+			if isinstance(config, str): ## Assume its a valid path
+				with open(config) as file:
+					self.config = yaml.load(file, Loader=SafeLoader)
+			else:  ## Assume a dictionary of incomplete configuration options
+				self.config = config
 
-		# CONFIGURATIONS
-		if res != None and fps != None:
-			print(f"Setting fps:{fps} and resolution:{res}")
+			## Interleave config with self.def_config to 
+			## get a complete configuration set
+			complete_set = self.def_config
+			for key in complete_set:
+				if key in config:
+					complete_set[key] = config[key]
+			for key in complete_set["controls"]:
+				if key in config["controls"]:
+					complete_set["controls"][key] = config["controls"][key]
+			self.config = complete_set
+			##########
+			
+			## Print updated configuration
+			if self.debug_mode:
+				print("Camera configuration loaded: ")
+				pprint(self.config)
+
+		# Only change fps and resolution
+		if res != None:
+			self.config["size"] = tuple(res)
+			self.cam.video_configuration.main.size = tuple(res)
+			self.config["size"] = tuple(res)
+			print(f"rpi_hq_picam2: Set resolution to: {self.cam.video_configuration.main.size}.")
+		if fps != None:
 			frameduration = int((1/fps)*1**6)
 			framedurationlim = (frameduration, frameduration)
-
-			self.config["size"] = tuple(res)
-			self.config["controls"]["FrameDurationLimits"] = (framedurationlim, frameduration)
 			self.cam.video_configuration.controls.FrameRate = fps
-			self.cam.video_configuration.main.size = (res[0], res[1])
+			self.config["controls"]["FrameDurationLimits"] = (framedurationlim, frameduration)
+			self.config["controls"]["FrameRate"] = fps
+			print(f"rpi_hq_picam2: Set fps to: : {self.cam.video_configuration.controls.FrameRate}.")
 			
-			print("Camera configuration updated: ")
-			pprint(self.camconfig)
-		time.sleep(2) # Sync Delay
+
+		## Set all configuration options
+		self.cam.video_configuration.controls.ExposureTime = self.config["controls"]["ExposureTime"]
+		self.cam.video_configuration.controls.AwbEnable = self.config["controls"]["AwbEnable"]
+		self.cam.video_configuration.controls.AeEnable = self.config["controls"]["AeEnable"]
+		self.cam.video_configuration.controls.AnalogueGain = self.config["controls"]["AnalogueGain"]
+		self.cam.video_configuration.controls.Brightness = self.config["controls"]["Brightness"]
+		self.cam.video_configuration.controls.Contrast = self.config["controls"]["Contrast"]
+		self.cam.video_configuration.controls.ColourGains = self.config["controls"]["ColourGains"]
+		self.cam.video_configuration.controls.Sharpness = self.config["controls"]["Sharpness"]
+		self.cam.video_configuration.controls.Saturation = self.config["controls"]["Saturation"]
+		#self.cam.video_configuration.controls.ExposureValue = self.config["controls"]["ExposureValue"]
+		
+		## TODO - Duplicate config setting
+		#self.cam.video_configuration.controls.FrameRate = self.config["controls"]["FrameRate"]
+		#self.cam.video_configuration.size = tuple(res)
 		self.cam.configure("video")
+		sleep(2) # Sync Delay
 		
 		#Random fact: pH of bllood of 7.4.
 
@@ -193,7 +238,7 @@ class Camera(AbstractCamera):
 
 
 				print(filenames_)
-				time.sleep(init_delay_s)
+				sleep(init_delay_s)
 				
 				for i in range(it):
 					filename_ = filenames_[i]
@@ -205,20 +250,21 @@ class Camera(AbstractCamera):
 					
 					print(f"{i}:  {time.time_ns()}. Sleeping for {it_delay_s}s.")
 					
-					time.sleep(it_delay_s)
+					sleep(it_delay_s)
 		self.status = "standby"
 		self.__do_callback_file_dumps__()
 		gc.collect()
 
 
 	# 6
-	def preview(self, tsec=30, preview=Preview.QT):
+	def preview(self, tsec=30):
 		"""
 		Start a preview. Defaults for 30seconds. 
 		Infinite preview or pre-emptive termination is not supported. 
 		"""
 		self.cam.start_preview(self.preview_type)
-		time.sleep(tsec)
+		self.cam.title_fields = self.win_title_fields
+		sleep(tsec)
 		self.cam.stop_preview()
 
 	# 7 TODo Rethink
@@ -327,7 +373,7 @@ class Camera(AbstractCamera):
 		self.config = self.cam.align_configuration(self.config)
 		log.info(f"Camera config optimized to: {self.config}")
 		self.cam.configure(self.config)
-		time.sleep(3)
+		sleep(3)
 
 
 	def timestamp(self, mode, *args, **kwargs):
@@ -355,20 +401,6 @@ class Camera(AbstractCamera):
 		return md["Lux"]
 
 
-	def set_mode_config(self, mode):
-		"""
-		Sets the camera configuration for the three main modes: ["preview",
-		"still", "video"].
-		"""
-		if self.mode_ != mode:
-			self.mode_ = mode
-			#self.cam.configure(self.config_map[mode])
-			self.close()	   # Close Camera
-			time.sleep(0.5)
-			self.open()		  # Open Camera
-			time.sleep(0.2)
-
-
 	def autoadjust(self, wb=True, exposure=True):
 		"""
 		Autoadjust "ExposureTime", "AnalogueGain", and "ColourGains".
@@ -387,10 +419,10 @@ class Camera(AbstractCamera):
 		self.cam.configure(self.cam.create_video_configuration()) #Instead of this only upodate specific fields
 		self.cam.start()
 
-		time.sleep(1) # Wait for autoadjustments
+		sleep(1) # Wait for autoadjustments
 
 		self.cam.set_controls({"AwbEnable": 0, "AeEnable": 0})
-		time.sleep(5) # For checking the results.
+		sleep(5) # For checking the results.
 		
 		
 		self.cam.stop_preview()

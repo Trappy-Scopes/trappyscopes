@@ -8,7 +8,7 @@ import os
 import sys
 sys.path.append(os.path.abspath("./abcs"))
 import abcs
-
+import readline
 
 import yaml
 from yaml.loader import SafeLoader
@@ -19,6 +19,7 @@ from cameras.selector import CameraSelector
 from lights.selector import LightSelector
 from picodevice import RPiPicoDevice
 from picolight import PicoLight
+from utilities import autocompleter
 
 # Other Resources
 from experiment import Experiment
@@ -181,6 +182,8 @@ if not scriptfiles:
 	print("\n\n")
 	
 	print("Press Ctrl+Z to exit or enter to ignore.")
+
+	#autocompleter.directory("/Users/byatharth/experiments")
 	exp_name = input("Input the session/experiment name -> ")
 	exp_name.strip()
 

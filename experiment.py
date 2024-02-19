@@ -57,6 +57,10 @@ class Experiment:
 			os.path.isfile(os.path.join(config.common.DATA_DIR, dir_, ".experiment"))]
 		return all_dirs
 
+	def list_all_names():
+		exps = Experiment.list_all()
+		return [e.rsplit("/", 1)[1] for e in exps]
+
 	def __init__(self, name):
 
 		self.name = name

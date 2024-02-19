@@ -27,7 +27,9 @@ sleep(0)
 exp.logs["speed_test"] = []
 
 ## extensive
-speedset = [0.01, 0.02, 0.03, 0.04, 0.05]
+#speedset = [0.01, 0.02, 0.03, 0.04, 0.05]
+speedset = [0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10,
+			0.2, 0.5, 0.8, 0.9, 0.99]
 freqset =  [50, int(10**2), int(10**3), int(10**4), int(10**5)]
 freqset.reverse()
 
