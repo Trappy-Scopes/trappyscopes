@@ -5,7 +5,8 @@ from copy import deepcopy
 import logging as log
 import numpy as np
 import time
-from threading import sleep
+#from threading import sleep
+from time import sleep
 import yaml
 from yaml.loader import SafeLoader
 from io import StringIO 
