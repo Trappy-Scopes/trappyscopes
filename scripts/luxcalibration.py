@@ -7,7 +7,7 @@ import time
 # Start experiment
 dt = str(datetime.date.today()).replace("-", "_")
 exp = Test(f"{scopeid}_test_cameraclosure_{dt}")
-
+print(lit)
 colors = {}
 colors["r"] = 0.0
 colors["g"] = 0.0
