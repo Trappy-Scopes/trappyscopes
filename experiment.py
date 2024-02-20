@@ -209,7 +209,7 @@ class Test(Experiment):
 			self.checks.append(0) ## Inverted
 
 		except Exception as e:
-			print(f"{Fore.RED}››{Fore.RESET} {callable} : {Fore.RED}NOKßß	{Fore.RESET}")
+			print(f"{Fore.RED}››{Fore.RESET} {callable} : {Fore.RED}NOK{Fore.RESET}")
 			print(Fore.RED)
 			### Print e
 			print(Fore.RESET)
