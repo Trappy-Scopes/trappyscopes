@@ -24,7 +24,8 @@ exp.logs["wait_time_s"] = wait_time_s
 ## Start color mixing
 mixer = ColorIterator(levels=20, ch=["r", "g", "b", "w"])
 
-
+if not cam.is_open():
+	cam.open()
 cam.cam.start()
 litstate = True
 index = 0
@@ -47,7 +48,7 @@ while litstate:
 			md["index"] = index
 			md["lit"] = litstate
 			md["measurement"] = m
-			md["illumination"] = device_metadata["illumination"]
+			md["illumination"] = device_metadata["hardware"]["illumination"]
 
 			result.append(md)
 			pprint.pprint(md)
