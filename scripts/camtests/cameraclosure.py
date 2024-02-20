@@ -11,7 +11,7 @@ test = exp
 
 #cam.config_cammode2()
 lit.setVs(0,0.5,0)
-cam.close()
+cam.close()  ## Close camera
 
 ## Test opening and closing of camera
 for i in range(15):

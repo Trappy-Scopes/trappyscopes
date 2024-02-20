@@ -215,7 +215,7 @@ class Test(Experiment):
 		except Exception as e:
 			print(f"{Fore.RED}››{Fore.RESET} {callable} : {Fore.RED}NOK{Fore.RESET}")
 			print(Fore.RED)
-			### Print e
+			print(e)
 			print(Fore.RESET)
 			self.checks.append(0) ## Inverted
 
