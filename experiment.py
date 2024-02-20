@@ -209,12 +209,16 @@ class Test(Experiment):
 		print(f"<< Check {len(self.checks)} >>")
 		try:
 			if not args:
+				print(1)
 				callable_(kwargs)
 			if not kwargs:
+				print(2)
 				callable_(args)
 			if not args and not kwargs:
+				print(3)
 				callable_()
 			else:
+				print(4)
 				callable_(args, kwargs)
 			print(f"{Fore.GREEN}››{Fore.RESET} {callable_} : {Fore.GREEN}OK{Fore.RESET}")
 			self.checks.append(1) ## Inverted
