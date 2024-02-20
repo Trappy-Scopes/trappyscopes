@@ -24,5 +24,13 @@ for ch in ["r", "g", "b"]:
 		name = f"{ch}_{colors[ch]:.3f}"
 		name = name.replace(".", "pt") + ".mp4"
 		capture(vidmp4, name, tsec=10, init_delay_s=0)
+for ch in ["w"]:
+	colors[ch] = 0
+	for i in range(levels):
+		colors[ch] = (3.3/levels)*i
+		pico(f'l1.setVs({colors[ch]}, {colors[ch]}, {colors[ch]})')
+		name = f"{ch}_{colors[ch]:.3f}"
+		name = name.replace(".", "pt") + ".mp4"
+		capture(vidmp4, name, tsec=10, init_delay_s=0)
 # Close experiment
 exp.close()
