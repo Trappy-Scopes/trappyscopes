@@ -4,6 +4,7 @@ import numpy as np
 import time
 
 # Start experiment
+unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 exp = Test(f"{scopeid}_test_cameraclosure_{dt}")
 test = exp
