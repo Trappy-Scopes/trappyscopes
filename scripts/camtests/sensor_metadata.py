@@ -17,7 +17,7 @@ iteations = 5
 frames = 10
 exp.logs["iterations"] = iteations
 exp.logs["frames"] = frames
-exp.log["color_ch_levels"] = 20
+exp.logs["color_ch_levels"] = 20
 
 ## Start color mixing
 mixer = ColorIterator(levels=20, ch=["r", "g", "b", "w"])
