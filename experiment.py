@@ -205,11 +205,11 @@ class Test(Experiment):
 		self.checks = []
 		try:
 			callable(args, kwargs)
-			print(f"{Fore.GREEN}››{Fore.RESET} {callable} : {Fore.GREEN}{OK}{Fore.RESET}")
+			print(f"{Fore.GREEN}››{Fore.RESET} {callable} : {Fore.GREEN}OK{Fore.RESET}")
 			self.checks.append(0) ## Inverted
 
 		except Exception as e:
-			print(f"{Fore.RED}››{Fore.RESET} {callable} : {Fore.RED}{NOK}{Fore.RESET}")
+			print(f"{Fore.RED}››{Fore.RESET} {callable} : {Fore.RED}NOKßß	{Fore.RESET}")
 			print(Fore.RED)
 			### Print e
 			print(Fore.RESET)
