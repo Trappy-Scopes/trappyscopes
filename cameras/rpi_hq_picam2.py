@@ -111,7 +111,7 @@ class Camera(AbstractCamera):
 	# 2
 	def open(self):
 		##self.close()
-		self.cam.start()
+		self.cam = Picamera2()
 		self.opentime_ns = time.perf_counter()
 		log.info(f"PiCamera2 Camera was opened: {self.opentime_ns}")
 
