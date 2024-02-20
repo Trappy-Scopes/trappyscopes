@@ -27,6 +27,6 @@ for i in range(15):
 	sleep(sleeping_t)
 
 
-
+test.conclude()
 # Close experiment
 test.close()
