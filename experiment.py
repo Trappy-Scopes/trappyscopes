@@ -198,27 +198,31 @@ class Calibration(Experiment):
 
 class Test(Experiment):
 
+	def __init__(self, name):
+		self.checks = []
+		super().__init__(name)
+
 	def check(self, callable, *args, **kwargs):
 		"""
 		Only fails if exceptions are raised. TODO
 		"""
-		self.checks = []
+		print(f"<< Check {len(self.checks)} >>")
 		try:
 			callable(args, kwargs)
 			print(f"{Fore.GREEN}››{Fore.RESET} {callable} : {Fore.GREEN}OK{Fore.RESET}")
-			self.checks.append(0) ## Inverted
+			self.checks.append(1) ## Inverted
 
 		except Exception as e:
 			print(f"{Fore.RED}››{Fore.RESET} {callable} : {Fore.RED}NOK{Fore.RESET}")
 			print(Fore.RED)
 			### Print e
 			print(Fore.RESET)
-			self.checks.append(1) ## Inverted
+			self.checks.append(0) ## Inverted
 
 	def conclude(self):
-		if sum(self.checks) == 0:
+		if sum(self.checks) == len(self.checks):
 			print(f"{Fore.GREEN}All checks passed!{Fore.RESET}")
-		print(f"Checks: {Fore.BLUE}{sum(self.checks) / len(self.checks)} passed.{Fore.RESET}")
+		print(f"Checks: {Fore.BLUE}{sum(self.checks)} / {len(self.checks)} passed.{Fore.RESET}")
 
 
 

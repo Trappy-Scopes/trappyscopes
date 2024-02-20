@@ -51,5 +51,6 @@ for i in range(no_trials):
 
 
 # Close experiment
+test.conclude()
 test.close()
 cam.close()
