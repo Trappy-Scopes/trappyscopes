@@ -28,7 +28,7 @@ for ch in ["r", "g", "b"]:
 		capture(vidmp4, name, tsec=10, init_delay_s=0)
 		
 		### Capture lux value
-		rgbw[(colors[ch], colors[ch], colors[ch])] = 
+		#rgbw[(colors[ch], colors[ch], colors[ch])] = 
 
 
 for ch in ["w"]:
@@ -41,3 +41,4 @@ for ch in ["w"]:
 		capture(vidmp4, name, tsec=10, init_delay_s=0)
 # Close experiment
 exp.close()
+sleep(10)

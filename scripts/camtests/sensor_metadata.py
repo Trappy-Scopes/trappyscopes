@@ -16,10 +16,11 @@ result = []
 exp.logs["results"] = []
 iteations = 5
 frames = 10
+wait_time_s = 10
 exp.logs["iterations"] = iteations
 exp.logs["frames"] = frames
 exp.logs["color_ch_levels"] = 20
-
+exp.logs["wait_time_s"] = wait_time_s
 ## Start color mixing
 mixer = ColorIterator(levels=20, ch=["r", "g", "b", "w"])
 
@@ -28,13 +29,15 @@ cam.cam.start()
 litstate = True
 index = 0
 exp.logs["init_time"] = time.perf_counter()
+m = 0
 while litstate:
 	## Set colour
 	litstate = next(mixer, None)
 	pico(f"l1.setVs({litstate[0]}, {litstate[1]}, {litstate[2]})")
 
+	m += 1
 	for it in range(iteations):
-		sleep(10)  ## Do one every minute
+		sleep(wait_time_s)  ## Do one every minute
 		for i in range(frames):
 			print(f"<< {index} : {litstate}>>")
 			index = index + 1
@@ -43,7 +46,8 @@ while litstate:
 			md["frame_no"] = i
 			md["index"] = index
 			md["lit"] = litstate
-
+			md["measurement"] = m
+			md["illumination"] = device_metadata["illumination"]
 
 			result.append(md)
 			pprint.pprint(md)
