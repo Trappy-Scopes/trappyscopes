@@ -19,7 +19,7 @@ for ch in ["r", "g", "b"]:
 	colors["b"] = 0.0
 	for i in range(levels):
 		colors[ch] = colors[ch] + (3.3/levels)*i
-		lit.setVs({colors["r"]}, {colors["g"]}, {colors["b"]})
+		pico(f'l1.setVs({colors["r"]}, {colors["g"]}, {colors["b"]})')
 		capture(vidmp4, f"{ch}-{colors[ch]}.mp4", tsec=10, init_delay_s=5)
 # Close experiment
 exp.close()
