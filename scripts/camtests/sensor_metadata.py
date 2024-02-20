@@ -13,6 +13,7 @@ exp = Calibration(f"{scopeid}_cam_sensor_metadata_{dt}_{t.tm_hour}_{t.tm_min}_{t
 
 ## result - parameters
 result = []
+exp.logs["results"] = []
 iteations = 5
 frames = 10
 exp.logs["iterations"] = iteations
