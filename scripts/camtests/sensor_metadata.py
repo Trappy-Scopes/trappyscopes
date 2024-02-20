@@ -26,6 +26,7 @@ mixer = ColorIterator(levels=20, ch=["r", "g", "b", "w"])
 cam.cam.start()
 litstate = True
 index = 0
+exp.logs["init_time"] = time.perf_counter()
 while litstate:
 	## Set colour
 	litstate = next(mixer, None)
@@ -44,7 +45,7 @@ while litstate:
 
 
 			result.append(md)
-			pprint.pprint(result)
+			pprint.pprint(md)
 			exp.logs["results"].append(result)
 cam.close()
 exp.close()
