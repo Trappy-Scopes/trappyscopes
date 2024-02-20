@@ -25,6 +25,7 @@ mixer = ColorIterator(levels=20, ch=["r", "g", "b", "w"])
 
 cam.cam.start()
 litstate = True
+index = 0
 while litstate:
 	## Set colour
 	litstate = next(mixer, None)
