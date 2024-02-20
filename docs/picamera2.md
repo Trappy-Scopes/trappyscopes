@@ -1,0 +1,94 @@
+# PiCamera 2 Library
+
+
+
+## Camera Construction and Configuration
+
+1. The `camera.open() ` function creates a new `PiCamera2` object and assigns it to the `cam` attribute.
+2. The camera object then needs to be configured: `camera.configure()` to the correct settings. There are several ways. More short-hand functions are described in the constructor.
+
+```mermaid
+flowchart LR
+	Camera --> construct("Camera() or camera.open()<br>(camera is open)")
+	Camera --> configure("cam.configure()<br>(camconfig.yaml)")
+	Camera --> configure2("cam.configure(res=[x,y], fps=20)<br>(set custom configuration)")
+	Camera --> configure3("cam.configure(config)<br>(set a full custom configuration)")
+	
+				
+
+
+```
+
+3. 
+
++ There are `streams`, `outputs`, and `encoders`. All of these need to be created and connected for the camera to work.
++ QT windows are blocking in nature. It is important to understand how to make them async and non-blocking.
+
+#### Stream Configurations
+
++ default: fps=30, res = 1980X1080
++ default2 : fps=30, res = 2028X1080
+
++ largeres : fps=10, res=4056X3040
++ largefps : fps=120.03, res=1332X990
+
+**Configuration and Control Structures:**
+
++ "preview" : used for previews. — no auto adjustments.
++ "still" : used for images. — no auto adjustments.
++ "video" : used for videos — no auto adjustments.
++ "default" : default video configuration — all auto adjustments enabled as in defaults.
+
+**Image Formats:** 
+
+1. For most operations: `XBGR8888` : [R, G, B, 255]. It is the default.
+2. For Raw Captures, it must be set to: `BGR888` : [R, G, B]
+
+#### PiCamera 2 Harware-ISP Model
+
+```mermaid
+flowchart LR
+	
+	Camera --> CSI-2-Receiver --> Memory --> raw-stream
+																Memory --> ISP(ISP<br>Image Signal Processor)
+																ISP --> main-stream
+																ISP --> lowres-stream
+	
+	
+	Camera-Memory -.stream.- main
+	Camera-Memory  -.stream.- lores
+	Camera-Memory  -.stream.- raw
+	Controls -.sets.-> Camera
+	
+	main --- Streams
+	lores --- Streams
+	raw --- Streams
+	
+	Configuration -.sets.-> Streams
+	Streams --> Encoder
+	Encoder --> OutputObject
+	Encoder <-.- H264Encoder([H264Encoder])
+	OutputObject --> Capture[[Capture]]
+	OutputObject <-.- FFmpegOutput([FFmpegOutput])
+	OutputObject <-.- FileOutput([FileOutput])
+
+
+```
+
++ The main and lores streams need to have the same `colour_space` whereas, the raw stream has the camera hardware defined color space. **The choise is left to the PiCamera2 autosettings.**
++ 
+
+
+
+#### Modes of operation:
+
+0. "preview" : Gray window
+1. "image": Working corretly, however the startup overhead is significant.
+2. "image_trig" : Gray window and process blocks indefinately after trigger.  
+3. "timelapse"	  : Not tested 
+4. "video"	      : Ok
+5. "videomp4"     : Ok   
+6. "video_noprev" : Ok 
+7. "video_raw"    : Implemented  
+8. "ndarray"		  : Not implemented
+9. "stream"		    : Not implemented

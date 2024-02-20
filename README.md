@@ -2,10 +2,26 @@
 Control Layer Interface for the Microscopes that sit on the Raspberry Pi.
 
 
-## Start-up
 
-+ Start control layer utility with `python main.py`.
+## Installation
+
+```bash
+git clone -r <repo_link>
+cd <scope-cli>
+python install_py_libs.py
+```
+
+
+
+
+
+
+
+## Start-up and usage
+
++ Start control layer utility with `python -i main.py`. 
 + On Raspian (Linux machine), and during experiments, use `trappyscope` utility, that sets real-time priority on the thread. It only works for Linux.
++ When using script files, the `-i` flag, which enables the python interactive mode may be ommited.
 + Usage:
 ```bash
 python main.py <script1> <script2> <script3>
@@ -19,10 +35,43 @@ trappyscope <script1> <script2> <script3>
 LoadScript("scriptfile.py")
 ```
 
++ All data-collection should be done within the context of an `Experiment`:
+	```python
+	exp = Experiment("test")
+	```
+
+	You should get the following output:
+
+	```bash
+	Experiment so far: 
+	['.experiment', 'experiment.yaml']
+	Working directory changed to: /Users/byatharth/experiments/test
+	|| ‹‹MDev›› Experiment: test >>> 
+	```
+
++ You should also login as a user:
+
+	```python
+	set_user("YB")
+	```
+
+	The python terminal prompt should change to:
+
+	```bash
+	user:YB || ‹‹MDev›› Experiment: test >>> 
+	```
 
 ## An `Experiment`
 
+The data and metadata collection for any experiment is handled through the `Experiment` class. It's primary role is to manage storage for every different experiments. Creation of the class, immediately changes the working directory to the experiment one. 
+
+### Unique ID
+
+Each experiment is also assigned a 10-digit hex unique id. Example: `e8423b83d2`. 
+
 ### File Structure
+
+Each experiment has the following directory structure:
 
 ```
 Experiment_name
@@ -30,10 +79,11 @@ Experiment_name
 		|- experiment.yaml          (event logs)
 		|- data1, data2, data3, ... (data - in the repository)
 		|- postprocess              (postprocessed data)
+		|- converted                (online conversion - eg. between video formats)
 		|- analysis                 (analysis results)
 ```
 
-### Flow of Control
+### Flow of Control - TODO check with the current version
 
 ```mermaid
 flowchart
@@ -47,15 +97,13 @@ flowchart
 	end
 	
 	subgraph Deletion
-		del -.calls.- close("close()") --> Logs(Write event logs to yaml) --> CWDB(Change working <br>dir to original)
+		del -.calls.- close("exp.close()") --> Logs(Write event logs to yaml) --> CWDB(Change working <br>dir to original)
 	end
 	
 	Setup --> Loading --> Deletion
 ```
 
-### LoadScript utility
-
-
+### LoadScript utility TODO
 
 
 
@@ -67,7 +115,7 @@ flowchart
 
 
 
-###  Current Sequence
+###  TODO: Obsolete Current Sequence
 
 
 ```mermaid
@@ -77,18 +125,24 @@ flowchart LR
 
 
 
-### Connected Hardware
+### Hardware
 
-```mermaid
-flowchart
-	Camera("Camera<br>(cam)")
-	Lighst("Lights<br>(lit)")
-	
-	Pico("RPi Pico<br>(pico)")
-	
+The hardware is modelled as a device-tree or a hierarchical collection of devices. All nodes that are not end-nodes are turing complete computational devices.
+
+```python
+assembly: 
+ | rpi: null
+ | cam: camera
+ | pico: 
+ | | lit: light
+ | | beacon: beacon
+ | | tandh: t&h sensor
+ | 
+ *
 ```
 
 ## Hardware firmware
+
 The hardware firmware is synched to the pico device in parts. 
 
 **Pico Connection and FS Sync:**
@@ -147,81 +201,6 @@ The default mode for parsing a device ID structure is to first cast each field t
 3. The file `<Experiment_name>.yaml` contains the event logs of the experiments.
 
 
-
-
-### PiCamera 2 Library
-
-+ There are `streams`, `outputs`, and `encoders`. All of these need to be created and connected for the camera to work.
-+ QT windows are blocking in nature. It is important to understand how to make them async and non-blocking.
-
-#### Stream Configurations
-
-+ default: fps=30, res = 1980X1080
-+ default2 : fps=30, res = 2028X1080
-
-+ largeres : fps=10, res=4056X3040
-+ largefps : fps=120.03, res=1332X990
-
-**Configuration and Control Structures:**
-
-+ "preview" : used for previews. — no auto adjustments.
-+ "still" : used for images. — no auto adjustments.
-+ "video" : used for videos — no auto adjustments.
-+ "default" : default video configuration — all auto adjustments enabled as in defaults.
-
-**Image Formats:** 
-
-1. For most operations: `XBGR8888` : [R, G, B, 255]. It is the default.
-2. For Raw Captures, it must be set to: `BGR888` : [R, G, B]
-
-#### PiCamera 2 Harware-ISP Model
-
-```mermaid
-flowchart LR
-	
-	Camera --> CSI-2-Receiver --> Memory --> raw-stream
-																Memory --> ISP(ISP<br>Image Signal Processor)
-																ISP --> main-stream
-																ISP --> lowres-stream
-	
-	
-	Camera-Memory -.stream.- main
-	Camera-Memory  -.stream.- lores
-	Camera-Memory  -.stream.- raw
-	Controls -.sets.-> Camera
-	
-	main --- Streams
-	lores --- Streams
-	raw --- Streams
-	
-	Configuration -.sets.-> Streams
-	Streams --> Encoder
-	Encoder --> OutputObject
-	Encoder <-.- H264Encoder([H264Encoder])
-	OutputObject --> Capture[[Capture]]
-	OutputObject <-.- FFmpegOutput([FFmpegOutput])
-	OutputObject <-.- FileOutput([FileOutput])
-
-
-```
-
-+ The main and lores streams need to have the same `colour_space` whereas, the raw stream has the camera hardware defined color space. **The choise is left to the PiCamera2 autosettings.**
-+ 
-
-
-
-#### Modes of operation:
-
-0. "preview" : Gray window
-1. "image": Working corretly, however the startup overhead is significant.
-2. "image_trig" : Gray window and process blocks indefinately after trigger.  
-3. "timelapse"	  : Not tested 
-4. "video"	      : Ok
-5. "videomp4"     : Ok   
-6. "video_noprev" : Ok 
-7. "video_raw"    : Implemented  
-8. "ndarray"		  : Not implemented
-9. "stream"		    : Not implemented
 
 
 ### TODO

@@ -32,10 +32,11 @@ class Camera(AbstractCamera):
 	def __init__(self):
 		
 		self.cam = Picamera2()
-		self.cam_fsaddr = None   ## TODO
-		self.opentime_ns = time.perf_counter()
 		log.info("PiCamera2 Camera was opened.") # Constructor opens the cam.
 
+		self.cam_fsaddr = None   ## TODO
+		self.opentime_ns = time.perf_counter()
+		
 
 		# Preview Window Settings
 		self.preview_type = Preview.QTGL # Other options: Preview.DRM or Preview.QT
@@ -136,13 +137,11 @@ class Camera(AbstractCamera):
 		TODO: change buffer_count
 		      maybe disable queue option
 			  display="lores" for enabling preview
-
 		"""
 
 
 		## Custom configuration
 		if config:
-
 			if isinstance(config, str): ## Assume its a valid path
 				with open(config) as file:
 					self.config = yaml.load(file, Loader=SafeLoader)
@@ -357,11 +356,16 @@ class Camera(AbstractCamera):
 			## disable callbacks
 			self.cam.post_callback = None
 
+
+	### Callback functions
 	def __pre_timestamp__(self, request):
 		self.pre_buffer.write("{}{}".format(time.perf_counter(), "\n"))
 	def __post_timestamp__(self, request):
 		print("!",end="")
 		self.post_buffer.write("{}{}".format(time.perf_counter(), "\n"))
+	def __pre_lux_timestamp__(self, request):
+		md = self.cam.capture_metadata()
+		self.pre_buffer.write("{}{}{}".format(md, time.perf_counter(), "\n"))
 	
 
 

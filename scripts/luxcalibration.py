@@ -23,7 +23,14 @@ for ch in ["r", "g", "b"]:
 		pico(f'l1.setVs({colors["r"]}, {colors["g"]}, {colors["b"]})')
 		name = f"{ch}_{colors[ch]:.3f}"
 		name = name.replace(".", "pt") + ".mp4"
+		
+		### Capture video
 		capture(vidmp4, name, tsec=10, init_delay_s=0)
+		
+		### Capture lux value
+		rgbw[(colors[ch], colors[ch], colors[ch])] = 
+
+
 for ch in ["w"]:
 	colors[ch] = 0
 	for i in range(levels):
