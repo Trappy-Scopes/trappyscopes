@@ -202,18 +202,21 @@ class Test(Experiment):
 		self.checks = []
 		super().__init__(name)
 
-	def check(self, callable, *args, **kwargs):
+	def check(self, callable_, *args, **kwargs):
 		"""
 		Only fails if exceptions are raised. TODO
 		"""
 		print(f"<< Check {len(self.checks)} >>")
 		try:
+			print(callable_)
+			print(args)
+			print(kwargs)
 			callable(args, kwargs)
-			print(f"{Fore.GREEN}››{Fore.RESET} {callable} : {Fore.GREEN}OK{Fore.RESET}")
+			print(f"{Fore.GREEN}››{Fore.RESET} {callable_} : {Fore.GREEN}OK{Fore.RESET}")
 			self.checks.append(1) ## Inverted
 
 		except Exception as e:
-			print(f"{Fore.RED}››{Fore.RESET} {callable} : {Fore.RED}NOK{Fore.RESET}")
+			print(f"{Fore.RED}››{Fore.RESET} {callable_} : {Fore.RED}NOK{Fore.RESET}")
 			print(Fore.RED)
 			print(e)
 			print(Fore.RESET)
