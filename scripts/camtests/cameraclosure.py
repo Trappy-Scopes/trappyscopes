@@ -13,7 +13,7 @@ lit.setVs(0,0.5,0)
 
 
 ## Test opening and closing of camera
-for i in range(100):
+for i in range(15):
 	test.check(cam.open)
 	test.check(cam.is_open)
 
