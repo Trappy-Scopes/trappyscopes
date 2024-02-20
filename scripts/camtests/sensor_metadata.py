@@ -14,6 +14,10 @@ exp = Calibration(f"{scopeid}_cam_sensor_metadata_{dt}_{t.tm_hour}_{t.tm_min}_{t
 ## result - parameters
 result = []
 iteations = 5
+frames = 10
+exp.logs["iterations"] = iteations
+exp.logs["frames"] = frames
+exp.log["color_ch_levels"] = 20
 
 ## Start color mixing
 mixer = ColorIterator(levels=20, ch=["r", "g", "b", "w"])
@@ -27,7 +31,7 @@ while litstate:
 	pico(f"l1.setVs({litstate[0]}, {litstate[1]}, {litstate[2]})")
 
 	for it in range(iteations):
-		sleep(0)  ## Do one every minute
+		sleep(10)  ## Do one every minute
 		for i in range(frames):
 			print(f"<< {index} : {litstate}>>")
 			index = index + 1
