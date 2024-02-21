@@ -35,24 +35,25 @@ m = 0
 while litstate:
 	## Set colour
 	litstate = next(mixer, None)
-	pico(f"l1.setVs({litstate[0]}, {litstate[1]}, {litstate[2]})")
+	if litstate:
+		pico(f"l1.setVs({litstate[0]}, {litstate[1]}, {litstate[2]})")
 
-	m += 1
-	for it in range(iteations):
-		sleep(wait_time_s)  ## Do one every minute
-		for i in range(frames):
-			print(f"<< {index} : {litstate}>>")
-			index = index + 1
-			md = cam.frame_metadata()
-			md["time"] = time.perf_counter()
-			md["frame_no"] = i
-			md["index"] = index
-			md["lit"] = litstate
-			md["measurement"] = m
-			md["illumination"] = device_metadata["hardware"]["illumination"]
+		m += 1
+		for it in range(iteations):
+			sleep(wait_time_s)  ## Do one every minute
+			for i in range(frames):
+				print(f"<< {index} : {litstate}>>")
+				index = index + 1
+				md = cam.frame_metadata()
+				md["time"] = time.perf_counter()
+				md["frame_no"] = i
+				md["index"] = index
+				md["lit"] = litstate
+				md["measurement"] = m
+				md["illumination"] = device_metadata["hardware"]["illumination"]
 
-			result.append(md)
-			pprint.pprint(md)
-			exp.logs["results"].append(result)
+				result.append(md)
+				pprint.pprint(md)
+				exp.logs["results"].append(result)
 cam.cam.close()
 exp.close()
