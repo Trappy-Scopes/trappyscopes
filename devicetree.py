@@ -29,7 +29,7 @@ class ScopeAssembly:
 			|- remote-pico
 				|- alignment_device
 			|- remote-pico
-				|- cluster
+				|- cluster *
 
 	"""
 
@@ -63,5 +63,6 @@ class ScopeAssembly:
 
 		print(tree_str)
 
-	
+	def reconnections(self, device="cam", callback_fn="is_open"):
+		pass
 

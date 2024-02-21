@@ -14,6 +14,7 @@ exp = Calibration(f"{scopeid}_cam_sensor_metadata_{dt}_{t.tm_hour}_{t.tm_min}_{t
 ## result - parameters
 result = []
 exp.logs["results"] = []
+print(exp.logs["results"])
 iteations = 5
 frames = 10
 wait_time_s = 10
@@ -53,5 +54,5 @@ while litstate:
 			result.append(md)
 			pprint.pprint(md)
 			exp.logs["results"].append(result)
-cam.close()
+cam.cam.close()
 exp.close()
