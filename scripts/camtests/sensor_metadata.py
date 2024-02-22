@@ -25,6 +25,7 @@ exp.logs["wait_time_s"] = wait_time_s
 ## Start color mixing
 mixer = ColorIterator(levels=20, ch=["r", "g", "b", "w"])
 
+exp.unsaved = True
 if not cam.is_open():
 	cam.open()
 cam.cam.start()
@@ -55,7 +56,7 @@ while litstate:
 				result.append(md)
 				pprint.pprint(md)
 				exp.logs["results"] = result
-				print(exp.logs["results"])
+	print(exp.logs["results"])
 
 cam.cam.close()
 exp.close()
