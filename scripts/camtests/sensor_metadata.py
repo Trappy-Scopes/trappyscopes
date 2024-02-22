@@ -56,7 +56,7 @@ while litstate:
 				result.append(md)
 				pprint.pprint(md)
 				exp.logs["results"] = result
-	print(exp.logs["results"])
+#print(exp.logs["results"])
 
 cam.cam.close()
 exp.close()
