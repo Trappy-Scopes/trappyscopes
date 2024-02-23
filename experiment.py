@@ -115,10 +115,10 @@ class Experiment:
 		self.close()
 
 	def close(self):
-		if self.unsaved: 
-			with open(self.log_file, "w") as f:
-				f.write(yaml.dump(self.logs))
-			print(f"Experiment logs updated: {self.log_file}")
+		#if self.unsaved: 
+		with open(self.log_file, "w") as f:
+			f.write(yaml.dump(self.logs))
+		print(f"Experiment logs updated: {self.log_file}")
 		if self.active:
 			print(f"Experiment {self.name} was closed.")
 			os.chdir(self.lastwd)
