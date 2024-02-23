@@ -206,7 +206,7 @@ class Test(Experiment):
 		"""
 		Only fails if exceptions are raised. TODO
 		"""
-		self.log_event(["check", callable_])
+		self.[f"check-{len(self.checks)}"] = str(callable_)
 		print(f"<< Check {len(self.checks)} >>")
 		try:
 			if not args and not kwargs:
@@ -231,7 +231,7 @@ class Test(Experiment):
 		if sum(self.checks) == len(self.checks):
 			print(f"{Fore.GREEN}All checks passed!{Fore.RESET}")
 		print(f"Checks: {Fore.BLUE}{sum(self.checks)} / {len(self.checks)} passed.{Fore.RESET}")
-		self.log_event(f"{sum(self.checks)}, {len(self.checks)}, 'checks passed'")
+		self.logs["checks_passed"] = [sum(self.checks), len(self.checks)]
 
 
 if __name__ == "__main__":
