@@ -206,7 +206,7 @@ class Test(Experiment):
 		"""
 		Only fails if exceptions are raised. TODO
 		"""
-		self.[f"check-{len(self.checks)}"] = str(callable_)
+		self.logs[f"check-{len(self.checks)}"] = str(callable_)
 		print(f"<< Check {len(self.checks)} >>")
 		try:
 			if not args and not kwargs:
