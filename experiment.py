@@ -132,7 +132,7 @@ class Experiment:
 		"""
 		if self.active:
 			now = datetime.datetime.now() 
-			self.logs[string] = str(now)
+			self.logs[str(now)] = string
 			self.events.append(string)
 			self.unsaved = True
 		else:
