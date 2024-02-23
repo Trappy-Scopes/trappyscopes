@@ -55,7 +55,8 @@ while litstate:
 				result.append(md)
 				pprint.pprint(md)
 				exp.logs["results"] = result
-			capture(vid, f"r_{litstate[0]}g_{litstate[1]}b_{litstate[2]}measure_{m}", tsec=10)
+			capture(vid, 
+				f"r_{str(litstate[0]).replace(".", "pt")}_g_{str(litstate[1]).replace(".", "pt")}_b_{str(litstate[2]).replace(".", "pt")}_measure_{m}.h264", tsec=10)
 #print(exp.logs["results"])
 
 cam.cam.close()
