@@ -62,6 +62,9 @@ log.critical(pprint.pformat(device_metadata))
 global scopeid, scope_user
 scopeid = device_metadata["name"]
 
+
+RPiPicoDevice.print_all_ports()
+
 ##3. Print Header
 #from colorama import init
 #init()
