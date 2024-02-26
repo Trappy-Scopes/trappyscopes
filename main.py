@@ -176,7 +176,7 @@ def exit():
 
 
 def LoadScript(scriptfile):
-		print(f"{Fore.YELLOW}{'='*10} Executing: {Fore.WHITE}{scriptfile} {Fore.YELLOW} {'='*10}{Style.RESET_ALL}")
+		print(f"{Fore.YELLOW}{'='*10} Executing: {Fore.WHITE}{scriptfile} {Fore.YELLOW} {'='*10}{Fore.RESET}")
 		with open(scriptfile) as f:
 			exec(f.read(), globals())
 
