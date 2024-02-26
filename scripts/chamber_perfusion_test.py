@@ -15,9 +15,9 @@ sleep(0)
 
 
 ## Incase of additional pico board
-#motor_pico = RPiPicoDevice()
-#motor_pico.auto_connect()
-
+motor_pico = RPiPicoDevice()
+motor_pico.auto_connect()
+print(motor_pico)
 #print("Waiting")
 #sleep(5)
 
@@ -34,7 +34,7 @@ speedset = [0.00, 0.01, 0.02, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.15, \
 ## Set Frequency
 pico(f"motor.fwdpin.freq({freq})")
 pico(f"motor.revpin.freq({freq})")
-print(f"Fwd pin freq: {pico('print(motor.fwdpin.freq())')}")
+print(f"Fwd pin freq: {motor_pico('print(motor.fwdpin.freq())')}")
 
 print(f"Speeds: {speedset}")
 print(f"Will test {len(speedset)} sppeds!")
@@ -53,7 +53,7 @@ for i, speed in enumerate(speedset):
 	sleep(10)
 
 	
-	pico(f"motor.speed({speed})")
+	motor_pico(f"motor.speed({speed})")
 	print("Speed updated.")
 	
 
@@ -65,12 +65,12 @@ for i, speed in enumerate(speedset):
 	sleep(5)
 
 	### 
-	pico("motor.hold()")
+	motor_pico("motor.hold()")
 	stop = time.perf_counter()
 
 
 	dur = stop-start
-	result = {"duty":(pico("print(motor.duty)").rstrip("\r\n")), 
+	result = {"duty":(motor_pico("print(motor.duty)").rstrip("\r\n")), 
 			  "speed": speed, "freq":freq,  "duration":dur,
 			  "setup": "2mm_inhouse_chambers_syringe_to_syringe", "overflow": 0, "success": None,
 		      "experiment_type": "chamber_perfusion_threshold", "acq": name}
@@ -79,5 +79,5 @@ for i, speed in enumerate(speedset):
 	print(f"{Back.RED}{' '*100}{Style.RESET_ALL}")
 	print("Acq done!!!")
 
-pico("motor.hold()")
+motor_pico("motor.hold()")
 exp.close()
