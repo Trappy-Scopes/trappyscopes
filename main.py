@@ -28,6 +28,7 @@ from sync import SyncEngine
 from time import sleep
 from devicetree import ScopeAssembly
 from terminalplot import *
+from scriptengine import LoadScript
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 
 
@@ -202,8 +203,7 @@ if len(sys.argv) > 1:
 	#Experiment.run(sys.argv[1])
 	#__import__(sys.argv[1], globals(), locals())
 	for exefile in scriptfiles:
-		with open(exefile) as f:
-			exec(f.read(), globals())
+		LoadScript(exefile)
 ##------
 
 
