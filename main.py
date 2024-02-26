@@ -28,7 +28,7 @@ from sync import SyncEngine
 from time import sleep
 from devicetree import ScopeAssembly
 from terminalplot import *
-from scriptengine import LoadScript
+#from scriptengine import LoadScript
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 
 
@@ -174,6 +174,11 @@ def exit():
 			cam.close()
 	sys.exit()
 
+
+def LoadScript(scriptfile):
+		print(f"{Fore.YELLOW}{'='*10} Executing: {Fore.WHITE}{scriptfile} {Fore.YELLOW} {'='*10}{Style.RESET_ALL}")
+		with open(scriptfile) as f:
+			exec(f.read(), globals())
 
 
 ## 4. Set Experiment
