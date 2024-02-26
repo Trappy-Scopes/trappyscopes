@@ -82,8 +82,8 @@ picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
 
 pico = RPiPicoDevice.Select(picomode, name=device_metadata["hardware"]["pico"][1], \
 	   connect=False)
-#pico.auto_connect()
-pico.connect("/dev/ttyACM1")
+pico.auto_connect()
+#pico.connect("/dev/ttyACM1")
 print(pico)
 if not pico.connected:
 	log.error("Could not get a pico device - exiting.")
