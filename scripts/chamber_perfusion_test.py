@@ -58,7 +58,7 @@ for i, speed in enumerate(speedset):
 	
 
 	### Capture video
-	name = f"speed{str(speed).replace(".", "pt")}.h264"
+	name = f"peristat_speed_{str(speed).replace('.', 'pt')}.h264"
 	capture(vid, name, tsec=30)
 	### -----
 
