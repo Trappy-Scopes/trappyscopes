@@ -52,14 +52,15 @@ for i, speed in enumerate(speedset):
 	
 	print(f"Motor speed: {speed}")
 	exp.user_prompt("start")
-	start = time.perf_counter()
-
-
-	sleep(20)
-
-	
 	motor_pico(f"motor.speed({speed})")
 	print("Speed updated.")
+	
+
+	start = time.perf_counter()
+
+	## Wait 20 seconds after user prompt
+	sleep(20)
+
 	
 
 	### Capture video
@@ -70,7 +71,7 @@ for i, speed in enumerate(speedset):
 	sleep(5)
 
 	### 
-	motor_pico("motor.hold()")
+	##motor_pico("motor.hold()")
 	stop = time.perf_counter()
 
 
