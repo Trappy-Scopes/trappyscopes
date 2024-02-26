@@ -45,7 +45,7 @@ while litstate:
 			for i in range(frames):
 				print(f"<< {index} : {litstate}>>")
 				index = index + 1
-				md = cam.frame_metadata()
+				md = cam.frame_metadata()   ### Blocks here with captures
 				md["time"] = time.perf_counter()
 				md["frame_no"] = i
 				md["index"] = index
@@ -55,7 +55,7 @@ while litstate:
 				result.append(md)
 				pprint.pprint(md)
 				exp.logs["results"] = result
-			capture(vid, 
+			capture(vid, \
 				f'r_{str(litstate[0]).replace(".", "pt")}_g_{str(litstate[1]).replace(".", "pt")}_b_{str(litstate[2]).replace(".", "pt")}_measure_{m}.h264', tsec=10)
 #print(exp.logs["results"])
 
