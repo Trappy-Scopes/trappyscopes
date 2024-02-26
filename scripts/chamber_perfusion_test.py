@@ -55,7 +55,7 @@ for i, speed in enumerate(speedset):
 	start = time.perf_counter()
 
 
-	sleep(10)
+	sleep(20)
 
 	
 	motor_pico(f"motor.speed({speed})")
