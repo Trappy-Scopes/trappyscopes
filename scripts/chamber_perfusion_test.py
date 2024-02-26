@@ -15,7 +15,7 @@ sleep(0)
 
 
 ## Incase of additional pico board
-motor_pico = RPiPicoDevice()
+motor_pico = RPiPicoDevice(connect=False)
 motor_pico.auto_connect()
 print(motor_pico)
 #print("Waiting")
