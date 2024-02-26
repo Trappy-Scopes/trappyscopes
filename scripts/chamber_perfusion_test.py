@@ -16,7 +16,8 @@ sleep(0)
 
 ## Incase of additional pico board
 motor_pico = RPiPicoDevice(connect=False)
-motor_pico.connect("/dev/ttyACM12")
+motor_pico.connect("/dev/ttyACM0")
+motor_pico.exec_main()
 print(motor_pico)
 #print("Waiting")
 #sleep(5)
