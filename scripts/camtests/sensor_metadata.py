@@ -49,7 +49,9 @@ while litstate:
 				md["time"] = time.perf_counter()
 				md["frame_no"] = i
 				md["index"] = index
-				md["lit"] = litstate
+				md["lit_r"] = litstate[0]
+				md["lit_g"] = litstate[1]
+				md["lit_b"] = litstate[2]
 				md["measurement"] = m
 				md["illumination"] = device_metadata["hardware"]["illumination"]
 
