@@ -45,6 +45,7 @@ exp.logs["lit"] = list(lit_state)
 exp.logs["min_delay_sec"] = min_delay_sec
 exp.logs["relax_delay_sec"] = relax_delay_sec
 exp.logs["results"] = []
+exp.logs["magnification"] = 0.75
 ## Set Frequency
 motor_pico(f"motor.fwdpin.freq({freq})")
 motor_pico(f"motor.revpin.freq({freq})")
