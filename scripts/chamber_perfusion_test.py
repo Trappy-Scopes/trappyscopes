@@ -16,8 +16,8 @@ sleep(0)
 
 
 ## Incase of additional pico board
-#motor_pico = RPiPicoDevice(connect=False)
-motor_pico = NullRPiPicoDevice(connect=False)
+motor_pico = RPiPicoDevice(connect=False)
+#motor_pico = NullRPiPicoDevice(connect=False)
 motor_pico.auto_connect()
 #motor_pico.connect("/dev/ttyACM0")
 motor_pico.exec_main()
