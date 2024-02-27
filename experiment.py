@@ -7,6 +7,7 @@ import sys
 import nanoid
 import datetime
 from colorama import Fore
+import time
 
 import config.common
 
@@ -72,6 +73,7 @@ class Experiment:
 		self.unsaved = False # Flag that indicates unsaved changes
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
 		self.all_exps = Experiment.list_all()
+		self.init_time = time.perf_counter()
 
 		#TODO self.metadata = Metadata()
 
@@ -115,7 +117,10 @@ class Experiment:
 		self.close()
 
 	def close(self):
-		#if self.unsaved: 
+		#if self.unsaved:
+		end_time = time.perf_counter()
+		print(f"Experiment duration: {end_time-self.init_time:.3f} seconds.")
+		self.logs["exp_duration_s"] = end_time-self.init_time
 		with open(self.log_file, "w") as f:
 			f.write(yaml.dump(self.logs))
 		print(f"Experiment logs updated: {self.log_file}")
