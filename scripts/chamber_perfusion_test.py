@@ -37,7 +37,7 @@ freq = 10
 speedset = [0.032, 0.035, 0.037, 0.04, 0.042, 0.045, 0.047, 0.05, 0.052, 0.055, 0.057, 0.06]
 
 
-lit_state = (0.5, 0.5, 0.5)
+lit_state = (0.5, 0.5, 0.3)
 pico(f"l1.setVs{str(lit_state)}")
 exp.logs["pwm_freq"] = freq
 exp.logs["speedset"] = speedset
