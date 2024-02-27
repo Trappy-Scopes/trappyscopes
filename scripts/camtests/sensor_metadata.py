@@ -20,10 +20,10 @@ frames = 10
 wait_time_s = 10
 exp.logs["iterations"] = iteations
 exp.logs["frames"] = frames
-exp.logs["color_ch_levels"] = 20
+exp.logs["color_ch_levels"] = 21
 exp.logs["wait_time_s"] = wait_time_s
 ## Start color mixing
-mixer = ColorIterator(levels=20, ch=["r", "g", "b", "w"])
+mixer = ColorIterator(levels=21, ch=["r", "g", "b", "w"])
 
 exp.unsaved = True
 if not cam.is_open():

@@ -21,7 +21,7 @@ def convert_h264_to_mp4(dir_=".", fps=30):
 	pprint(not_converted)
 	x = input("Press enter to begin conversion, press Ctrl+D to exit")
 	for fn in not_converted:
-		os.system(f" MP4Box -add {fn + '.h264'}:fps={fps} {fn + '.mp4'}")
+		os.system(f" MP4Box -add {os.path.join(dir_, fn) + '.h264'}:fps={fps} {os.path.join(dir_, fn) + '.mp4'}")
 	print(f"All conversions were completed: {len(not_converted)}")
 
 if __name__ == "__main__":
