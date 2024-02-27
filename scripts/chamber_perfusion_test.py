@@ -73,6 +73,14 @@ if exp.user_prompt(None, label="load-pipe") == "load-pipe":
 print("Ensure that the chamber is loaded - loading acquisition")
 exp.user_prompt(None, label="loading-acquisition")
 capture(vidmp4, "loading_procedure.mp4", tsec=60*3)     ## Capture chamber without the flow
+
+# - Another optional loading run
+print("Another loading run - type ``more-load`` ")
+if exp.user_prompt(None, label="more-load") == "more-load":
+	capture(vidmp4, "loading_procedure2.mp4", tsec=60*3)
+
+
+### Start Experiment
 exp.user_prompt("start-exp")
 motor_pico(f"motor.speed({speedset[0]})")
 exp.log_event(f"motor-started-speed-{speedset[0]}")
@@ -128,3 +136,26 @@ for i, speed in enumerate(speedset):
 ## Stop motor and end experiment.
 motor_pico("motor.hold()")
 exp.close()
+
+
+def motor_purge(motor_pico, ):
+	decline_step = 0.01
+	decline_dealy_s = 1
+	high_speed = 0.7
+	low_speed = 0.35
+
+	for i in range(15):
+
+		## Large oscillations
+		motor_pico(f"motor.speed({high_speed})")
+		sleep(0.5)
+		motor_pico("motor.hold()")
+		sleep(0.5)
+		## ------------------
+
+	for i in range(int((high_speed-low_speed)/decline_step)):
+		motor_pico(f"motor.speed({high_speed-(i*decline_step)})")
+		sleep(1)
+
+	### maintain perfusion - maybe?
+	## motor_pico("motor.hold()")

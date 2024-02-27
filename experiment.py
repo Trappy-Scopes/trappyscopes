@@ -122,7 +122,7 @@ class Experiment:
 		print(f"Experiment duration: {end_time-self.init_time:.3f} seconds.")
 		self.logs["exp_duration_s"] = end_time-self.init_time
 		with open(self.log_file, "w") as f:
-			f.write(yaml.safe_dump(self.logs))
+			f.write(yaml.dump(self.logs))
 		print(f"Experiment logs updated: {self.log_file}")
 		if self.active:
 			print(f"Experiment {self.name} was closed.")
