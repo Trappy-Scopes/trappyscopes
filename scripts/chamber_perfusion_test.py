@@ -72,7 +72,7 @@ if exp.user_prompt(None, label="load-pipe") == "load-pipe":
 ####  User prompt to start the experiment
 print("Ensure that the chamber is loaded - loading acquisition")
 exp.user_prompt(None, label="loading-acquisition")
-capture(vidmp4, "loading_procedure.mp4", tsec=60*5)     ## Capture chamber without the flow
+capture(vidmp4, "loading_procedure.mp4", tsec=60*3)     ## Capture chamber without the flow
 exp.user_prompt("start-exp")
 motor_pico(f"motor.speed({speedset[0]})")
 exp.log_event(f"motor-started-speed-{speedset[0]}")
