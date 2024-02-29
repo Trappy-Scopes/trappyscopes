@@ -54,6 +54,7 @@ while litstate:
 				md["lit_b"] = litstate[2]
 				md["measurement"] = m
 				md["illumination"] = device_metadata["hardware"]["illumination"]
+				md["usaf_test_target"] = False
 
 				result.append(md)
 				pprint.pprint(md)
