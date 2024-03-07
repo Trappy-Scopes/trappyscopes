@@ -74,7 +74,7 @@ for i, pressure in enumerate(pressureset):
 	
 
 	### Capture video
-	name = f"ibidipump_pressure_{str(pressure).replace('.', '_')}.mp4"
+	name = f"ibidipump_pressure_{str(pressure).replace('.', '_')}.h264"
 	os.system(f"libcamera-vid -t {1*60*1000} -f -o {name}")
 	### -----
 
