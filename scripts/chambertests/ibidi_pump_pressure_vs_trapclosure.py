@@ -15,7 +15,7 @@ t = time.localtime(time.time())
 exp = Calibration(f"{scopeid}_ibidi_pump_pressure_trapclosure_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
 sleep(0)
 
-
+cam.close()
 ## Incase of additional pico board
 pump = AbstractMotor() ## NullDevice
 
