@@ -93,6 +93,9 @@ for i, pressure in enumerate(pressureset):
 			  "setup": "ibidi_pressure_controlled_pump", "chamber_type":"inhouse_4mm", "success": None,
 		      "experiment_type": "chamber_perfusion_threshold", 
 		      "acq": name, "lit_state":"arbitrary", "microscope":"vwr",
+		      "actual_pressure_start": input("actual_pressure_start"),
+		      "actual_pressure_end": input("actual_pressure_end"),
+		      "pressure_units": "mbarr"
 		      }
 	pprint.pprint(result)
 	exp.logs["results"].append(result)
