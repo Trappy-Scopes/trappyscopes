@@ -120,7 +120,7 @@ class RPiPicoDevice:
 				break
 		
 		if not self.connected:
-	2		print("No Pico device found. Not connected.")
+			print("No Pico device found. Not connected.")
 			RPiPicoDevice.all_ports()
 
 	def emit_device(self, object_):
