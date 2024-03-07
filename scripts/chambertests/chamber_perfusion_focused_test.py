@@ -94,7 +94,7 @@ for i, speed in enumerate(speedset):
 
 	### set speed
 	print(f"Motor speed: {speed}")
-	exp.user_prompt("start")
+	#exp.user_prompt("start")
 	motor_pico(f"motor.speed({speed})")
 	print("Speed updated.")
 	
