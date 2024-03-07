@@ -120,7 +120,7 @@ class RPiPicoDevice:
 				break
 		
 		if not self.connected:
-			print("No Pico device found. Not connected.")
+	2		print("No Pico device found. Not connected.")
 			RPiPicoDevice.all_ports()
 
 	def emit_device(self, object_):
@@ -135,7 +135,8 @@ class RPiPicoDevice:
 
 			def __getattr__(self, fn, *args, **kwargs):
 				if attr in dir(self.obj):
-					self.pico(f"{fn}({str(list(args)).strip('[').strip(']')}{","*(len(args)!=0 and len(kwargs) != 0) } {str([f'{key}={kwargs[key]}' for key in kwargs]).strip('[').strip(']')})")
+					#self.pico(f"{fn}({str(list(args)).strip('[').strip(']')}{","*(len(args)!=0 and len(kwargs) != 0) } {str([f'{key}={kwargs[key]}' for key in kwargs]).strip('[').strip(']')})")
+					pass
 				else:
 					# Handle other attributes or raise an AttributeError
 					raise AttributeError(f"'{type(self.obj).__name__}' object has no attribute '{fn}'")
