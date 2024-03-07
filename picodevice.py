@@ -123,6 +123,31 @@ class RPiPicoDevice:
 			print("No Pico device found. Not connected.")
 			RPiPicoDevice.all_ports()
 
+	def emit_device(self, object_):
+		"""
+		A dynamic class is created inside the object.
+		"""
+		class PicoProxyObject:
+
+			def __init__(self, pico):
+				self.obj = object_
+				self.pico = pico
+
+			def __getattr__(self, fn, *args, **kwargs):
+				if attr in dir(self.obj):
+					self.pico(f"{fn}({str(list(args)).strip('[').strip(']')}{","*(len(args)!=0 and len(kwargs) != 0) } {str([f'{key}={kwargs[key]}' for key in kwargs]).strip('[').strip(']')})")
+				else:
+					# Handle other attributes or raise an AttributeError
+					raise AttributeError(f"'{type(self.obj).__name__}' object has no attribute '{fn}'")
+
+			def __repr__(self):
+				return f"< PicoProxyObject on {self.pico} >"
+
+		### Emit device
+		return PicoProxyObject(object_, self)
+
+
+
 
 	def __call__(self, command):
 		self.print_(f"{self.name}! do >> {command}")
@@ -257,7 +282,7 @@ class PicoProxyDevice:
 			return expanded
 
 		methods = [fn for fn in dir(object) \
-		           if not fn.startswith("__") and fn.endswith("__") ]
+				   if not fn.startswith("__") and fn.endswith("__") ]
 		for method in methods:
 			
 			fn = lambda *args, **kwargs: \
