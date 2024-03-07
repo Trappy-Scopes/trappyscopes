@@ -52,7 +52,7 @@ if exp.user_prompt(None, label="purge") == "purge":
 
 ### Start Experiment
 exp.user_prompt("start-exp")
-print(f"Please set the pump to {pressureset[0]} mbarr".)
+print(f"Please set the pump to {pressureset[0]} mbarr.")
 sleep(30)
 exp.log_event(f"init-stabilization-{30}s")
 ####
