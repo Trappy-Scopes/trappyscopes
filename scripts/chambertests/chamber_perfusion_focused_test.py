@@ -125,7 +125,8 @@ for i, speed in enumerate(speedset):
 			  "speed": speed, "freq":freq,  "duration":dur,
 			  "setup": "3mm_inhouse_chambers_syringe_to_syringe", "overflow": 0, "success": None,
 		      "experiment_type": "chamber_perfusion_threshold", 
-		      "acq": name, "lit_state":list(lit_state)}
+		      "acq": name, "lit_state":list(lit_state), 
+		      "traps_closed": False, "flow_observed": True, "pressure_waves": True}
 	pprint.pprint(result)
 	exp.logs["results"].append(result)
 
