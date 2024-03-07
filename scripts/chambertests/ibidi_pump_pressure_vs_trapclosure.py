@@ -33,7 +33,7 @@ pressureset = [100, 90, 80,70, 60, 50, 40 ,30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
 
 
 ### Experimental info
-exp.logs["pressureset"] = speedset
+exp.logs["pressureset"] = pressureset
 exp.logs["min_delay_sec"] = min_delay_sec
 exp.logs["relax_delay_sec"] = relax_delay_sec
 exp.logs["results"] = []
@@ -61,8 +61,8 @@ exp.log_event(f"init-stabilization-{30}s")
 for i, pressure in enumerate(pressureset):
 	
 
-	### set speed
-	print(f"Pump pressure: {speed} mbarr. Please adjust the pump settings and trigger.")
+	### set pressure
+	print(f"Pump pressure: {pressure} mbarr. Please adjust the pump settings and trigger.")
 	exp.user_prompt("start")
 
 	## Start and stabilize
@@ -74,7 +74,7 @@ for i, pressure in enumerate(pressureset):
 	
 
 	### Capture video
-	name = f"ibidipump_pressure_{str(speed).replace('.', '_')}.mp4"
+	name = f"ibidipump_pressure_{str(pressure).replace('.', '_')}.mp4"
 	os.system(f"libcamera-vid -t {1*60*1000} -f -o {name}")
 	### -----
 
