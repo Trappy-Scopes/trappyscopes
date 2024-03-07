@@ -61,7 +61,7 @@ print("Load pipe ??????????  -- type ``load-pipe`` ")
 if exp.user_prompt(None, label="load-pipe") == "load-pipe":
 	exp.log_event("load-pipe-triggered")
 	motor_pico("motor.speed(0.5)")
-	sleep(7)
+	sleep(20)
 	motor_pico("motor.hold()")
 	exp.log_event("load-pipe-completed")
 ####
