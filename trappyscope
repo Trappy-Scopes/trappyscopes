@@ -7,6 +7,6 @@ hanme=hostname
 
 sudo chrt -r 98 tmux -T 256 new-session -s $hname
 
-#tmux send-keys -t $hanme python -i main.py "${@:2:99}"'
+tmux send-keys -t $hanme "python -i main.py" #"${@:2:99}"'
 
 #python -i main.py "${@:2:99}"
