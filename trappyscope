@@ -2,4 +2,4 @@
 
 
 ## Only works on linux machines
-chrt -r 99 python -i main.py "${@:2:99}"
+chrt -r 99 "python -i main.py ${@:2:99}"
