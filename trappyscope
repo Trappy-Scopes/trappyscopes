@@ -2,6 +2,10 @@
 
 
 ## Only works on linux machines
-sudo chrt -r 98 tmux -s {hostnam} python -i main.py "${@:2:99}"
+
+hanme=hostname
+sudo chrt -r 98 tmux -s $hname
+
+#tmux send-keys -t $hanme python -i main.py "${@:2:99}"'
 
 #python -i main.py "${@:2:99}"
