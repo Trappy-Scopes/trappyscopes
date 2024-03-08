@@ -24,16 +24,29 @@ test = exp
 motor_pico = pico
 
 
+## Init flow
+motor_pico(f"motor.fwd(speed={speed})")
+sleep(7)
+motor_pico("motor.hold()")
+
+
 speed = 0.4
+mode = "continuous" # "interrupted"
 ## Test opening and closing of camera
 for i in range(15):
-	motor_pico(f"motor.fwd(speed={speed})")
-	sleep(2)
-	motor_pico("motor.hold()")
-	sleep(2)
-	motor_pico(f"motor.rev(speed={speed})")
-	sleep(2)
-	motor_pico("motor.hold()")
-	sleep(2)
+	if mode == "interrupted":
+		motor_pico(f"motor.fwd(speed={speed})")
+		sleep(2)
+		motor_pico("motor.hold()")
+		sleep(2)
+		motor_pico(f"motor.rev(speed={speed})")
+		sleep(2)
+		motor_pico("motor.hold()")
+		sleep(2)
+	else:
+		motor_pico(f"motor.fwd(speed={speed})")
+		sleep(2)
+		motor_pico(f"motor.rev(speed={speed})")
+		sleep(2)
 motor_pico("motor.hold()")
 test.close()
