@@ -4,7 +4,8 @@
 ## Only works on linux machines
 
 hanme=hostname
-sudo chrt -r 98 tmux new-session -s $hname -T 256
+
+sudo chrt -r 98 tmux -T 256 new-session -s $hname
 
 #tmux send-keys -t $hanme python -i main.py "${@:2:99}"'
 
