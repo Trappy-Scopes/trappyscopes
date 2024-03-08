@@ -10,6 +10,10 @@ exp = Test(f"{scopeid}_fwd_rev_test_{dt}")
 test = exp
 
 
+## Configuration
+speed = 0.4
+mode = "continuous" # "interrupted"
+
 ### Optional ------------------------
 ## Incase of additional pico board
 #motor_pico = RPiPicoDevice(connect=False)
@@ -30,8 +34,7 @@ sleep(7)
 motor_pico("motor.hold()")
 
 
-speed = 0.4
-mode = "continuous" # "interrupted"
+
 ## Test opening and closing of camera
 for i in range(15):
 	if mode == "interrupted":
