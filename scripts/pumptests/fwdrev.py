@@ -11,7 +11,7 @@ test = exp
 
 
 ## Configuration
-speed = 0.035
+speed = 0.05
 mode = "continuous" # "interrupted"
 
 ### Optional ------------------------
