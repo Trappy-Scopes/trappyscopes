@@ -28,8 +28,12 @@ speed = 0.4
 ## Test opening and closing of camera
 for i in range(15):
 	motor_pico(f"motor.fwd(speed={speed})")
-	sleep(1)
+	sleep(2)
+	motor_pico("motor.hold()")
+	sleep(2)
 	motor_pico(f"motor.rev(speed={speed})")
-	sleep(1)
+	sleep(2)
+	motor_pico("motor.hold()")
+	sleep(2)
 motor_pico("motor.hold()")
 test.close()
