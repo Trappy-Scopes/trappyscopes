@@ -1,4 +1,5 @@
 import pip
+import os
 
 def install_py_libs(required_libs):
 	for lib in required_libs:
@@ -6,7 +7,8 @@ def install_py_libs(required_libs):
 			__import__(lib)
 			print(lib, "exists!")
 		except ImportError:
-			pip.main(['install', lib, "--break-system-packages"])
+			#pip.main(['install', lib, "--break-system-packages"])
+			os.system(f"sudo pip install {lib} --break-system-packages")
 			print(lib, "was installed!")
 
 
