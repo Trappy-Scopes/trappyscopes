@@ -13,12 +13,13 @@ from io import StringIO
 import gc
 import subprocess
 
-
 from picamera2 import Picamera2, Preview
 from picamera2.outputs import FfmpegOutput, FileOutput
 from picamera2.encoders import H264Encoder, Quality
 
 from utilities.mp4box import MP4Box
+
+
 
 class Camera(AbstractCamera):
 	"""
@@ -58,44 +59,37 @@ class Camera(AbstractCamera):
 					 }
 
 		## Capture the 4 different fundamental camera senor modes
-		self.sensor_modes = self.cam.sensor_modes
+		## TODO This dumps a whole list on the screen
+		#self.sensor_modes = self.cam.sensor_modes
 
 
 		# Video Encoders and image quality parameters
 		self.encoderh264 = H264Encoder()
 		self.cam.options["quality"] = 95
 		self.cam.options["compress_level"] = 0
+		self.output = None  ## Add a stream address
 
 
 		# Monolithic Configurations
 		with open("config/camconfig_picamera2.yaml") as file:
 			self.config = yaml.load(file, Loader=SafeLoader)
+		
+
 		self.debug_mode = False
 		if self.debug_mode:
 			print("Camera configuration loaded: ")
 			pprint(self.config)
 		self.def_config = self.config
-		#self.configure(self.config)
 		
 
-		# Configuration Setting Functions
-		self.config_default =  lambda : self.configure(res=(1980, 1080), fps=30)
-		self.config_default2 = lambda : self.configure(res=(2028, 1080), fps=30)
-		self.config_largeres = lambda : self.configure(res=(4056, 3040), fps=10)
-		self.config_largefps = lambda : self.configure(res=(1332, 990), fps=120)
-
-		self.config_cammode1 = lambda : self.configure(res=(2028, 1080), fps=50)
-		self.config_cammode2 = lambda : self.configure(res=(2028, 1520), fps=40)
-		self.config_cammode3 = lambda : self.configure(res=(1332, 990), fps=120)
-		self.config_cammode4 = lambda : self.configure(res=(4056, 3040), fps=10)
-
-
-
+		### Set configuration using the configure function.
+		#self.configure(self.config)
+		
 		# Set camera status flags
 		self.config_mode = "video" # Current Mode - ["preview", "still", "video"]
 		self.status = "standby"
-		self.all_states = ["standby", "acq", "waiting"]
-
+		self.all_statuses = ["standby", "acq", "waiting"]
+		self.run_mode = "fixed" ## ["free", "fixed"]
 
 		### Pre and Post Callbacks - timetagging and lux measurements
 		self.en_pre_callback = False
@@ -107,6 +101,18 @@ class Camera(AbstractCamera):
 		self.en_post_callback = False
 		self.post_buffer = StringIO()
 		self.post_callbackfile = None
+
+
+		# Configuration Setting Functions
+		self.config_default =  lambda : self.configure(res=(1980, 1080), fps=30)
+		self.config_default2 = lambda : self.configure(res=(2028, 1080), fps=30)
+		self.config_largeres = lambda : self.configure(res=(4056, 3040), fps=10)
+		self.config_largefps = lambda : self.configure(res=(1332, 990), fps=120)
+
+		self.config_cammode1 = lambda : self.configure(res=(2028, 1080), fps=50)
+		self.config_cammode2 = lambda : self.configure(res=(2028, 1520), fps=40)
+		self.config_cammode3 = lambda : self.configure(res=(1332, 990), fps=120)
+		self.config_cammode4 = lambda : self.configure(res=(4056, 3040), fps=10)
 		
 
 	# 2
@@ -213,7 +219,7 @@ class Camera(AbstractCamera):
 		#pprint(self.cam.video_configuration)
 
 		action = action.lower().strip()
-		
+		self.run_mode = "fixed"
 		if it == 1:
 			if action == "preview":
 				self.status = "acq"
@@ -256,7 +262,7 @@ class Camera(AbstractCamera):
 		gc.collect()
 
 
-	# 6
+	# 6 ## OK
 	def preview(self, tsec=30):
 		"""
 		Start a preview. Defaults for 30seconds. 
@@ -267,6 +273,44 @@ class Camera(AbstractCamera):
 		sleep(tsec)
 		self.cam.stop_preview()
 
+	## NOK
+	def start_capture(mode, filename):
+		"""
+		Procedure
+		---------
+		> filename --> create-output --> create-encoder --> record
+		"""
+		if mode not in ["vid", "vidmp4"]:
+			print("Unknown mode: switching to H264 captures.")
+			mode = "vid"
+		#---- cleanup-------------
+		
+		self.status = "acq"
+		self.run_mode = "free"
+		
+		if mode == "vid":
+			self.output = filename  ## No additional output object required
+		elif mode == "vidmp4":
+			self.output = FfmpegOutput(filename)
+		
+		## Start recording
+		self.encoderh264 = H264Encoder(bitrate=10000000)
+		if not "noprev" in mode:
+			self.cam.start_preview()
+		self.cam.start_recording(self.encoderh264, self.output, quality=Quality.HIGH)
+	
+	## NOK
+	def stop_capture():
+		"""
+		Stop free capture
+		"""
+		self.cam.stop_preview()
+		if self.run_mode == "free":
+			self.cam.stop_recording()
+		self.status = "waiting"
+
+
+	
 	# 7 TODo Rethink
 	def state(self):
 		"""
@@ -481,6 +525,7 @@ class Camera(AbstractCamera):
 		#self.set_mode_config("still")
 		
 		self.cam.start_preview(self.preview_type)
+		start = time.perf_counter()
 		_ = input("Waiting for image trigger: Enter key...")
 		
 		self.cam.capture_file(filename, format='png')
@@ -580,9 +625,9 @@ class Camera(AbstractCamera):
 			self.cam.post_callback == self.__post_timestamp__
 
 		tsec = kwargs["tsec"]
-		output = FfmpegOutput(filename) # Opens a new encoder file object
+		self.output = FfmpegOutput(filename) # Opens a new encoder file object
 		
-		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
+		self.cam.start_and_record_video(self.output, encoder=self.encoderh264, \
 								 show_preview=True, \
 								 duration=tsec)
 		self.cam.stop_preview()
