@@ -2,4 +2,4 @@
 
 
 ## Only works on linux machines
-sudo chrt -r 99 python -i main.py "${@:2:99}"
+sudo chrt -r 98 python -i main.py "${@:2:99}"
