@@ -30,14 +30,16 @@ from devicetree import ScopeAssembly
 from terminalplot import *
 #from scriptengine import LoadScript
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
-
+from user import User
 
 print("\n\n")
 ## 0. Setlogging and device state
 og_directory = os.getcwd()
 log = logging.Logger("main")
 log.setLevel(0)
+global exp
 exp = None      # For crash safety
+User.exp_hook = exp
 
 ## 1. Check script files
 scriptfiles = None

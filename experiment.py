@@ -10,7 +10,7 @@ from colorama import Fore
 import time
 
 import config.common
-
+from user import User
 
 class Experiment:
 	"""
@@ -112,6 +112,9 @@ class Experiment:
 
 		print("Devnotes: Experiment class TODO: submodule Metadata object.")
 
+
+		## User Information
+		self.logs["user"] = User.info
 	
 	def __exit__(self):
 		self.close()
