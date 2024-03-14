@@ -8,9 +8,11 @@ import nanoid
 import datetime
 from colorama import Fore
 import time
+from rich import print
 
 import config.common
 from user import User
+from sharing import Share
 
 class Experiment:
 	"""
@@ -105,7 +107,7 @@ class Experiment:
 
 
 		# Changing Working Directory to Experiment Directory		
-		sys.ps1 = self.header()
+		Share.updateps1(exp=self.name)
 		self.lastwd = os.getcwd()
 		os.chdir(self.exp_dir)
 		print(f"Working directory changed to: {os.getcwd()}")
@@ -131,7 +133,7 @@ class Experiment:
 			print(f"Experiment {self.name} was closed.")
 			os.chdir(self.lastwd)
 			print(f"Working directory changed to: {os.getcwd()}")
-			sys.ps1 = ">>> "
+			Share.updateps1(exp="")
 			self.active = False
 
 	def log_event(self, string):
@@ -148,12 +150,6 @@ class Experiment:
 
 	def unique(self, string):
 		return not (string in self.logs)
-
-	def header(self):
-		if self.user:
-			return f"{Fore.BLUE}user:{self.user}{Fore.RESET} || {Fore.YELLOW}‹‹{self.scopeid}››{Fore.RESET} Experiment: {Fore.RED}{self.name}{Fore.RESET} >>> "
-		else:
-			return f"|| {Fore.YELLOW}‹‹{self.scopeid}››{Fore.RESET} Experiment: {Fore.RED}{self.name}{Fore.RESET} >>> "
 
 
 	def run(script):

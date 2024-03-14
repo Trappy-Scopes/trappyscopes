@@ -1,9 +1,15 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+### Printing and logging -------
+from rich import pretty
+pretty.install()
 import logging
+# ------------------------------
+
 import pprint
 from pprint import pprint as ppprint
+from rich import print
 import os
 import sys
 sys.path.append(os.path.abspath("./abcs"))
@@ -28,9 +34,26 @@ from sync import SyncEngine
 from time import sleep
 from devicetree import ScopeAssembly
 from terminalplot import *
+from sharing import Share
 #from scriptengine import LoadScript
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 from user import User
+from config.common import Common
+
+from rich.markdown import Markdown
+
+
+
+#### ---------- Library Level processing ----------------------
+
+import argparser
+
+## Set Logging
+
+## Import DeviceMetadata
+
+
+
 
 print("\n\n")
 ## 0. Setlogging and device state
@@ -58,12 +81,22 @@ with open("config/deviceid.yaml") as deviceid:
 ## -------- Synchronize ------------
 SyncEngine.git_sync(device_metadata)
 ## ---------------------------------
-print("-"*100)
-print("\nDevice: ")
-print("-------")
-log.critical(pprint.pformat(device_metadata))
+#print("-"*100)
+#print("\nDevice: ")
+#print("-------")
+from rich.pretty import Pretty
+from rich.panel import Panel
+devicepanel = Panel(Pretty(device_metadata), title="Device")
+print(devicepanel)
+#from rich.layout import Layout
+#devicelayout = Layout(name="Device", size=15)
+#devicelayout.update(str(device_metadata))
+#print(device_metadata)
+#log.critical(pprint.pformat(device_metadata))
 global scopeid, scope_user
 scopeid = device_metadata["name"]
+Share.scopeid = scopeid
+Common.scopeid = scopeid
 
 
 RPiPicoDevice.print_all_ports()
@@ -78,7 +111,7 @@ print(pageheader())
 ## 4. Set hardware resources
 
 ## TODO concise
-print("----- LIGHTS -----")
+print(Markdown("# LIGHTS"))
 picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
            "normal" * (device_metadata["hardware"]["pico"][0] == "pico")
 
@@ -97,7 +130,8 @@ log.info(pico)
 lit = PicoLight(pico, "l1")
 log.info(lit)
 
-print("\n\n----- CAMERA -----")
+print("\n\n")
+print(Markdown("# CAMERA"))
 cam = CameraSelector(device_metadata["hardware"]["camera"])
 #cam.open() # Camera should be already open upon creation.
 if not cam.is_open():
@@ -107,7 +141,7 @@ if not cam.is_open():
 log.info(cam)
 
 #----
-print("\n\n----- SCOPE READY -----")
+print(Markdown("# SCOPE READY"))
 device = ScopeAssembly()
 #
 
@@ -184,12 +218,24 @@ def LoadScript(scriptfile):
 
 
 ## 4. Set Experiment
-print("\n\n----- ACTION -----")
-print("All current experiments on the Microscope:")
-ppprint(Experiment.list_all())
+print("\n\n")
+print(Markdown("# ACTION"))
+
+#exppanel = Panel(Pretty(Experiment.list_all()), title="Experiments so far")
+#print(exppanel)
+
+from rich.table import Table
+exppanel = Table("#.", "EID", "Experiment", box=None, show_lines=True)
+for i, exp_ in enumerate(Experiment.list_all()):
+	exppanel.add_row(str(i), "xx", os.path.basename(exp_))
+#exppanel = Panel(exppanel)
+
+print(Panel(exppanel, title="All current experiments on the Microscope"))
+
+
 exp_name = None
 print("\nCall intro() to get an introduction.")
-if not scriptfiles:
+if not Share.argparse["noep"]:
 	
 	print("\n\n")
 	
@@ -233,4 +279,6 @@ def set_user(user):
 	else:
 		sys.ps1 = f"{Fore.BLUE}user:{scope_user}{Fore.RESET} || >>> "
 
-
+from measurement import Measurement
+m = Measurement(q=2, qq=123, m=234, o=1.123)
+Share.updateps1()
