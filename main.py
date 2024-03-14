@@ -7,6 +7,10 @@ pretty.install()
 import logging
 # ------------------------------
 
+### Parse args -----------------
+import argparser
+## -----------------------------
+
 import pprint
 from pprint import pprint as ppprint
 from rich import print
@@ -42,11 +46,11 @@ from config.common import Common
 
 from rich.markdown import Markdown
 
-
+from useractions import *
 
 #### ---------- Library Level processing ----------------------
 
-import argparser
+
 
 ## Set Logging
 
@@ -153,68 +157,7 @@ prev = "preview"
 vid_noprev = "vid_noprev"
 unique_check = True   # Only asserted during experiment mode.
 
-def capture(action, name, *args, **kwargs):
-	"""
-	Default capture 
-	"""
-	if not cam.is_open():
-		cam.open()
-		sleep(1)
-	print(f"acq: {name}")
-	
-	if not action:
-		action = "video"
-	
-	# File  uniqueness check
-	if unique_check:
-		if exp.active:
-			if not exp.unique(name):
-				print(f"{Fore.RED}File already exists - ignoring the call.{Fore.RESET}")
-				return
-	
-	# Capture call -------------------------------
-	cam.capture(action, name,  *args, **kwargs) #|
-	#### -----------------------------------------
 
-	#cam.close()
-	
-	if exp or exp.active():
-		exp.log_event(name)
-
-def preview(tsec):
-	if cam:
-		if cam.is_open():
-			cam.preview(tsec=30)
-
-
-def close_exp():
-	"""
-	Close experiment and reset the current directory to the original.
-	"""
-	exp.close()
-	if cam:
-		if cam.is_open():
-			cam.close()
-	print("--- Exiting experiment --\n")
-
-# Overloaded Exit function
-def exit():
-	if exp:
-		if exp.active:
-			exp.close()
-	if device_metadata["auto_fsync"]:
-		SyncEngine.fsync(device_metadata)
-	
-	if cam:
-		if cam.is_open():
-			cam.close()
-	sys.exit()
-
-
-def LoadScript(scriptfile):
-		print(f"{Fore.YELLOW}{'='*10} Executing: {Fore.WHITE}{scriptfile} {Fore.YELLOW} {'='*10}{Fore.RESET}")
-		with open(scriptfile) as f:
-			exec(f.read(), globals())
 
 
 ## 4. Set Experiment
@@ -263,21 +206,7 @@ if len(sys.argv) > 1:
 ## Test
 #pico("l1.setVs(2,2,0)")
 #print(sys.path)
-scope_user = "ghost"
-def set_user(user):
-	print(f"{Fore.BLUE}trappy-scope says: {Fore.RESET}Hello! {user}.")
-	scope_user = user
-	if exp:
-		if exp.active:
-			exp.user = scope_user
-			sys.ps1 = exp.header()
-		else:
-			sys.ps1 = f"{Fore.BLUE}user:{scope_user}{Fore.RESET} || >>> "
 
-	elif user == "" or user == None:
-		sys.ps1 = ">>> "
-	else:
-		sys.ps1 = f"{Fore.BLUE}user:{scope_user}{Fore.RESET} || >>> "
 
 from measurement import Measurement
 m = Measurement(q=2, qq=123, m=234, o=1.123)

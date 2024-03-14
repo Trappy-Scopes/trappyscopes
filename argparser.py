@@ -15,6 +15,7 @@ from sharing import Share
 from user import User
 from utilities.fluff import intro
 from rich import print
+import os
 
 parser = argparse.ArgumentParser(description='Trappy-Scopes Control Layer', 
                                  prog="Trappy-Scopes scope-cli")
@@ -59,7 +60,32 @@ parser.add_argument('-noff', '--nofluff', dest='nofluff', default=False, action=
 parser.add_argument('--intro', dest='intro', default=False, action='store_true',
                     help='Print the scope CLI introduction document.')
 ### ------------------------------------
+
+
+### --- MP4 converter ------------------
+parser.add_argument('-mp4', '--mp4', metavar=('<exp-name>'), dest='tomp4_exp', 
+                    action='store', nargs=1, type=str, 
+                    help='Convert all the .h264 videos in the experiment folder to .mp4 videos.')
+
+parser.add_argument('-fps', '--fps', metavar='<fps>', dest='fps', 
+                    action='store', nargs=1, type=int, default=30, 
+                    help='Specify the fps for conversion to mp4.')
 ### ------------------------------------
+
+
+### --- Trappy-Scopes installation -----
+parser.add_argument('-install', '--install', dest='install', 
+                    action='store_true',
+                    help='Do installation of all required python and Unix libraries required for trappyscopes.')
+### ------------------------------------
+
+
+
+### --- Count lines of code in the project -----
+parser.add_argument('-loc', '--loc', dest='loc', 
+                    action='store_true',
+                    help='Count lines of code for this project.')
+### -------------------------------------------
 
 
 ### Parse !!!!!!!!!!!!!!!
@@ -83,3 +109,24 @@ Share.argparse["nofluff"] = args.nofluff
 
 if args.intro:
     intro()
+    exit()
+
+if args.tomp4_exp:
+    from utilities.mp4box import MP4Box
+    args.tomp4_exp = args.tomp4_exp[0]
+    args.tomp4_exp = os.path.join(Share.expdir, args.tomp4_exp)
+    if os.path.exists(args.tomp4_exp):
+        print(f"Appending all converted files to {args.tomp4_exp + '/processed'} .\nFPS set at: {args.fps}")
+        MP4Box.convert_all(args.tomp4_exp, fps=args.fps, prompt=False)
+    else:
+        print(f"[red]Given experiment doesn't exist:[default] {args.tomp4_exp}")
+    exit()
+
+if args.install:
+    from utilities.installer import Installer
+    Installer.do_all()
+    exit()
+
+if args.loc:
+    os.system("git ls-files | xargs wc -l ")
+    exit()

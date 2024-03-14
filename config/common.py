@@ -67,3 +67,4 @@ if not os.path.isdir(DATA_DIR):
 class Common:
 	scopeid = None
 	user = None
+	expdir = DATA_DIR

@@ -3,8 +3,20 @@ from pprint import pprint
 
 
 """
+
+================================================================
+Obselete, use: ./trappyscope --mp4 <Experiment-name> --fps <fps>
+
+or
+
+from utilities.mp4box import MP4Box
+MP4Box.convert()
+MP4Box.convert_all()
+================================================================
+
 Bulk directory wide converter for h264 to mp4 conversion.
 Warning: Assumes that the fps is 30.
+
 """
 
 def convert_h264_to_mp4(dir_=".", fps=30):

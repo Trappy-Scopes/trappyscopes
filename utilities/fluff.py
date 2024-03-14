@@ -27,7 +27,6 @@ def intro():
   from rich.markdown import Markdown
   from rich.panel import Panel
   print(Panel(Markdown(getintro()), title="Introduction"))
-  exit(0)
 
 
 
@@ -50,7 +49,7 @@ _____
         Living Physics Group, Instituto Gulbenkian de Ciência, Oeiras, PT
 
 """
-	return "%s%s%s"%(Fore.CYAN, text, Fore.RESET)
+	return f"[cyan]{text}[default]"
 	#return f"{}{text}{""}"
 
 

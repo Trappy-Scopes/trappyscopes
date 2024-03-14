@@ -1,12 +1,14 @@
 import sys
 from colorama import Fore
-
+from config.common import Common
 class Share:
 	scopeid = None
 	argparse = {"noep": False}
 
 	user = "ghost"
 	expname = None
+
+	expdir = Common.expdir
 
 	def updateps1(user=None, exp=None):
 		

@@ -23,7 +23,35 @@ class MP4Box:
 		if not os.path.isdir("converted"):
 			os.mkdir("converted")
 
-	def convert(infile, outfile, fps):
+	def convert_all(folder, prompt=True, fps=30):
+
+			all_files = os.listdir(folder)
+			h264files = list(filter(lambda fn: fn.endswith("h264"), all_files))
+			mp4files = list(filter(lambda fn: fn.endswith("mp4"), all_files))
+
+			# TODO - update to the new improved version - which is what???
+			h264files = [fn.split(".")[0] for fn in h264files]
+			mp4files  = [fn.split(".")[0] for fn in mp4files]
+
+
+			not_converted = [fn for fn in h264files if fn not in mp4files]
+			print("Conversions: ", len(not_converted))
+			
+			do_convert = True
+			if prompt:
+				do_convert = False
+				print ("To be converted") 
+				pprint(not_converted)
+				x = input("Press enter to begin conversion, press Ctrl+D to exit")
+				if x == "":
+					do_convert = True
+			for fn in not_converted:
+				#os.system(f" MP4Box -add {os.path.join(dir_, fn) + '.h264'}:fps={fps} {os.path.join(dir_, fn) + '.mp4'}")
+				MP4Box.convert(os.path.join(folder, "processed", fn + '.h264'), 
+							   os.path.join(folder, "processed", fn + '.mp4'), 
+							   fps=fps, delay=False)
+
+	def convert(infile, outfile, fps, delay=True):
 		"""
 		Convert to .MP4 (or other formats) in asynchronously.
 		Always dumps the file in a folder named "converted".
@@ -31,7 +59,8 @@ class MP4Box:
 		to file before the conversion begins.
 		"""
 		async def convert_async():
-			await asyncio.sleep(5)
+			if delay:
+				await asyncio.sleep(5)
 			process = await asyncio.create_subprocess_exec(
 				"MP4Box", "-add", f"{infile}:fps={fps}", \
 				"-new", os.path.join("converted", outfile), \
