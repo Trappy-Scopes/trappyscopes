@@ -32,9 +32,9 @@ parser.add_argument('-itr', '--iterate', metavar=('N', '<script>'), dest='script
 
 ### --- login --------------------------
 parser.add_argument('-su', '--setuser', dest='user', default="ghost", action='store',
-                    nargs=1, help='Login/Set user for the microscope.', 
-                    metavar='<user-initials>')
-parser.add_argument('--login', dest='user', default="ghost", action='store',
+                    nargs=1, help='Login/Set user for the microscope.',  type=str,
+                    metavar='<user-initials>') 
+parser.add_argument('--login', dest='user', default="ghost", action='store', type=str,
                     nargs=1, help='Login/Set user for the microscope.',
                     metavar='<user-initials>')
 ### ------------------------------------
