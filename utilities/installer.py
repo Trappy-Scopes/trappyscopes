@@ -5,7 +5,7 @@ import os
 import sys
 
 class Installer:
-	pylibs = ["pyyaml", "colorama", "nanoid", "plotext", "asciichartpy"]
+	pylibs = ["rich","pyyaml", "colorama", "nanoid", "plotext", "asciichartpy"]
 	binlibs = []
 	gitclones = []
 	
