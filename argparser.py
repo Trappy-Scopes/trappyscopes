@@ -87,6 +87,14 @@ parser.add_argument('-loc', '--loc', dest='loc',
 ### -------------------------------------------
 
 
+
+### --- Generate a unique identifier ----------
+parser.add_argument('-uid', '--uid', dest='uid', 
+                    action='store_true',
+                    help='Generate a trappy-scopes (systems) unique identifier.')
+### -------------------------------------------
+
+
 ### Parse !!!!!!!!!!!!!!!
 args = parser.parse_args()
 
@@ -131,3 +139,10 @@ if args.install:
 if args.loc:
     os.system("git ls-files | xargs wc -l ")
     exit(0)
+
+if args.uid:
+    from uid import uid
+    from rich import print
+    print(f"Unique identifier: {uid()}")
+    exit()
+
