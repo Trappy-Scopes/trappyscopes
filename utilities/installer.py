@@ -14,7 +14,7 @@ class Installer:
 
 		platform = sys.platform.startswith('linux')*"linux" + \
 		           sys.platform.startswith('darwin')*"darwin"
-		if not plateform:
+		if not platform:
 			print("We don't do Windows! Sorry!")
 			exit()
 
