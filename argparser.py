@@ -109,7 +109,7 @@ Share.argparse["nofluff"] = args.nofluff
 
 if args.intro:
     intro()
-    exit()
+    exit(0)
 
 if args.tomp4_exp:
     from utilities.mp4box import MP4Box
@@ -125,8 +125,8 @@ if args.tomp4_exp:
 if args.install:
     from utilities.installer import Installer
     Installer.do_all()
-    exit()
+    exit(0)
 
 if args.loc:
     os.system("git ls-files | xargs wc -l ")
-    exit()
+    exit(0)

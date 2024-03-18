@@ -24,8 +24,11 @@ targets.append(s_)
 targets.append(s_abs)
 
 
+#text = prompt('> ', completer=MyCustomCompleter())
+
+
 def completer(state):
-	t_ = target + Experiment.list_all_names()
+	t_ = target + [os.path.basename(exp_) for exp_ in Experiment.list_all()]
 
 	options = [i for i in t_ if i.startswith(state)]
 	if state < len(options): ## Completion target should be smaller than the possible options
@@ -49,6 +52,6 @@ readline.set_completer_delims(' \t\n;')
 import readline, glob
 def complete(text, state):
 #   return (glob.glob(os.path.text+'*')+[None])[state]
-	return Experiment.list_all_names()[state]
+	return [os.path.basename(exp_) for exp_ in Experiment.list_all()][state]
 readline.parse_and_bind("tab: complete")
-readline.set_completer(complete)
+readline.set_completer(completer)
