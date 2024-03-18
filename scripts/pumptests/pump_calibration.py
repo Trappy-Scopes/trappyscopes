@@ -9,7 +9,7 @@ unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
 
-exp = Calibration(f"{scopeid}_motor_speedcontrol_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
+exp = Calibration(f"{scopeid}_motor_calibration_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
 sleep(0)
 
 
@@ -28,8 +28,8 @@ exp.logs["speed_test"] = {}
 ## extensive
 fill_mL = 20
 freq = 10
-speedset = [0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.15, \
-			0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.75, 0.8, 0.95, 0.99]
+speedset = [0.01, 0.02, 0.03, 0.035,0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.15, \
+			0.2, 0.25]
 
 
 ## Set Frequency
@@ -60,8 +60,8 @@ for i, speed in enumerate(speedset):
 	dur = stop-start
 	result = {"duty":(pico("print(motor.duty)").rstrip("\r\n")), 
 				  "speed": speed, "freq":freq,  "duration":dur, "mL":fill_mL,
-				  "setup": "ibidi_0pt2mm_syringe_to_syringe", "overflow": 0, "success": (str(inp).strip() != "fail"),
-				  "experiment_type": "pwm_freq_perturbation"}
+				  "setup": "maros_syringe_to_syringe", "overflow": 0, "success": (str(inp).strip() != "fail"),
+				  "experiment_type": "duty_perturbation"}
 	pprint.pprint(result)
 
 	exp.logs["speed_test"][i] = result
