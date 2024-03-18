@@ -5,7 +5,7 @@ import os
 import sys
 
 class Installer:
-	pylibs = ["rich","pyyaml", "colorama", "nanoid", "plotext", "asciichartpy"]
+	pylibs = ["rich", "pyyaml", "colorama", "nanoid", "plotext", "asciichartpy", "prompt_toolkit"]
 	binlibs = []
 	gitclones = []
 	
@@ -25,7 +25,7 @@ class Installer:
 
 		print(f"You are ready to trap cells, you just need the following: \
 			  \npython libraries: {Installer.pylibs} \
-			  \n other libraries: {Installer.binlibs}")
+			  \nother libraries: {Installer.binlibs}")
 		x = input("Let's go, we will need sudo previledges [press Enter]:")
 
 
