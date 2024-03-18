@@ -18,7 +18,7 @@ class Installer:
 			print("We don't do Windows! Sorry!")
 			exit()
 
-		print(f"Plateform is: {platform}".)
+		print(f"Plateform is: {platform}.")
 		if platform == "darwin":
 			print("Please ensure that `brew` package manager is installed.")
 
