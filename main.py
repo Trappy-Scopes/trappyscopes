@@ -1,15 +1,17 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+### Parse args -----------------
+import argparser
+## -----------------------------
+
+
+
 ### Printing and logging -------
 from rich import pretty
 pretty.install()
 import logging
 # ------------------------------
-
-### Parse args -----------------
-import argparser
-## -----------------------------
 
 import pprint
 from pprint import pprint as ppprint
