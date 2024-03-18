@@ -12,7 +12,7 @@ class Installer:
 
 	def do_all():
 
-		platform = sys.platform.startswith('linux')*"linux" +
+		platform = sys.platform.startswith('linux')*"linux" + \
 		           sys.platform.startswith('darwin')*"darwin"
 		if not plateform:
 			print("We don't do Windows! Sorry!")
