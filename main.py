@@ -58,7 +58,8 @@ from useractions import *
 
 ## Import DeviceMetadata
 
-
+from user import User
+User.login(Share.argparse["user"])
 
 
 print("\n\n")

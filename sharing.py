@@ -1,6 +1,6 @@
 import sys
-from colorama import Fore
 from config.common import Common
+
 class Share:
 	scopeid = None
 	argparse = {"noep": False}
@@ -20,6 +20,7 @@ class Share:
 			Share.expname = None
 
 		def template():
+			from colorama import Fore
 			return f"{Fore.BLUE}user:{Share.user}{Fore.RESET} || {Fore.YELLOW}‹‹{Share.scopeid}››{Fore.RESET} {f'Experiment: {Fore.RED}{Share.expname}{Fore.RESET}'*(Share.expname != None)} >>> "
 		sys.ps1 = template()
 

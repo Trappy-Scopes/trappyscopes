@@ -10,11 +10,10 @@ Options: <script1> <script2> <script3> : Positional, run in sequence.
 """
 
 import argparse
+#from rich import print
+
 from scriptengine import ScriptEngine
 from sharing import Share
-from user import User
-from utilities.fluff import intro
-from rich import print
 import os
 
 parser = argparse.ArgumentParser(description='Trappy-Scopes Control Layer', 
@@ -102,12 +101,14 @@ for script in args.scriptlist_:
 ScriptEngine.execlist = scriptlist
 ####### --------------------------------------
 
-User.login(args.user)
+
+Share.argparse["user"] = user
 Share.argparse["expname"] = args.expname
 Share.argparse["noep"] = (args.noep and (len(scriptlist) > 0))
 Share.argparse["nofluff"] = args.nofluff
 
 if args.intro:
+    from utilities.fluff import intro
     intro()
     exit(0)
 
