@@ -204,7 +204,7 @@ class Camera(AbstractCamera):
 		self.cam.configure("video")
 		sleep(2) # Sync Delay
 		
-		#Random fact: pH of bllood of 7.4.
+		#Random fact: pH of blood of 7.4.
 
 	# 5
 	def capture(self, action, filename, tsec=1,
