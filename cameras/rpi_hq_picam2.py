@@ -263,7 +263,7 @@ class Camera(AbstractCamera):
 
 
 	# 6 ## OK
-	def preview(self, tsec=10¯):
+	def preview(self, tsec=10):
 		"""
 		Start a preview. Defaults for 30seconds. 
 		Infinite preview or pre-emptive termination is not supported. 
