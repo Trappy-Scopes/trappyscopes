@@ -83,7 +83,7 @@ class Camera(AbstractCamera):
 		
 
 		### Set configuration using the configure function.
-		self.configure(self.config)
+		self.configure(config=self.config)
 		
 		# Set camera status flags
 		self.config_mode = "video" # Current Mode - ["preview", "still", "video"]
@@ -135,7 +135,7 @@ class Camera(AbstractCamera):
 
 	# 4
 	### NOk
-	def configure(self, fps=None, res=None, config=None):
+	def configure(self, config=None, fps=None, res=None):
 		"""
 		Configure the base settings of the camera. 
 		Both the [stream] configurations and controls.
