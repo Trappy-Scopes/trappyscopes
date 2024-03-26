@@ -83,7 +83,7 @@ class Camera(AbstractCamera):
 		
 
 		### Set configuration using the configure function.
-		#self.configure(self.config)
+		self.configure(self.config)
 		
 		# Set camera status flags
 		self.config_mode = "video" # Current Mode - ["preview", "still", "video"]
