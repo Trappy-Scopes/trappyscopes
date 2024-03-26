@@ -170,7 +170,7 @@ class Camera(AbstractCamera):
 			if self.debug_mode:
 				print("Camera configuration loaded: ")
 				pprint(self.config)
-
+		print(fps, res)
 		# Only change fps and resolution
 		if res != None:
 			self.config["size"] = tuple(res)
