@@ -178,7 +178,7 @@ class Camera(AbstractCamera):
 			self.config["size"] = tuple(res)
 			print(f"rpi_hq_picam2: Set resolution to: {self.cam.video_configuration.main.size}.")
 		if fps != None:
-			frameduration = int((1/fps)*1**6)
+			frameduration = int((1/fps)*(1**6))
 			framedurationlim = (frameduration, frameduration)
 			self.cam.video_configuration.controls.FrameRate = fps
 			self.config["controls"]["FrameDurationLimits"] = (framedurationlim, frameduration)
@@ -263,7 +263,7 @@ class Camera(AbstractCamera):
 
 
 	# 6 ## OK
-	def preview(self, tsec=30):
+	def preview(self, tsec=10¯):
 		"""
 		Start a preview. Defaults for 30seconds. 
 		Infinite preview or pre-emptive termination is not supported. 
