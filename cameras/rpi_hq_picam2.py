@@ -278,8 +278,8 @@ class Camera(AbstractCamera):
 		"""
 		print(f"Preview: tsec: {tsec}")
 		self.cam.title_fields = self.win_title_fields
-		self.cam.start(show_preview=True)
-		#self.cam.start_preview(self.preview_type)
+		#self.cam.start(show_preview=True)
+		self.cam.start_preview(preview=self.preview_type)
 		sleep(tsec)
 		self.cam.stop()
 		self.cam.stop_preview()
