@@ -191,7 +191,7 @@ def capture(action, name, *args, **kwargs):
 def preview(tsec):
 	if cam:
 		if cam.is_open():
-			cam.preview(tsec=tsec`)
+			cam.preview(tsec=tsec)
 
 
 def close_exp():
