@@ -42,7 +42,7 @@ class Camera(AbstractCamera):
 		# Preview Window Settings
 		self.preview_type = Preview.DRM # Other options: Preview.DRM or Preview.QT
 		self.win_title_fields = ["ExposureTime", "FrameDuration"]  ##
-		self.cam.title_fields = ["ExposureTime", "FrameDuration"]  ##
+		#self.cam.title_fields = ["ExposureTime", "FrameDuration"]  ##
 		
 		# Capture Modes for this implementation
 		self.modes = {
@@ -277,6 +277,7 @@ class Camera(AbstractCamera):
 		Start a preview. Defaults for 30seconds. 
 		Infinite preview or pre-emptive termination is not supported. 
 		"""
+		print(f"Preview: tsec: {tsec}")
 		self.cam.title_fields = self.win_title_fields
 		self.cam.configure("preview")
 		self.cam.start_preview(self.preview_type)
