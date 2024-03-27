@@ -191,7 +191,7 @@ def capture(action, name, *args, **kwargs):
 def preview(tsec):
 	if cam:
 		if cam.is_open():
-			cam.preview(tsec=tsec)
+			cam.preview(tsec=tsec`)
 
 
 def close_exp():
@@ -221,6 +221,10 @@ def LoadScript(scriptfile):
 		print(f"{Fore.YELLOW}{'='*10} Executing: {Fore.WHITE}{scriptfile} {Fore.YELLOW} {'='*10}{Fore.RESET}")
 		with open(scriptfile) as f:
 			exec(f.read(), globals())
+
+def explorefn(fn):
+	from rich import inspect
+	inspect(fn, methods=True)
 
 
 ## 4. Set Experiment
