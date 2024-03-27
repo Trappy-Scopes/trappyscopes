@@ -133,6 +133,12 @@ class Camera(AbstractCamera):
 			now = time.perf_counter()
 			log.info(f"PiCamera2 Camera was closed: {now} : duration {now-self.opentime_ns:.2f}s")
 
+
+	def new_config(self):
+		### Configuration are usually missing
+
+
+
 	# 4
 	### NOk
 	def configure(self, config=None, fps=None, res=None):
@@ -170,7 +176,7 @@ class Camera(AbstractCamera):
 			if self.debug_mode:
 				print("Camera configuration loaded: ")
 				pprint(self.config)
-		print(fps, res)
+		
 		# Only change fps and resolution
 		if res != None:
 			self.config["size"] = tuple(res)
@@ -184,7 +190,9 @@ class Camera(AbstractCamera):
 			self.config["controls"]["FrameDurationLimits"] = (framedurationlim, frameduration)
 			self.config["controls"]["FrameRate"] = fps
 			print(f"rpi_hq_picam2: Set fps to: : {self.cam.video_configuration.controls.FrameRate}.")
-			
+		
+
+
 
 		## Set all configuration options
 		self.cam.video_configuration.controls.ExposureTime = self.config["controls"]["ExposureTime"]
@@ -268,8 +276,10 @@ class Camera(AbstractCamera):
 		Start a preview. Defaults for 30seconds. 
 		Infinite preview or pre-emptive termination is not supported. 
 		"""
-		self.cam.start_preview(self.preview_type)
 		self.cam.title_fields = self.win_title_fields
+		self.cam.configure("preview")
+		self.cam.start_preview(self.preview_type)
+		
 		sleep(tsec)
 		self.cam.stop_preview()
 
