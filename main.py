@@ -13,6 +13,13 @@ pretty.install()
 import logging
 # ------------------------------
 
+
+## ---- Crash safety------------
+global exp
+exp = None      # For crash safety
+#-------------------------------
+
+
 import pprint
 from pprint import pprint as ppprint
 from rich import print
@@ -67,8 +74,7 @@ print("\n\n")
 og_directory = os.getcwd()
 log = logging.Logger("main")
 log.setLevel(0)
-global exp
-exp = None      # For crash safety
+
 User.exp_hook = exp
 
 ## 1. Check script files
