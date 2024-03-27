@@ -136,6 +136,7 @@ class Camera(AbstractCamera):
 
 	def new_config(self):
 		### Configuration are usually missing
+		pass
 
 
 
