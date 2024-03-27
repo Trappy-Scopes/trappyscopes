@@ -287,7 +287,7 @@ class Camera(AbstractCamera):
 	def new_h264encoder(self):
 		if self.encoderh264.running:
 			self.encoderh264.stop()
-		return H264Encoder(bitrate=10000000)
+		return H264Encoder()
 
 
 	## NOK
