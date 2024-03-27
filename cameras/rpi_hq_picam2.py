@@ -281,7 +281,6 @@ class Camera(AbstractCamera):
 		self.cam.title_fields = self.win_title_fields
 		self.cam.configure("preview")
 		self.cam.start_preview(self.preview_type)
-		
 		sleep(tsec)
 		self.cam.stop_preview()
 
