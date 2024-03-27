@@ -284,6 +284,12 @@ class Camera(AbstractCamera):
 		self.cam.stop()
 		self.cam.stop_preview()
 
+	def new_h264encoder(self):
+		if self.encoderh264.running:
+			self.encoderh264.stop()
+		return H264Encoder(bitrate=10000000)
+
+
 	## NOK
 	def start_capture(mode, filename):
 		"""
@@ -305,7 +311,7 @@ class Camera(AbstractCamera):
 			self.output = FfmpegOutput(filename)
 		
 		## Start recording
-		self.encoderh264 = H264Encoder(bitrate=10000000)
+		self.encoderh264 = self.new_h264encoder()
 		if not "noprev" in mode:
 			self.cam.start_preview()
 		self.cam.start_recording(self.encoderh264, self.output, quality=Quality.HIGH)
@@ -636,6 +642,7 @@ class Camera(AbstractCamera):
 			self.cam.post_callback == self.__post_timestamp__
 
 		tsec = kwargs["tsec"]
+		self.encoderh264 = self.new_h264encoder()
 		self.output = FfmpegOutput(filename) # Opens a new encoder file object
 		
 		self.cam.start_and_record_video(self.output, encoder=self.encoderh264, \
