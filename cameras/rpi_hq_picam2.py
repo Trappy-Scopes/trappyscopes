@@ -279,11 +279,11 @@ class Camera(AbstractCamera):
 		"""
 		print(f"Preview: tsec: {tsec}")
 		self.cam.title_fields = self.win_title_fields
-		self.cam.configure("preview")
 		self.cam.start(show_preview=True)
 		#self.cam.start_preview(self.preview_type)
 		sleep(tsec)
-		self.cam.stop_preview()
+		self.cam.stop()
+		#self.cam.stop_preview()
 
 	## NOK
 	def start_capture(mode, filename):
