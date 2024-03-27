@@ -154,6 +154,7 @@ class Camera(AbstractCamera):
 
 
 		## Custom configuration
+		self.cam.stop()
 		if config:
 			if isinstance(config, str): ## Assume its a valid path
 				with open(config) as file:
@@ -210,7 +211,8 @@ class Camera(AbstractCamera):
 		#self.cam.video_configuration.controls.FrameRate = self.config["controls"]["FrameRate"]
 		#self.cam.video_configuration.size = tuple(res)
 		self.cam.configure("video")
-		sleep(2) # Sync Delay
+		self.cam.start()
+		#sleep(2) # Sync Delay
 		
 		#Random fact: pH of blood of 7.4.
 
