@@ -283,7 +283,7 @@ class Camera(AbstractCamera):
 		#self.cam.start_preview(self.preview_type)
 		sleep(tsec)
 		self.cam.stop()
-		#self.cam.stop_preview()
+		self.cam.stop_preview()
 
 	## NOK
 	def start_capture(mode, filename):
