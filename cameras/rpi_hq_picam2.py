@@ -590,6 +590,7 @@ class Camera(AbstractCamera):
 
 		tsec = kwargs["tsec"]
 		output = FileOutput(filename)
+		self.encoderh264 = self.new_h264encoder()
 		self.cam.start_and_record_video(output, encoder=self.encoderh264, \
 								 show_preview=True, \
 								 duration=tsec)
