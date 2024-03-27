@@ -190,8 +190,7 @@ class Camera(AbstractCamera):
 			self.cam.video_configuration.controls.FrameRate = fps
 			self.config["controls"]["FrameDurationLimits"] = (framedurationlim, frameduration)
 			self.config["controls"]["FrameRate"] = fps
-			print(f"rpi_hq_picam2: Set fps to: : {self.cam.video_configuration.controls.FrameRate}.")
-		
+			print(f"rpi_hq_picam2: Set fps to: : {self.cam.video_configuration.controls.FrameRate}.")		
 
 
 

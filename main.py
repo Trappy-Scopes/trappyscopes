@@ -224,7 +224,7 @@ def LoadScript(scriptfile):
 
 def explorefn(fn):
 	from rich import inspect
-	inspect(fn, methods=True)
+	inspect(fn, methods=True, all=True)
 
 
 ## 4. Set Experiment
