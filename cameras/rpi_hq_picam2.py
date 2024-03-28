@@ -623,12 +623,13 @@ class Camera(AbstractCamera):
 
 		## Asyncronously autoconvert to MP4
 		if "mp4" in kwargs:
-			mp4filename = filename.rsplit(".", 1)
+			if kwargs["mp4"]:
+				mp4filename = filename.rsplit(".", 1)
 
-			mp4filename = filename[0] + ".mp4"
-			MP4Box.convert(filename, mp4filename, \
-						   30)
-						   #self.cam.video_configuration.main.FrameRate)
+				mp4filename = filename[0] + ".mp4"
+				MP4Box.convert(filename, mp4filename, \
+							   30)
+							   #self.cam.video_configuration.main.FrameRate)
 
 	# Ok
 	def __videomp4__(self, filename, *args, **kwargs):
