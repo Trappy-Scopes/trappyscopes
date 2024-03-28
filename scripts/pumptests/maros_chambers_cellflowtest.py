@@ -40,7 +40,7 @@ speedset.reverse()
 
 exp.logs["pwm_freq"] = freq
 exp.logs["speedset"] = speedset
-exp.logs["lit"] = list(lit_state)
+exp.logs["lit"] = "arbitrary"
 exp.logs["min_delay_sec"] = min_delay_sec
 exp.logs["relax_delay_sec"] = relax_delay_sec
 exp.logs["results"] = []
