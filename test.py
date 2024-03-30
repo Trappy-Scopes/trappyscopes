@@ -33,16 +33,22 @@ def get_prompt_tokens(cli):
     ]
 
 
-while True:
-    try:
-        user_input = prompt(
-            lexer=PygmentsLexer(PythonLexer),
-            style={Token.Prompt: '#ansiblue'},
-            auto_suggest=get_prompt_tokens,
-            completer=CustomCompleter(),
-        )
-        exec(user_input)
-    except KeyboardInterrupt:
-        break
-    except Exception as e:
-        print(e)
+
+
+def fn_(fn, *args, **kwargs):
+    return f"{fn}({str(list(args)).strip('[').strip(']')} {','*(len(args)!=0 and len(kwargs) != 0)} {str([f'{key}={kwargs[key]}' for key in kwargs]).strip('[').strip(']')})"
+
+print(fn_("do", 1, 2, 3, kwg=123, sf="dsfs"))
+
+    # try:
+    #     user_input = prompt(
+    #         lexer=PygmentsLexer(PythonLexer),
+    #         style={Token.Prompt: '#ansiblue'},
+    #         auto_suggest=get_prompt_tokens,
+    #         completer=CustomCompleter(),
+    #     )
+    #     exec(user_input)
+    # except KeyboardInterrupt:
+    #     break
+    # except Exception as e:
+    #     print(e)
