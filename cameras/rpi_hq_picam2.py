@@ -624,7 +624,7 @@ class Camera(AbstractCamera):
 		## Asyncronously autoconvert to MP4
 		if "mp4" in kwargs:
 			if kwargs["mp4"]:
-				mp4filename = filename.rsplit(".", 1)
+				mp4filename = filenamMe.rsplit(".", 1)
 
 				mp4filename = filename[0] + ".mp4"
 				MP4Box.convert(filename, mp4filename, \

@@ -34,7 +34,7 @@ relax_delay_sec = 30
 freq = 10
 #speedset = [0.00, 0.01, 0.02, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.15, \
 #			0.2, 0.25, 0.3]
-speedset = [0.01, 0.015, 0.02, 0.025, 0.030, 0.032]
+speedset = [0.026]
 speedset.reverse()
 
 
@@ -111,7 +111,7 @@ for i, speed in enumerate(speedset):
 
 	### Capture video
 	name = f"peristat_speed_{str(speed).replace('.', '_')}.h264"
-	os.system(f"libcamera-vid -t {60*3*1000} -f -o {name}")
+	os.system(f"libcamera-vid -t {60*10*1000} -f -o {name}")
 	### -----
 
 
