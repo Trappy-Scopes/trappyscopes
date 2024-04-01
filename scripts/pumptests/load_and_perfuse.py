@@ -11,7 +11,7 @@ unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
 
-exp = Calibration(f"{scopeid}_maros_chambers_cellflow_test_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
+exp = Calibration(f"{scopeid}_maros_chambers_load_and_perfuse_test_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
 sleep(0)
 
 
@@ -34,7 +34,7 @@ relax_delay_sec = 30
 freq = 10
 #speedset = [0.00, 0.01, 0.02, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.15, \
 #			0.2, 0.25, 0.3]
-speedset = [0.03, 0.03, 0.3, 0.3]
+speedset = [0.029, 0.029, 0.029, 0.029]
 speedset.reverse()
 
 
@@ -77,10 +77,17 @@ exp.user_prompt(None, label="loading-acquisition")
 os.system(f"libcamera-vid -t {60*3*1000} -f -o {'loading_procedure.h264'}")
 #capture(vidmp4, "loading_procedure.mp4", tsec=60*3)     ## Capture chamber without the flow
 
-# - Another optional loading run --- have infinite of these
-print("Another loading run - type ``more-load`` ")
-if exp.user_prompt(None, label="more-load") == "more-load":
-	os.system(f"libcamera-vid -t {60*3*1000} -f -o {'loading_procedure2.h264'}")
+repeat_load=True
+rl = 1
+while repeat_load != False:
+	# - Another optional loading run --- have infinite of these
+	print("Another loading run - type ``more-load`` ")
+	inputx = exp.user_prompt(None, label="more-load")
+	if inputx == "more-load":
+		os.system(f"libcamera-vid -t {60*3*1000} -f -o {f'loading_procedure_{rl}.h264'}")
+		rl = rl + 1
+		repeat_load = (inputx == "more-load")
+
 
 
 ### Start Experiment
