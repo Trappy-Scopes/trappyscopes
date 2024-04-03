@@ -93,7 +93,7 @@ for res in res_set:
 										num_files=3)
 
 
-		result = {"scope": scopeid, "V": 0.5, "channel":channel, "res":res, "magnification": 1, 
+		result = {"scope": scopeid, "V": 0.5, "channel":channel, "res":res, "magnification": 2, 
 				  "name":name, "exp_type":"still_resolution_test_usaftt", 
 				  "target":"usaf_tt", "usaftt_group":None, "usaftt_element":None, "min_res_um":None,
 				  "res": list(cam.cam.still_configuration.size), 
