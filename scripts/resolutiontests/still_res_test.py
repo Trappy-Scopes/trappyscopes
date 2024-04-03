@@ -84,21 +84,30 @@ for res in res_set:
 		### Set-light color
 		lightmap[channel]()
 
-		name = f"res_{res[0]}_{res[1]}_{channel}_0_5"
+		name = f"res_{res[0]}_{res[1]}_{channel}0pt5_"
 		cam.cam.start_and_capture_files(name+"{:d}.png", initial_delay=2, delay=5,
 										num_files=3)
 
 
 		result = {"V": 0.5, "channel":channel, "res":res, "magnification": 1, 
 				  "name":name, "exp_type":"still_resolution_test_usaf", 
-				  "target":"USAF", "min_res_um":None}
-		exp.logs["results"].append(result)
+				  "target":"USAF", "group1":None, "group2":None, "min_res_um":None,
+				  "res": list(cam.cam.still_configuration.size), 
+				  "raw_res": list(cam.cam.still_configuration.sensor["output_size"])
+				  "replicate":0}
+		from copy import deepcopy
+		for i in range(3):
+			r = deepcopy(result)
+			r["replicate"] = i+1
+			exp.logs["results"].append(r)
 
 		#sleeping_t = np.round(np.rand() * 10, 2)
 		sleeping_t = 5
 		print(f"{i:2}. {time.perf_counter()} : Sleeping for: {sleeping_t:2} s.")
 		sleep(sleeping_t)
 		
+	cam.cam.stop_preview()
+	cam.close()
 
 
 
