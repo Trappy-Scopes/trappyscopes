@@ -14,10 +14,11 @@ exp = Experiment(f"{scopeid}_still_res_test_usaf_{dt}_{t.tm_hour}_{t.tm_min}_{t.
 test = exp
 
 #cam.config_cammode2()
-set_green = lambda : pico("l1.setVs(0,0.5,0)")
-set_red = lambda : pico("l1.setVs(0.5,0,0)")
-set_blue = lambda : pico("l1.setVs(0,0,0.5)")
-set_white = lambda : pico("l1.setVs(0.5,0.5,0.5)")
+voltage = 0.7
+set_green = lambda : pico(f"l1.setVs(0,{voltage},0)")
+set_red = lambda : pico(f"l1.setVs({voltage},0,0)")
+set_blue = lambda : pico(f"l1.setVs(0,0,{voltage})")
+set_white = lambda : pico(f"l1.setVs({voltage},{voltage},{voltage})")
 
 
 cam.close()  ## Close camera
@@ -88,12 +89,12 @@ for res in res_set:
 		### Set-light color
 		lightmap[channel]()
 
-		name = f"res_{res[0]}_{res[1]}_{channel}0pt5_"
+		name = f"res_{res[0]}_{res[1]}_{channel}{voltage}".replace(".", "pt")
 		cam.cam.start_and_capture_files(name+"{:d}.png", initial_delay=10, delay=5,
 										num_files=3)
 
 
-		result = {"scope": scopeid, "V": 0.5, "channel":channel, "res":res, "magnification": 2, 
+		result = {"scope": scopeid, "V": voltage, "channel":channel, "res":res, "magnification": 2, 
 				  "name":name, "exp_type":"still_resolution_test_usaftt", 
 				  "target":"usaf_tt", "usaftt_group":None, "usaftt_element":None, "min_res_um":None,
 				  "res": list(cam.cam.still_configuration.size), 
