@@ -11,7 +11,7 @@ unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
 
-exp = Calibration(f"{scopeid}_maros_chambers_cellflow_test_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
+exp = Calibration(f"{scopeid}_inhouse_chambers_cellflow_test_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
 sleep(0)
 
 
@@ -32,10 +32,15 @@ cam.close()
 min_delay_sec = 60*10
 relax_delay_sec = 30
 freq = 10
-#speedset = [0.00, 0.01, 0.02, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.15, \
+#speedset = [0.00, 0.01, 0.02, +0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.15, \
 #			0.2, 0.25, 0.3]
-speedset = [0.03, 0.03, 0.03, 0.03]
-speedset.reverse()
+speedset = [0.030, 0.030, 0.030, \
+		    0.032, 0.032, 0.032, \
+		    0.033, 0.033, 0.034, \ 
+		    0.034, 0.034, 0.034, \
+		    0.035, 0.035, 0.035, 
+		    0.036, 0.036, 0.036]
+#speedset.reverse()
 
 
 exp.logs["pwm_freq"] = freq
@@ -125,7 +130,7 @@ for i, speed in enumerate(speedset):
 	dur = stop-start
 	result = {"duty":(motor_pico("print(motor.duty)").rstrip("\r\n")), 
 			  "speed": speed, "freq":freq,  "duration":dur,
-			  "setup": "maros_chambers_syringe_to_syringe", "overflow": 0, "success": None,
+			  "setup": "in_house_syringe_to_syringe", "overflow": 0, "success": None,
 		      "experiment_type": "flow_threshold_with_cells", 
 		      "acq": name, "lit_state":"arbitrary", "flow":False}
 	pprint.pprint(result)
