@@ -89,7 +89,7 @@ for res in res_set:
 		lightmap[channel]()
 
 		name = f"res_{res[0]}_{res[1]}_{channel}0pt5_"
-		cam.cam.start_and_capture_files(name+"{:d}.png", initial_delay=2, delay=5,
+		cam.cam.start_and_capture_files(name+"{:d}.png", initial_delay=10, delay=5,
 										num_files=3)
 
 
