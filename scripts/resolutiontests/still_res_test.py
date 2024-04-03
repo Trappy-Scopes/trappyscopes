@@ -91,8 +91,8 @@ for res in res_set:
 
 
 		result = {"V": 0.5, "channel":channel, "res":res, "magnification": 1, 
-				  "name":name, "exp_type":"still_resolution_test_usaf", 
-				  "target":"USAF", "group1":None, "group2":None, "min_res_um":None,
+				  "name":name, "exp_type":"still_resolution_test_usaftt", 
+				  "target":"usaf_tt", "usaftt_group":None, "usaftt_element":None, "min_res_um":None,
 				  "res": list(cam.cam.still_configuration.size), 
 				  "raw_res": list(cam.cam.still_configuration.sensor["output_size"]),
 				  "replicate":0}
