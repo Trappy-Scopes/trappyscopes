@@ -3,6 +3,9 @@ from experiment import Test
 import numpy as np
 import time
 
+
+from cleaners import safepicam2_config
+
 # Start experiment
 unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
@@ -78,7 +81,7 @@ for res in res_set:
 	#cam.still_configuration.controls.ExposureValue = exposure_value
 	cam.cam.still_configuration.size = (res_x,res_y)
 
-	exp.logs["cam_settings"] = cam.cam.still_configuration.controls
+	exp.logs["cam_settings"] = safepicam2_config(cam.cam.still_configuration.controls)
 	lightmap = {"r": set_red, "g":set_green, "b": set_blue, "w":set_white}
 	for channel in lightmap:
 
@@ -90,7 +93,7 @@ for res in res_set:
 										num_files=3)
 
 
-		result = {"V": 0.5, "channel":channel, "res":res, "magnification": 1, 
+		result = {"scope": scopeid, "V": 0.5, "channel":channel, "res":res, "magnification": 1, 
 				  "name":name, "exp_type":"still_resolution_test_usaftt", 
 				  "target":"usaf_tt", "usaftt_group":None, "usaftt_element":None, "min_res_um":None,
 				  "res": list(cam.cam.still_configuration.size), 
@@ -100,6 +103,7 @@ for res in res_set:
 		for i in range(3):
 			r = deepcopy(result)
 			r["replicate"] = i+1
+			r["acq"] = name+f"{i+1}.png" 
 			exp.logs["results"].append(r)
 
 		#sleeping_t = np.round(np.rand() * 10, 2)
