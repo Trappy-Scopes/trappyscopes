@@ -6,7 +6,7 @@ class Camera(AbstractCamera):
 	# 1
 	def __init__(self, *args, **kwargs):
 		print("NullCamera initialised.")
-		return
+		self.cam = None
 
 	# 2
 	def open(self):
@@ -20,7 +20,7 @@ class Camera(AbstractCamera):
 		return True
 
 	# 4
-	def configure(self, config_file=None):
+	def configure(self, config_file=None, res=None, fps=None):
 		return
 
 	# 5

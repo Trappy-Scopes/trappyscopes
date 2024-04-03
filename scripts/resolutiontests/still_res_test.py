@@ -6,7 +6,7 @@ import time
 # Start experiment
 unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
-exp = Experiment(f"{scopeid}_test_cameraclosure_{dt}")
+exp = Experiment(f"{scopeid}_still_res_test_usaf_{dt}")
 test = exp
 
 #cam.config_cammode2()
@@ -19,31 +19,89 @@ set_white = lambda : pico("l1.setVs(0.5,0.5,0.5)")
 cam.close()  ## Close camera
 
 
+res_set = [[1332, 990], [2028, 1080], [2028,1520], [4056, 3040], [1920, 1080]]
+exp.logs["results"] = []
+exp.logs["res_set"] = res_set
+
 
 ## Test opening and closing of camera
 for res in res_set:
 
 	## Set Camera settings:
 	cam.close()
-	cam.configure()
+	cam.open()
+	#cam.configure(res=res)
 
-
-	for channel in [set_red, set_green, set_blue, set_white]:
-
-
-		test.check(cam.open)
-	test.check(cam.is_open)
-
-	#sleeping_t = np.round(np.rand() * 10, 2)
-	sleeping_t = 5
-	print(f"{i:2}. {time.perf_counter()} : Sleeping for: {sleeping_t:2} s.")
-	sleep(sleeping_t)
+	fps=20.
+	framelimit=int(1000000/fps)
+	res_x = 1920
+	res_y = 1080
+	exposure_time=50000
+	awb_enable = False
+	ae_enable = False
+	brightness = 0.3
+	analogue_gain=3
+	contrast = 2.5
+	colour_gains = (0.,0.)
+	sharpness = 1.
+	saturation = .5
 	
-	test.check(cam.close)
-	print(f"{i:2}. {time.perf_counter()} : Sleeping for: {sleeping_t:2} s.")
-	sleep(sleeping_t)
+
+	#define a dictionary with the controls to save in file
+	controls={"FrameRate":fps,
+	"ExposureTime":exposure_time,
+	"AwbEnable":awb_enable,
+	"AeEnable":ae_enable,
+	"AnalogueGain":analogue_gain,
+	"Brightness":brightness,
+	"Contrast":contrast,
+	"ColourGains":colour_gains,
+	"Sharpness":sharpness,
+	"Saturation":saturation}
+
+	# create video configuration
+	cam.cam.create_still_configuration({"size":res}, controls=controls)
+
+	#the video configuration controls need to be 
+	#set again - set only the ones in 'controls'
+	cam.cam.still_configuration.controls.FrameRate = fps
+	cam.cam.still_configuration.controls.ExposureTime = exposure_time
+	cam.cam.still_configuration.controls.AwbEnable = awb_enable
+	cam.cam.still_configuration.controls.AeEnable = ae_enable
+	cam.cam.still_configuration.controls.AnalogueGain = analogue_gain
+	cam.cam.still_configuration.controls.Brightness = brightness
+	cam.cam.still_configuration.controls.Contrast = contrast
+	cam.cam.still_configuration.controls.ColourGains = colour_gains
+	cam.cam.still_configuration.controls.Sharpness = sharpness
+	cam.cam.still_configuration.controls.Saturation = saturation
+	#cam.still_configuration.controls.ExposureValue = exposure_value
+	cam.cam.still_configuration.size = (res_x,res_y)
 
 
-test.conclude()
+	lightmap = {"r": set_red, "g":set_green, "b": set_blue, "w":set_white}
+	for channel in lightmap:
+
+		### Set-light color
+		lightmap[channel]()
+
+		name = f"res_{res[0]}_{res[1]}_{channel}_0_5"
+		cam.cam.start_and_capture_files(name+"{:d}.png", initial_delay=2, delay=5,
+										num_files=3)
+
+
+		result = {"V": 0.5, "channel":channel, "res":res, "magnification": 1, 
+				  "name":name, "exp_type":"still_resolution_test_usaf", 
+				  "target":"USAF", "min_res_um":None}
+		exp.logs["results"].append(result)
+
+		#sleeping_t = np.round(np.rand() * 10, 2)
+		sleeping_t = 5
+		print(f"{i:2}. {time.perf_counter()} : Sleeping for: {sleeping_t:2} s.")
+		sleep(sleeping_t)
+		
+
+
+
+
 # Close experiment
-test.close()
+exp.close()
