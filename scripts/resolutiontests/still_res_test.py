@@ -78,7 +78,7 @@ for res in res_set:
 	#cam.still_configuration.controls.ExposureValue = exposure_value
 	cam.cam.still_configuration.size = (res_x,res_y)
 
-	exp.logs["cam_settings"] = cam.cam.still_configuration
+	exp.logs["cam_settings"] = cam.cam.still_configuration.controls
 	lightmap = {"r": set_red, "g":set_green, "b": set_blue, "w":set_white}
 	for channel in lightmap:
 
