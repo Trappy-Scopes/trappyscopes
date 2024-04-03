@@ -14,7 +14,7 @@ exp = Experiment(f"{scopeid}_still_res_test_usaf_{dt}_{t.tm_hour}_{t.tm_min}_{t.
 test = exp
 
 #cam.config_cammode2()
-voltage = 0.7
+voltage = 1.0
 set_green = lambda : pico(f"l1.setVs(0,{voltage},0)")
 set_red = lambda : pico(f"l1.setVs({voltage},0,0)")
 set_blue = lambda : pico(f"l1.setVs(0,0,{voltage})")
