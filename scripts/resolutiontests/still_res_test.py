@@ -78,7 +78,7 @@ for res in res_set:
 	#cam.still_configuration.controls.ExposureValue = exposure_value
 	cam.cam.still_configuration.size = (res_x,res_y)
 
-
+	exp.logs["cam_settings"] = cam.cam.still_configuration
 	lightmap = {"r": set_red, "g":set_green, "b": set_blue, "w":set_white}
 	for channel in lightmap:
 
@@ -94,7 +94,7 @@ for res in res_set:
 				  "name":name, "exp_type":"still_resolution_test_usaf", 
 				  "target":"USAF", "group1":None, "group2":None, "min_res_um":None,
 				  "res": list(cam.cam.still_configuration.size), 
-				  "raw_res": list(cam.cam.still_configuration.sensor["output_size"])
+				  "raw_res": list(cam.cam.still_configuration.sensor["output_size"]),
 				  "replicate":0}
 		from copy import deepcopy
 		for i in range(3):
