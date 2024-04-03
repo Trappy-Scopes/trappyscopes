@@ -6,7 +6,8 @@ import time
 # Start experiment
 unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
-exp = Experiment(f"{scopeid}_still_res_test_usaf_{dt}")
+t = time.localtime(time.time())
+exp = Experiment(f"{scopeid}_still_res_test_usaf_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
 test = exp
 
 #cam.config_cammode2()
