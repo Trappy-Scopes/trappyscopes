@@ -14,7 +14,7 @@ exp = Experiment(f"{scopeid}_still_res_test_usaf_{dt}_{t.tm_hour}_{t.tm_min}_{t.
 test = exp
 
 #cam.config_cammode2()
-voltage = 1.0
+voltage = 0.5
 set_green = lambda : pico(f"l1.setVs(0,{voltage},0)")
 set_red = lambda : pico(f"l1.setVs({voltage},0,0)")
 set_blue = lambda : pico(f"l1.setVs(0,0,{voltage})")
@@ -94,7 +94,7 @@ for res in res_set:
 										num_files=3)
 
 
-		result = {"scope": scopeid, "V": voltage, "channel":channel, "res":res, "magnification": 2.25, 
+		result = {"scope": scopeid, "V": voltage, "channel":channel, "res":res, "magnification": 0.5, 
 				  "name":name, "exp_type":"still_resolution_test_usaftt", 
 				  "target":"usaf_tt", "usaftt_group":None, "usaftt_element":None, "min_res_um":None,
 				  "res": list(cam.cam.still_configuration.size), 
