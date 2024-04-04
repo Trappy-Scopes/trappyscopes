@@ -11,7 +11,7 @@ unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
 
-exp = Calibration(f"{scopeid}_inhouse_chambers_cellflow_test_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
+exp = Calibration(f"{scopeid}_4mminhouse_chambers_cellflow_test_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
 sleep(0)
 
 
@@ -135,7 +135,7 @@ for i, speed in enumerate(speedset):
 	dur = stop-start
 	result = {"duty":(motor_pico("print(motor.duty)").rstrip("\r\n")), 
 			  "speed": speed, "freq":freq,  "duration":dur,
-			  "setup": "in_house_syringe_to_syringe", "overflow": 0, "success": None,
+			  "setup": "in_house_4mm_syringe_to_syringe", "overflow": 0, "success": None,
 		      "experiment_type": "flow_threshold_with_cells", 
 		      "acq": name, "lit_state":"arbitrary", "flow":False}
 	pprint.pprint(result)
