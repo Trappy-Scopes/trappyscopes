@@ -1,3 +1,6 @@
+import os
+from rich import print
+
 def capture(action, name, *args, **kwargs):
 	"""
 	Default capture 
@@ -43,19 +46,71 @@ def close_exp():
 	print("--- Exiting experiment --\n")
 
 # Overloaded Exit function
-def exit():
-	if exp:
-		if exp.active:
-			exp.close()
-	if device_metadata["auto_fsync"]:
-		SyncEngine.fsync(device_metadata)
-	
-	if cam:
-		if cam.is_open():
-			cam.close()
-	sys.exit()
 
-def LoadScript(scriptfile):
-		print(f"{Fore.YELLOW}{'='*10} Executing: {Fore.WHITE}{scriptfile} {Fore.YELLOW} {'='*10}{Fore.RESET}")
-		with open(scriptfile) as f:
-			exec(f.read(), globals())
+
+
+
+
+def findexp():
+	"""
+	Find and load an experiment from the microscope. Only confirms once.
+	"""
+	global exp
+	print("\n\n")
+	print("[bold blue]Find experiment >>> [default]")
+	print("Press Ctrl+Z to exit or enter to ignore.")
+	from prompt_toolkit import prompt
+	from prompt_toolkit.completion import WordCompleter
+	from experiment import Experiment
+
+	expcompleter = WordCompleter([os.path.basename(exp_) for exp_ in Experiment.list_all()])
+	exp_name = prompt('Input the session/experiment name -> ', completer=expcompleter)
+	#autocompleter.directory("/Users/byatharth/experiments")
+	#exp_name = input("Input the session/experiment name -> ")
+	exp_name.strip()
+
+
+	exp = None
+	if exp_name:
+		exp = Experiment(exp_name)
+
+
+def delexp():
+	"""
+	Delete an experiment from the microscope. Only confirms once.
+	"""
+	global exp
+	print("\n\n")
+	print("[bold red]Delete experiment >>> [default]")
+	print("Press Ctrl+Z to exit or enter to ignore.")
+	from prompt_toolkit import prompt
+	from prompt_toolkit.completion import WordCompleter
+	from experiment import Experiment
+
+	expcompleter = WordCompleter([os.path.basename(exp_) for exp_ in Experiment.list_all()])
+	exp_name = prompt('Input the session/experiment name -> ', completer=expcompleter)
+	#autocompleter.directory("/Users/byatharth/experiments")
+	#exp_name = input("Input the session/experiment name -> ")
+	exp_name.strip()
+
+
+	exp = None
+	if exp_name:
+		exp = Experiment(exp_name)
+		path = exp.exp_dir
+		exp.close()
+		from rich.prompt import Confirm
+		confirmdelete = Confirm.ask(f"Delete for sure? : {exp_name}")
+		if confirmdelete:
+			import shutil
+			shutil.rmtree(path)
+
+
+def explorefn(fn):
+	"""
+	Inspect and print a function/callable.
+	"""
+	from rich import inspect
+	inspect(fn, methods=True, all=True)
+
+

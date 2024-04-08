@@ -13,7 +13,7 @@ class CAPwmRgbLed(Light):
 	self.DUTYMIN = 0
 	self.DUTYMAX = 2**16 - 1
 	
-	# 1
+	# 1 
 	def __init__(self, rpin, gpin, bpin):
 
 		self.type = "CaPwmRgbLed"

@@ -55,7 +55,7 @@ from config.common import Common
 
 from rich.markdown import Markdown
 
-from useractions import *
+
 
 #### ---------- Library Level processing ----------------------
 
@@ -223,14 +223,6 @@ def exit():
 			cam.close()
 	sys.exit()
 
-def LoadScript(scriptfile):
-		print(f"{Fore.YELLOW}{'='*10} Executing: {Fore.WHITE}{scriptfile} {Fore.YELLOW} {'='*10}{Fore.RESET}")
-		with open(scriptfile) as f:
-			exec(f.read(), globals())
-
-def explorefn(fn):
-	from rich import inspect
-	inspect(fn, methods=True, all=True)
 
 
 ## 4. Set Experiment
@@ -284,6 +276,23 @@ if len(sys.argv) > 1:
 #pico("l1.setVs(2,2,0)")
 #print(sys.path)
 
+from useractions import *
+
+def exit():
+	"""
+	Custom overloaded exit function.
+	"""
+	global exp
+	if exp == None:
+		if exp.active:
+			exp.close()
+	#if device_metadata["auto_fsync"]:
+	#	SyncEngine.fsync(device_metadata)
+	
+	if cam:
+		if cam.is_open():
+			cam.close()
+	sys.exit()
 
 from measurement import Measurement
 m = Measurement(q=2, qq=123, m=234, o=1.123)

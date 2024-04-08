@@ -14,3 +14,9 @@ def get_file(repo, path, branch='main'):
 
 def get_md(repo, path, branch='main'):
 	return Markdown(get_file(repo, path, branch=branch), inline_code_theme='monokai')
+
+#from mdextractor import extract_md_blocks
+#blocks = extract_md_blocks(get_file("cluster-head", "README.md", branch="main2"))
+
+# Display the extracted blocks
+# print(blocks) # Output: ['print("Hello, Markdown!")']

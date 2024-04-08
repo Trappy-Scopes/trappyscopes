@@ -2,10 +2,23 @@ from pprint import pformat
 from config.common import Common
 from rich.pretty import Pretty
 from rich.panel import Panel
+from rich import print
 
 class Measurement(dict):
 	
+	#####################
 	idx = 0
+	modalities = {}
+	#####################
+
+
+	def Mode(name, *args, **kwargs):
+		kwargs["modality"] = name
+		Measurement.modalities[name] = Measurement(*args, **kwargs)
+
+	def Stream(key):
+		mmt = Measurement.modalities[key].copy()
+		return mmt
 
 	def __init__(self, *args, **kwargs):
 		
@@ -13,13 +26,10 @@ class Measurement(dict):
 		### Pre-defined keys
 		self["mid"] = Measurement.idx
 		Measurement.idx += 1
+		self.idx = Measurement.idx
 
 		self["experiment"] = None
 		self["scope"] = Common.scopeid
-		
-
-
-
 
 		# Initial keys
 		if len(args) != 0:
@@ -31,30 +41,13 @@ class Measurement(dict):
 			for key in kwargs:
 				self[key] = kwargs[key]
 
-		self.idx = 1
 
-
-
-
-	#def __str__(self):
-
-	def __repr__(self):
-
-		print(Panel(Pretty(super().__repr__()), title=f"Measurement: {self['mid']}"))
-
-
-	#def __rich_repr__(self):
-	#	prefix = f"Measuremnt: {self.idx}, "
-	#	s = pformat(super().__repr__(), width=80-len(prefix))
-	#	s.replace("\n", " "*len(prefix))
-	#	s = s[1:-1]
-	#	s = f"< {prefix} \n {' '*len(prefix)} {s} >"
-	#	return s
-	#	
-	#	return Panel(super().__repr__())
+	def panel(self):
+		print(Panel(Pretty(self.copy()), title=f"Measurement: {self['mid']}"))
 
 	def get(self):
 		return self
+	
 
 if __name__ == "__main__":
 	from measurement import Measurement

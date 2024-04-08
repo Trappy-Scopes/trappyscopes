@@ -2,13 +2,17 @@ import os
 from pprint import pprint
 import logging as log
 import yaml
-from yaml.loader import SafeLoader
+from yaml.loader import SafeLoader, Loader
 import sys
 import nanoid
 import datetime
 from colorama import Fore
 import time
+
+
 from rich import print
+from rich.progress import track
+from rich.text import Text
 
 import config.common
 from user import User
@@ -24,6 +28,12 @@ class Experiment:
 		|- analysis                 (analysis results)
 
 	"""
+
+	###############
+	current = None
+
+	###############
+
 
 	def new(name):
 		"""
@@ -64,6 +74,19 @@ class Experiment:
 		exps = Experiment.list_all()
 		return [e.rsplit("/", 1)[1] for e in exps]
 
+
+	def autosave(func, *args, **kwargs):
+		def wrapper( *args, **kwargs):
+			func( *args, **kwargs)
+			Experiment.current.__save__()
+		return wrapper
+
+	def increment_counter(func, *args, **kwargs):
+		def wrapper( *args, **kwargs):
+			Experiment.current.counter += 1
+			func( *args, **kwargs)
+		return wrapper
+
 	def __init__(self, name):
 
 		self.name = name
@@ -76,6 +99,7 @@ class Experiment:
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
 		self.all_exps = Experiment.list_all()
 		self.init_time = time.perf_counter()
+		self.counter = 0
 
 		#TODO self.metadata = Metadata()
 
@@ -92,7 +116,7 @@ class Experiment:
 		
 		# Load experiment logs
 		with open(self.log_file) as file:
-			logs_in_file = yaml.load(file, Loader=SafeLoader)
+			logs_in_file = yaml.load(file, Loader=Loader)
 		if logs_in_file:
 			self.logs = logs_in_file
 		
@@ -117,7 +141,19 @@ class Experiment:
 
 		## User Information
 		self.logs["user"] = User.info
+
+		Experiment.current = self
 	
+	def __repr__(self):
+		end_time = time.perf_counter()
+		return f"< Experiment: {self.name} :::: duration: {end_time-self.init_time:.3f} s >"
+
+	def __save__(self):
+		if self.active:
+			with open(self.log_file, "w") as f:
+				f.write(yaml.dump(self.logs))
+		print(Text("⬤   exp logs saved.", style="green dim", justify="right"))
+
 	def __exit__(self):
 		self.close()
 
@@ -136,6 +172,14 @@ class Experiment:
 			Share.updateps1(exp="")
 			self.active = False
 
+	def log(self, action, attrib={}):
+		if action in self.logs:
+			action = f"{action}-{time.time_ns()}"
+		log_ = {"mtime": time.time_ns(), "dt":datetime.datetime.now()}
+		log_.update(attrib)
+		self.logs[action] = log_
+		return action
+
 	def log_event(self, string):
 		"""
 		Format -> Event: datetime
@@ -152,6 +196,13 @@ class Experiment:
 		return not (string in self.logs)
 
 
+	def run(self, script):
+		print(f"{Fore.RED} Executing script: {script}{Fore.RESET}")
+		#with open(script) as f:
+		#    exec(f.read(), globals())
+		#script = script.split(".")[0]
+		__import__(script, globals(), locals())
+
 	def run(script):
 		print(f"{Fore.RED} Executing script: {script}{Fore.RESET}")
 		#with open(script) as f:
@@ -162,6 +213,56 @@ class Experiment:
 	def toggle_beacon(pico):
 		pico("beacon.toggle()")
 
+	### ----- Event Model -----------------------------
+
+	
+	@increment_counter
+	@autosave
+	def delay(self, name, seconds, steps=100):
+
+		try:
+			start = time.time_ns()
+			for i in track(range(seconds), description=f"exp-step: blocking delay: {name} >> "):
+			    time.sleep(seconds/steps)  # Simulate work being done
+			self.log(name, attrib={"type":"delay", "duration":seconds, "start_ns":start, 
+								   "end_ns": time.time_ns(), "interrupted": False, "counter":self.counter})
+		except KeyboardInterrupt:
+			self.log(name, attrib={"type":"delay", "duration":seconds, "start_ns":start,
+					 "end_ns": time.time_ns(), "interrupted": True, "counter":self.counter})
+
+	
+	@increment_counter
+	@autosave
+	def track(self, name, task, *args, **kwargs):
+		"""
+		Track execution of anhy function and log.
+		"""
+
+		if "desc" not in kwargs:
+			kwargs["desc"] = "No description."
+		desc = kwargs["desc"]
+		print(f"exp-step: Tracking task >> {name}")
+		print(f"Task: {task}\nDescription: {kwargs.pop('desc')}")
+		
+		
+
+		try:
+			start = time.time_ns()
+			print(desc)
+			task(*args, **kwargs)
+			
+			end = time.time_ns()
+			self.log(name, attrib={"type":"tracked_task", "duration":float(end-start)/1**-9, "start_ns":start, 
+								   "end_ns": end, "interrupted": False, "task": str(task), "args": args, "kwargs":kwargs,
+								   "description": desc, "counter":self.counter})
+		except KeyboardInterrupt:
+			end = time.time_ns()
+			self.log(name, attrib={"type":"tracked_task", "duration":float(end-start)/1**-9, "start_ns":start,
+								   "end_ns": end, "interrupted": True, "task": str(task), "args": args, "kwargs":kwargs,
+								   "description": desc, "counter":self.counter})
+	
+	@increment_counter
+	@autosave
 	def user_prompt(self, prompt, label=None):
 		prompt_ = prompt
 		if prompt == None:
@@ -177,22 +278,26 @@ class Experiment:
 			else:
 				return True
 
-		if label:
-			self.log_event(f"user_prompt_requested : {label}")
-		else:
-			self.log_event(f"user_prompt_requested : {prompt}")
+		name = prompt
+		if prompt == None:
+			name = "prompt"
 
+		event = self.log(name, attrib={"type": "user_prompt", "prompt":prompt,
+									   "label":label, "counter":self.counter})
+		
+		self.logs[event]["prompt_requested"] = datetime.datetime.now()
+		
 		inp = "no_inp"
 		inp = input(f"{Fore.RED}{prompt_string}{Fore.RESET}")
 		while not conditional(inp):
 			inp = input(f"{Fore.RED}{prompt_string}{Fore.RESET}")
 		
-		print(f"{Fore.GREEN}--- prompt accepted : {prompt_} --- {Fore.RESET}")
-		if label:
-			self.log_event(f"user_prompt_received : {label}")
-		else:
-			self.log_event(f"user_prompt_received : {prompt}")
-		return inp
+		print(f"[green]--- prompt accepted : {prompt_} --- [default]")
+		
+		self.logs[event]["prompt_received"] = datetime.datetime.now()
+
+	def follow_protocol(self, *args):
+		pass
 
 class Calibration(Experiment):
 	
@@ -210,7 +315,7 @@ class Test(Experiment):
 		"""
 		Only fails if exceptions are raised. TODO
 		"""
-		self.logs[f"check-{len(self.checks)}"] = str(callable_)
+		self.log(f"check-{len(self.checks)}", attrib={"check":str(callable_)})
 		print(f"<< Check {len(self.checks)} >>")
 		try:
 			if not args and not kwargs:
