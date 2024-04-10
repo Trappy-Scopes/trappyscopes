@@ -112,7 +112,7 @@ ScriptEngine.execlist = scriptlist
 
 Share.argparse["user"] = args.user[0]
 Share.argparse["expname"] = args.expname
-Share.argparse["noep"] = (args.noep and (len(scriptlist) > 0))
+Share.argparse["noep"] = (args.noep or (len(scriptlist) > 0))
 Share.argparse["nofluff"] = args.nofluff
 
 if args.intro:

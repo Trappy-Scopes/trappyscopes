@@ -321,6 +321,15 @@ class Experiment:
 	def follow_protocol(self, *args):
 		pass
 
+	@increment_counter
+	@autosave
+	def interrupted(self):
+		"""
+		Marks an interrupt event - Experiment flow was interrupted by the user.
+		"""
+		self.log("interrupted", attrib={"type": "interrupt",
+									    "counter":self.counter})
+
 class Calibration(Experiment):
 	
 	def __init__(self, name, append_eid=False):
