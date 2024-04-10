@@ -33,6 +33,9 @@ class PicoProxyObject:
 				raise AttributeError(f"'{type(self.obj).__name__}' object has no attribute '{fn}'")
 
 	def __exec_str__(fn, *args, **kwargs):
+		print(fn)
+		print(args)
+		print(kwargs)
 		args_str = str(list(args)).strip('[').strip(']')
 		optional_comma = ', '*(len(args)!=0 and len(kwargs) != 0)
 		kwargs_str = ""
