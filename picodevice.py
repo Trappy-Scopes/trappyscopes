@@ -19,6 +19,7 @@ class PicoProxyObject:
 		self.unsafe = True
 
 	def __getattr__(self, fn, *args, **kwargs):
+		return "hello"
 		if self.unsafe:
 			execstr = self.__exec_str__(fn, args, kwargs)
 			print(execstr)
