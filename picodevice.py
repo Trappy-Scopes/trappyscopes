@@ -13,7 +13,7 @@ TODO:
 """
 class PicoProxyObject:
 
-	def __init__(self, pico):
+	def __init__(self, object_, pico):
 		self.obj = object_
 		self.pico = pico
 		self.unsafe = True
