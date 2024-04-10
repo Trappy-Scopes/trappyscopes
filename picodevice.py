@@ -17,6 +17,7 @@ class PicoProxyObject:
 		self.obj = object_
 		self.pico = pico
 		self.unsafe = True
+		print("Created object:", self.obj)
 
 	def __getattr__(self, fn, *args, **kwargs):
 		if self.unsafe:
@@ -48,7 +49,7 @@ class PicoProxyObject:
 			if i != len(kwargs)-1:
 				kwargs_str += ", "
 		
-		return f"{self.object_}.{fn}({args_str}{optional_comma}{kwargs_str})"
+		return f"{self.obj}.{fn}({args_str}{optional_comma}{kwargs_str})"
 
 	def __repr__(self):
 		return f"< PicoProxyObject on {self.pico} >"
