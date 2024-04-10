@@ -132,6 +132,7 @@ class RPiPicoDevice:
 			def __init__(self, pico):
 				self.obj = object_
 				self.pico = pico
+				self.unsafe = True
 
 			def __getattr__(self, fn, *args, **kwargs):
 				if self.unsafe:
