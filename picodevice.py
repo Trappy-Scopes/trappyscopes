@@ -134,12 +134,31 @@ class RPiPicoDevice:
 				self.pico = pico
 
 			def __getattr__(self, fn, *args, **kwargs):
-				if attr in dir(self.obj):
-					#self.pico(f"{fn}({str(list(args)).strip('[').strip(']')}{","*(len(args)!=0 and len(kwargs) != 0) } {str([f'{key}={kwargs[key]}' for key in kwargs]).strip('[').strip(']')})")
-					pass
+				if self.unsafe:
+					self.pico(self.__exec_str__(fn, args, kwargs))
 				else:
-					# Handle other attributes or raise an AttributeError
-					raise AttributeError(f"'{type(self.obj).__name__}' object has no attribute '{fn}'")
+
+					if fn in dir(self.obj):
+						self.pico(self.__exec_str__(fn, args, kwargs))
+						pass
+					else:
+						# Handle other attributes or raise an AttributeError
+						raise AttributeError(f"'{type(self.obj).__name__}' object has no attribute '{fn}'")
+
+			def __exec_str__(fn, *args, **kwargs):
+				args_str = str(list(args)).strip('[').strip(']')
+				optional_comma = ', '*(len(args)!=0 and len(kwargs) != 0)
+				kwargs_str = ""
+				for i, key in enumerate(kwargs):
+					if isinstance(kwargs[key], str):
+						obj = f"'{str(kwargs[key])}'"
+					else:
+						obj = str(kwargs[key])
+					kwargs_str += (str(key) + "=" + obj)
+					if i != len(kwargs)-1:
+						kwargs_str += ", "
+				
+				return f"{fn}({args_str}{optional_comma}{kwargs_str})"
 
 			def __repr__(self):
 				return f"< PicoProxyObject on {self.pico} >"

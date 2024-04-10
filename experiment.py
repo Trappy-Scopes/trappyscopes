@@ -241,16 +241,21 @@ class Experiment:
 	@increment_counter
 	@autosave
 	def delay(self, name, seconds, steps=100):
-
+		"""
+		Add a experiment step dealy with a progress bar and automatic logging.
+		Todo: Correct processor drift.
+		"""
 		try:
 			start = time.time_ns()
-			for i in track(range(seconds), description=f"exp-step: blocking delay: {name} >> "):
+			print(start)
+			for i in track(range(steps), description=f"exp-step: blocking delay: [red]{name}[default] | [blue]{seconds}s[default] >> "):
 			    time.sleep(seconds/steps)  # Simulate work being done
 			self.log(name, attrib={"type":"delay", "duration":seconds, "start_ns":start, 
 								   "end_ns": time.time_ns(), "interrupted": False, "counter":self.counter})
 		except KeyboardInterrupt:
 			self.log(name, attrib={"type":"delay", "duration":seconds, "start_ns":start,
 					 "end_ns": time.time_ns(), "interrupted": True, "counter":self.counter})
+		print(time.time_ns())
 
 	
 	@increment_counter

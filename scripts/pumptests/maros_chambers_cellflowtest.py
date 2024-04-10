@@ -1,5 +1,4 @@
 import datetime
-from time import sleep
 import time
 from experiment import Calibration
 import pprint
@@ -13,11 +12,11 @@ t = time.localtime(time.time())
 
 
 
-mdevice_type = "maros_chambers"
+mdevice_type = "2mm_inhouse"
 flow_type = "pull"
 
 exp = Calibration(f"{scopeid}_{mdevice_type}_cellflow_test_{flow_type}_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}", append_eid=True)
-sleep(0)
+exp.delay("Init stabilization", 5)
 
 
 ## Incase of additional pico board
@@ -37,8 +36,9 @@ cam.close()
 min_delay_sec = 60*10
 relax_delay_sec = 30
 freq = 10
-#speedset = [0.00, 0.01, 0.02, +0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.15, \
-#			0.2, 0.25, 0.3]
+
+speedset = []
+"""
 speedset = [0.027, 0.027, 0.027,
 			0.028, 0.028, 0.028,
 			0.029, 0.029, 0.029,
@@ -50,6 +50,22 @@ speedset = [0.027, 0.027, 0.027,
 			0.036, 0.036, 0.036,
 			0.037, 0.037, 0.037,
 			0.038, 0.038, 0.038]
+"""
+speedset_fast = [0.040, 0.040, 0.040,
+				 0.050, 0.050, 0.050,
+				 0.070, 0.070, 0.070,
+				 0.090, 0.090, 0.090,
+				 0.100, 0.100, 0.100,
+				 0.120, 0.120, 0.120,
+				 0.150, 0.150, 0.150,
+				 0.170, 0.170, 0.170,
+				 0.190, 0.190, 0.190,
+				 0.210, 0.210, 0.210,
+				 0.250, 0.250, 0.250]
+speedset.extend(speedset_fast)
+
+
+
 #speedset.reverse()
 
 
@@ -77,7 +93,7 @@ print("Load pipe ??????????  -- type ``load-pipe`` ")
 if exp.user_prompt(None, label="load-pipe") == "load-pipe":
 	exp.log_event("load-pipe-triggered")
 	motor_pico("motor.speed(0.5)")
-	sleep(7)
+	exp.delay("Pump working", 7)
 	motor_pico("motor.hold()")
 	exp.log_event("load-pipe-completed")
 ####
@@ -102,7 +118,7 @@ if exp.user_prompt(None, label="more-load") == "more-load":
 exp.user_prompt("start-exp")
 motor_pico(f"motor.speed({speedset[0]})")
 exp.log_event(f"motor-started-speed-{speedset[0]}")
-sleep(30)
+exp.delay("Experiment start delay", 30)
 exp.log_event(f"init-stabilization-{30}s")
 ####
 
@@ -119,7 +135,7 @@ for i, speed in enumerate(speedset):
 	## Start and stabilize
 	start = time.perf_counter()
 	print(f"Stabilization delay of {min_delay_sec} sec.")
-	sleep(min_delay_sec)
+	exp.delay("Speed stabilization", min_delay_sec)
 	
 
 	
@@ -132,7 +148,7 @@ for i, speed in enumerate(speedset):
 
 	## Relaxation
 	print(f"Relaxation delay of {relax_delay_sec} sec.")
-	sleep(relax_delay_sec)
+	exp.delay("Buffer delay", relax_delay_sec)
 	stop = time.perf_counter()
 
 
@@ -140,7 +156,8 @@ for i, speed in enumerate(speedset):
 	dur = stop-start
 	result = {"duty":(motor_pico("print(motor.duty)").rstrip("\r\n")), 
 			  "speed": speed, "freq":freq,  "duration":dur,
-			  "setup": "in_house_4mm_syringe_to_syringe", "overflow": 0, "success": None,
+			  "mdevice": mdevice_type, "flow_type": flow_type,
+			  "setup": "syringe_to_syringe", "overflow": 0, "success": None,
 		      "experiment_type": "flow_threshold_with_cells", 
 		      "acq": name, "lit_state":"arbitrary", "flow":False}
 	pprint.pprint(result)
