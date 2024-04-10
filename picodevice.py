@@ -22,7 +22,7 @@ class PicoProxyObject:
 	def __getattr__(self, fn, *args, **kwargs):
 		if self.unsafe:
 			execstr = self.__exec_str__(fn, args, kwargs)
-			print(execstr)
+			print("Exec: ", execstr)
 			return self.pico(execstr)
 		else:
 
@@ -34,9 +34,6 @@ class PicoProxyObject:
 				raise AttributeError(f"'{type(self.obj).__name__}' object has no attribute '{fn}'")
 
 	def __exec_str__(self, fn, *args, **kwargs):
-		print(fn)
-		print(args)
-		print(kwargs)
 		args_str = str(list(args)).strip('[').strip(']')
 		optional_comma = ', '*(len(args)!=0 and len(kwargs) != 0)
 		kwargs_str = ""
@@ -48,8 +45,9 @@ class PicoProxyObject:
 			kwargs_str += (str(key) + "=" + obj)
 			if i != len(kwargs)-1:
 				kwargs_str += ", "
-		
-		return f"{self.obj}.{fn}({args_str}{optional_comma}{kwargs_str})"
+		construction = f"{self.obj}.{fn}({args_str}{optional_comma}{kwargs_str})"
+		print("Construction: ", construction)
+		return construction
 
 	def __repr__(self):
 		return f"< PicoProxyObject on {self.pico} >"
