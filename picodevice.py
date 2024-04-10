@@ -48,7 +48,7 @@ class PicoProxyObject:
 			if i != len(kwargs)-1:
 				kwargs_str += ", "
 		
-		return f"{fn}({args_str}{optional_comma}{kwargs_str})"
+		return f"{self.object_}.{fn}({args_str}{optional_comma}{kwargs_str})"
 
 	def __repr__(self):
 		return f"< PicoProxyObject on {self.pico} >"

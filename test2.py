@@ -14,3 +14,4 @@ def fn_(fn, *args, **kwargs):
     return f"{fn}({args_str}{optional_comma}{kwargs_str})"
 
 print(fn_("do", "1", 2, 3, kwg=123, sf="dsfs", sf2=12.23, sft=True, sfx=12))
+print(fn_("do"))
