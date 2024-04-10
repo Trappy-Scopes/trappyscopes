@@ -136,12 +136,12 @@ class RPiPicoDevice:
 
 			def __getattr__(self, fn, *args, **kwargs):
 				if self.unsafe:
-					self.pico(self.__exec_str__(fn, args, kwargs))
+					return self.pico(self.__exec_str__(fn, args, kwargs))
 				else:
 
 					if fn in dir(self.obj):
-						self.pico(self.__exec_str__(fn, args, kwargs))
-						pass
+						return self.pico(self.__exec_str__(fn, args, kwargs))
+						
 					else:
 						# Handle other attributes or raise an AttributeError
 						raise AttributeError(f"'{type(self.obj).__name__}' object has no attribute '{fn}'")
