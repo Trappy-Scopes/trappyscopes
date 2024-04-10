@@ -164,7 +164,7 @@ class RPiPicoDevice:
 				return f"< PicoProxyObject on {self.pico} >"
 
 		### Emit device
-		return PicoProxyObject(object_, self)
+		return PicoProxyObject(object_)
 
 
 
