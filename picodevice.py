@@ -34,17 +34,22 @@ class PicoProxyObject:
 				raise AttributeError(f"'{type(self.obj).__name__}' object has no attribute '{fn}'")
 
 	def __exec_str__(self, fn, *args, **kwargs):
-		args_str = str(list(args)).strip('[').strip(']')
-		optional_comma = ', '*(len(args)!=0 and len(kwargs) != 0)
+		args_str = ""
 		kwargs_str = ""
-		for i, key in enumerate(kwargs):
-			if isinstance(kwargs[key], str):
-				obj = f"'{str(kwargs[key])}'"
-			else:
-				obj = str(kwargs[key])
-			kwargs_str += (str(key) + "=" + obj)
-			if i != len(kwargs)-1:
-				kwargs_str += ", "
+
+		if len(args) != 0:
+			args_str = str(list(args)).strip('[').strip(']')
+		optional_comma = ', '*(len(args)!=0 and len(kwargs) != 0)
+		if len(kwargs) != 0:
+			for i, key in enumerate(kwargs):
+				if isinstance(kwargs[key], str):
+					obj = f"'{str(kwargs[key])}'"
+				else:
+					obj = str(kwargs[key])
+				kwargs_str += (str(key) + "=" + obj)
+				if i != len(kwargs)-1:
+					kwargs_str += ", "
+		
 		construction = f"{self.obj}.{fn}({args_str}{optional_comma}{kwargs_str})"
 		print("Construction: ", construction)
 		return construction
