@@ -32,7 +32,7 @@ class PicoProxyObject:
 				# Handle other attributes or raise an AttributeError
 				raise AttributeError(f"'{type(self.obj).__name__}' object has no attribute '{fn}'")
 
-	def __exec_str__(fn, *args, **kwargs):
+	def __exec_str__(self, fn, *args, **kwargs):
 		print(fn)
 		print(args)
 		print(kwargs)
