@@ -125,6 +125,7 @@ if args.tomp4_exp:
     args.tomp4_exp = args.tomp4_exp[0]
     args.tomp4_exp = os.path.join(Share.expdir, args.tomp4_exp)
     if os.path.exists(args.tomp4_exp):
+        args.fps = list([args.fps])[0]
         print(f"Appending all converted files to {args.tomp4_exp + '/processed'} .\nFPS set at: {args.fps}")
         MP4Box.convert_all(args.tomp4_exp, fps=args.fps, prompt=False)
     else:

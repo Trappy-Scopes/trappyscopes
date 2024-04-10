@@ -2,6 +2,8 @@ import asyncio
 import os
 import subprocess
 import colorama
+from rich import print
+
 class MP4Box:
 
 	def check():
@@ -41,15 +43,24 @@ class MP4Box:
 			if prompt:
 				do_convert = False
 				print ("To be converted") 
-				pprint(not_converted)
+				print(not_converted)
 				x = input("Press enter to begin conversion, press Ctrl+D to exit")
 				if x == "":
 					do_convert = True
 			for fn in not_converted:
 				#os.system(f" MP4Box -add {os.path.join(dir_, fn) + '.h264'}:fps={fps} {os.path.join(dir_, fn) + '.mp4'}")
-				MP4Box.convert(os.path.join(folder, "processed", fn + '.h264'), 
-							   os.path.join(folder, "processed", fn + '.mp4'), 
+				MP4Box.convert(os.path.join(folder, fn + '.h264'), 
+							   os.path.join(folder, "converted", fn + '.mp4'), 
 							   fps=fps, delay=False)
+
+	def convert_set(folder, prompt=True, fps=30):
+		all_exps = os.listdir(folder)
+		all_exps = [os.path.join(folder, dir_) for dir_ in all_exps if \
+			os.path.isfile(os.path.join(folder, dir_, ".experiment"))]
+
+		print("All experiments to be converted: ", all_exps)
+		for exp in all_exps:
+			MP4Box.convert_all(exp, prompt=prompt, fps=fps)
 
 	def convert(infile, outfile, fps, delay=True):
 		"""

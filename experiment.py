@@ -35,12 +35,18 @@ class Experiment:
 	###############
 
 
-	def new(name):
+	def new(name, append_eid=False):
 		"""
 		Create a new experiment with the given name.
 		"""
-		dir_ = os.path.join(config.common.DATA_DIR, name)
 
+		uuid = nanoid.generate('1234567890abcdef', 10)
+
+		if append_eid:
+			name = name + "_" + uuid
+
+
+		dir_ = os.path.join(config.common.DATA_DIR, name)
 		os.mkdir(dir_)
 		os.mkdir(os.path.join(dir_, "postprocess"))
 		os.mkdir(os.path.join(dir_, "analysis"))
@@ -48,7 +54,6 @@ class Experiment:
 
 		# Copy payload to the dir_
 
-		uuid = nanoid.generate('1234567890abcdef', 10)
 		with open(os.path.join(dir_, ".experiment"), "w") as f:
 			f.write(uuid)
 
@@ -59,6 +64,7 @@ class Experiment:
 									{"name": name, 
 									"uuid": uuid,
 									"created": now}}))
+		return name
 
 
 	def list_all():
@@ -87,27 +93,40 @@ class Experiment:
 			func( *args, **kwargs)
 		return wrapper
 
-	def __init__(self, name):
+	def __init__(self, name, append_eid=False):
 
+		### Close current
+		if isinstance(Experiment.current, Experiment):
+			Experiment.current.close()
+
+
+
+		self.all_exps = Experiment.list_all()
 		self.name = name
-		self.exp_dir = os.path.join(config.common.DATA_DIR, name)
+		# Check if the experiment exists
+		if not os.path.join(config.common.DATA_DIR, self.name) in self.all_exps:
+			self.name = Experiment.new(self.name, append_eid=append_eid)
+			log.info(f"Creating New Experiment: {self.name}")
+			#log.info(f"{self.name}: {self.exp_dir}")
+
+
+		self.exp_dir = os.path.join(config.common.DATA_DIR, self.name)
 		self.log_file = os.path.join(self.exp_dir, "experiment.yaml")
 		self.user = ""
 		self.logs = {}
 		self.events = []
 		self.unsaved = False # Flag that indicates unsaved changes
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
-		self.all_exps = Experiment.list_all()
 		self.init_time = time.perf_counter()
 		self.counter = 0
 
 		#TODO self.metadata = Metadata()
 
-		# Check if the experiment exists
-		if not os.path.join(config.common.DATA_DIR, self.name) in self.all_exps:
-			Experiment.new(self.name)
-			log.info(f"Creating New Experiment: {self.name}")
-			log.info(f"{self.name}: {self.exp_dir}")
+		### Draw ruler
+		from rich.rule import Rule
+		print(Rule(title="Experiment open", align="center", style="green"))
+		####
+
 
 		log.info(f"Loading Experiment: {self.name}")
 		print("Experiment so far: ")
@@ -143,6 +162,7 @@ class Experiment:
 		self.logs["user"] = User.info
 
 		Experiment.current = self
+
 	
 	def __repr__(self):
 		end_time = time.perf_counter()
@@ -171,6 +191,8 @@ class Experiment:
 			print(f"Working directory changed to: {os.getcwd()}")
 			Share.updateps1(exp="")
 			self.active = False
+		from rich.rule import Rule
+		print(Rule(title="Experiment closed", align="center", style="red"))
 
 	def log(self, action, attrib={}):
 		if action in self.logs:
@@ -301,15 +323,15 @@ class Experiment:
 
 class Calibration(Experiment):
 	
-	def __init__(self, name):
-		super().__init__(name)
-		self.exp_dir = os.path.join(config.common.CALIB_DIR, name)
+	def __init__(self, name, append_eid=False):
+		super().__init__(name, append_eid=append_eid)
+		self.exp_dir = os.path.join(config.common.CALIB_DIR, self.name)
 
 class Test(Experiment):
 
-	def __init__(self, name):
+	def __init__(self, name, append_eid=False):
 		self.checks = []
-		super().__init__(name)
+		super().__init__(name, append_eid=append_eid)
 
 	def check(self, callable_, *args, **kwargs):
 		"""

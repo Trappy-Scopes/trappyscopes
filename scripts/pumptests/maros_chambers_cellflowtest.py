@@ -11,7 +11,12 @@ unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
 
-exp = Calibration(f"{scopeid}_4mminhouse_chambers_cellflow_test_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}")
+
+
+mdevice_type = "maros_chambers"
+flow_type = "pull"
+
+exp = Calibration(f"{scopeid}_{mdevice_type}_cellflow_test_{flow_type}_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}", append_eid=True)
 sleep(0)
 
 

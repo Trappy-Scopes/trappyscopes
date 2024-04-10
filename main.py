@@ -48,7 +48,7 @@ from time import sleep
 from devicetree import ScopeAssembly
 from terminalplot import *
 from sharing import Share
-#from scriptengine import LoadScript
+from loadscripts import ScriptEngine
 #sys.path.append(["./cameras/", "./lights/", "./abcs/"])
 from user import User
 from config.common import Common
@@ -264,11 +264,11 @@ if exp_name:
 
 
 ## Run Scriot file
-if len(sys.argv) > 1:
+i#f len(sys.argv) > 1:
 	#Experiment.run(sys.argv[1])
 	#__import__(sys.argv[1], globals(), locals())
-	for exefile in scriptfiles:
-		LoadScript(exefile)
+#	for exefile in scriptfiles:
+#		LoadScript(exefile)
 ##------
 
 
@@ -282,8 +282,7 @@ def exit():
 	"""
 	Custom overloaded exit function.
 	"""
-	global exp
-	if exp == None:
+	if exp != None:
 		if exp.active:
 			exp.close()
 	#if device_metadata["auto_fsync"]:
@@ -293,6 +292,10 @@ def exit():
 		if cam.is_open():
 			cam.close()
 	sys.exit()
+
+
+### Run all scripts
+ScriptEngine.run_all(globals())
 
 from measurement import Measurement
 m = Measurement(q=2, qq=123, m=234, o=1.123)
