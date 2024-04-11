@@ -129,3 +129,45 @@ print(fn_("do", 1, 2, 3, kwg=123, sf="dsfs"))
     #     break
     # except Exception as e:
     #     print(e)
+
+    def calibrate_camera():
+        """
+        Slowly increase light and measure camera counts.
+        """
+        return
+        # Fix resolution and framerate
+        cmap = {'r':0, 'g':1, 'b':2}
+        COLOR_CALIBRATION_RESOLUTION = 0.05
+        color_calib_curve = {}
+        color_calib_curve_std = {}
+        total_pixels = camera.resolution[0]*camera.resolution[1]
+        
+        for color in ['r', 'g', 'b']:   
+            self.lights.set_color(color)
+            color_calib_curve[color] = {}
+            color_calib_curve_std[color] = {}
+            time.sleep(2)
+            if self.mcu.completed(timeout_sec=2): #How would this work?
+                for lux in range(0.0, 1.0, COLOR_CALIB_RESOLUTION):
+                    
+                    self.lights.set_lux(lux)
+                    if self.mcu.completed(timeout_sec=2):
+                        time.sleep(2) # Sleep fot 2 seconds
+                        
+                        frames = self.get_frames()
+                        # frames[frame_no][row][column][color]
+                        r_ch = []
+                        g_ch = []
+                        b_ch = []
+                        for f in frames.shape[0]:
+                            # TODO summation needs to happen over entire array: here axis is not specified. Fix
+                            r_ch.append(np.sum(frames[f, :, :, 0], dtype=np.float64)/total_pixels)
+                            g_ch.append(np.sum(frames[f, :, :, 1], dtype=np.float64)/total_pixels)
+                            b_ch.append(np.sum(frames[f, :, :, 2], dtype=np.float64)/total_pixels)
+
+                        # Sum over all channels
+                        color_calib_curve[color][lux] = [np.mean(r_ch), np.mean(g_ch), np.mean(b_ch)]
+                        color_calib_curve_std[color][lux] = [np.std(r_ch), np.std(g_ch), np.std(b_ch)]
+
+        print(color_calib_curve)
+        print(color_calib_curve_std)

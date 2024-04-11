@@ -1,4 +1,13 @@
 
+"""
+TODO:
++ Implement a framework for reading values.
++ Sampling subprocess
++ Data saving framework
++ Timetagging framework
+
+"""
+
 class Sensor:
     pass
 

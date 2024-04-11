@@ -37,7 +37,6 @@ from colorama import Fore
 from cameras.selector import CameraSelector
 from lights.selector import LightSelector
 from picodevice import RPiPicoDevice
-from picolight import PicoLight
 from utilities import autocompleter
 
 # Other Resources
@@ -111,6 +110,15 @@ scopeid = device_metadata["name"]
 Share.scopeid = scopeid
 Common.scopeid = scopeid
 
+from optics import Optics
+Optics.populate(device_metadata["optics"])
+
+from scopeframe import ScopeFrame
+ScopeFrame.populate(device_metadata)
+
+from fluidicsdevice import FluidicsDevice
+trap = FluidicsDevice("unknown microfluidics device")
+
 
 RPiPicoDevice.print_all_ports()
 
@@ -139,9 +147,7 @@ if not pico.connected:
 pico.exec_main()
 log.info(pico)
 
-#lit = LightSelector(device_metadata["hardware"]["illumination"])
-lit = PicoLight(pico, "l1")
-log.info(lit)
+lit = RPiPicoDevice.Emit("l1", pico)
 
 print("\n\n")
 print(Markdown("# CAMERA"))

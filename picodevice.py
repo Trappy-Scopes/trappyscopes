@@ -12,6 +12,7 @@ TODO:
 + Connectin protocol
 + Auto Connect Framework, Auto detect framework
 + Webrepl, Handshake
++ Split into multiple
 """
 class PicoProxyObject:
 
