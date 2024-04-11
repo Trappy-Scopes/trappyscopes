@@ -270,7 +270,7 @@ if exp_name:
 
 
 ## Run Scriot file
-i#f len(sys.argv) > 1:
+#if len(sys.argv) > 1:
 	#Experiment.run(sys.argv[1])
 	#__import__(sys.argv[1], globals(), locals())
 #	for exefile in scriptfiles:
