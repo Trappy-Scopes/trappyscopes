@@ -5,7 +5,7 @@
 *.jpg
 
 # Device specific config
-deviceid.yaml
+#deviceid.yaml
 ./config/deviceid.yaml
 
 
