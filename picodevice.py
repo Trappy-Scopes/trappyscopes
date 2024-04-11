@@ -4,6 +4,8 @@ from pprint import pprint
 from utilities import pyboard
 from rich import print
 
+
+from utilities.resolvetypes import resolve_type 
 """
 TODO: 
 
@@ -234,6 +236,10 @@ class RPiPicoDevice:
 		ret = self.pico.exec(command)
 		self.print_(f"{self.name} said >> {ret.decode()}")
 		return ret.decode()
+
+	def exec_cleanup(self, command):
+		result = self.__call__(command)
+		return resolve_type(result.strip("\r\n"))
 
 	def exec_main(self):
 		"""

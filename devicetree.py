@@ -1,5 +1,6 @@
 #from device_state import device_perma_state
 from pprint import pprint
+from rich import print
 import yaml
 import json
 
@@ -7,9 +8,13 @@ class RPi():
 	"""
 	Placeholder object for RPi 4B.
 	"""
-	def __repr__(self):
+	description = "Placeholder RPi 4B object."
+	#def __repr__(self):
 		#return device_perma_state()
-		pass
+	#	pass
+
+class TSDeviceNotRegistered(Exception):
+	pass
 
 class ScopeAssembly:
 	"""
@@ -35,13 +40,16 @@ class ScopeAssembly:
 
 	def __init__(self):
 		print("DevNotes: ScopeAssembly TODO: Construct class")
-		self.tree = {"rpi": None, 
-					 "cam": "camera", 
-					 "pico": {"lit": "light", "beacon" : "beacon", 
-					 "tandh": "t&h sensor" }}
+		self.tree = {"rpi": RPi()}
 		self.descs = {}
-		self.draw_tree()
+		#self.draw_tree()
 		#pprint({"assembly": self.tree}, indent=4)
+
+	def __getattr__(self, device):
+		if device in self.tree:
+			return self.tree[device]
+		else:
+			raise TSDeviceNotRegistered(f"Device not found: {device}")
 
 	def add_device(self, name, deviceobj, description=None):
 		self.tree[name] = deviceobj
@@ -51,7 +59,9 @@ class ScopeAssembly:
 			self.descs[name] = "Mystery device does magical things!"
 
 	def draw_tree(self):
-		tree_str = json.dumps({"assembly": self.tree}, indent=4)
+		print({"assembly": self.tree})
+		return
+		tree_str = yaml.dump({"assembly": self.tree}, indent=4)
 		tree_str = tree_str.replace("\n    ", "\n")
 		tree_str = tree_str.replace('"', "")
 		tree_str = tree_str.replace(',', "")
