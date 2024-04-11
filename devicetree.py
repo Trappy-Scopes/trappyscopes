@@ -25,6 +25,7 @@ class ScopeAssembly:
 			|- rpi
 				|- cam (camera)
 			|- pico
+				|- pico
 				|- lit (lights)
 				|- beacon
 				|- sensors.tandh
@@ -39,9 +40,10 @@ class ScopeAssembly:
 	"""
 
 	def __init__(self):
-		print("DevNotes: ScopeAssembly TODO: Construct class")
-		self.tree = {"rpi": RPi()}
+		self.tree = {}
 		self.descs = {}
+
+		self.add_device("rpi", RPi())
 		#self.draw_tree()
 		#pprint({"assembly": self.tree}, indent=4)
 
@@ -50,6 +52,12 @@ class ScopeAssembly:
 			return self.tree[device]
 		else:
 			raise TSDeviceNotRegistered(f"Device not found: {device}")
+
+	def __getitem__(self, device):
+		if device in self.tree:
+			return self.tree[device]
+		else:
+			raise KeyError("device")
 
 	def add_device(self, name, deviceobj, description=None):
 		self.tree[name] = deviceobj

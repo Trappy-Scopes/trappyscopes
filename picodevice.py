@@ -22,11 +22,14 @@ class PicoProxyObject:
 		print("Created object:", self.obj)
 
 	def __getattr__(self, fn, *args, **kwargs):
-		
-		def __implementer__(*args, **kwargs):
-			return self.pico(self.__exec_str__(fn, *args, **kwargs))
-
-		return __implementer__
+		if fn != "print":
+			def __implementer__(*args, **kwargs):
+				return self.pico(self.__exec_str__(fn, *args, **kwargs))
+			return __implementer__
+		else:
+			def __print_implementer__(*args, **kwargs): ## maybe return a recursive
+				return self.pico(f"print{self.__getattr__(*args,  **kwargs)}")
+			return __print_implementer__
 
 		if self.unsafe:
 			print(fn, args, kwargs)
