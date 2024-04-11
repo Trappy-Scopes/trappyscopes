@@ -28,6 +28,8 @@ exp.delay("Init stabilization", 5)
 motor_pico = pico
 print(motor_pico)
 print(motor)
+motor_id = "motor2"
+motor = scope[motor_id]
 cam.close()
 
 
@@ -37,8 +39,7 @@ cam.close()
 min_delay_sec = 60*10
 relax_delay_sec = 30
 freq = 10
-motor_id = "motor2"
-motor = scope[motor_id]
+
 
 speedset = []
 """
