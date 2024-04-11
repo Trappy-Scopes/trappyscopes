@@ -23,13 +23,16 @@ class PicoProxyObject:
 
 	def __getattr__(self, fn, *args, **kwargs):
 		if fn != "print":
-			def __implementer__(*args, **kwargs):
-				return self.pico(self.__exec_str__(fn, *args, **kwargs))
-			return __implementer__
+			return PicoProxyObject(f"{self.obj}.{fn}", self.pico)
 		else:
 			def __print_implementer__(*args, **kwargs): ## maybe return a recursive
 				return self.pico(f"print{self.__getattr__(*args,  **kwargs)}")
 			return __print_implementer__
+
+	def __call__(*args, **kwargs):
+		def __implementer__(*args, **kwargs):
+				return self.pico(self.__exec_str__(fn, *args, **kwargs))
+		return __implementer__
 
 		if self.unsafe:
 			print(fn, args, kwargs)
