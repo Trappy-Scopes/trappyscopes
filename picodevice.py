@@ -68,7 +68,7 @@ class PicoProxyObject:
 				if i != len(kwargs)-1:
 					kwargs_str += ", "
 
-		construction = f"{self.obj}.{fn}({args_str}{optional_comma}{kwargs_str})"
+		construction = f"{self.obj}{fn}({args_str}{optional_comma}{kwargs_str})"
 		print("Construction: ", construction)
 		return construction
 
