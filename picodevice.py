@@ -29,7 +29,7 @@ class PicoProxyObject:
 				return self.pico(f"print{self.__getattr__(*args,  **kwargs)}")
 			return __print_implementer__
 
-	def __call__(*args, **kwargs):
+	def __call__(self, *args, **kwargs):
 		#def __implementer__(*args, **kwargs):
 		return self.pico(self.__exec_str__(fn, *args, **kwargs))
 		#return __implementer__
