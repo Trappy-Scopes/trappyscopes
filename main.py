@@ -120,6 +120,9 @@ from fluidicsdevice import FluidicsDevice
 trap = FluidicsDevice("unknown microfluidics device")
 
 
+from bookeeping.session import Session
+session = Session()
+
 RPiPicoDevice.print_all_ports()
 
 ##3. Print Header
