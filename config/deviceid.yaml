@@ -3,7 +3,7 @@ uuid: null
 type: microscope
 hardware:
   pico:
-  - pico
+  - nullpico
   - pico1
   - nullpico
   camera: nullcamera
