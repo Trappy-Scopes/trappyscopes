@@ -23,7 +23,7 @@ class PicoProxyObject:
 
 	def __getattr__(self, fn, *args, **kwargs):
 		if fn != "print":
-			return PicoProxyObject(f"{self.obj}{"."*bool(self.obj)}{fn}", self.pico)
+			return PicoProxyObject(f"{self.obj}{'.'*bool(self.obj)}{fn}", self.pico)
 		else:
 			def __print_implementer__(*args, **kwargs): ## maybe return a recursive
 				return self.pico(f"print{self.__getattr__(*args,  **kwargs)}")
