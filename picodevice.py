@@ -2,7 +2,7 @@ import platform
 from logging import log
 from pprint import pprint
 from utilities import pyboard
-
+from rich import print
 
 """
 TODO: 
@@ -20,7 +20,14 @@ class PicoProxyObject:
 		print("Created object:", self.obj)
 
 	def __getattr__(self, fn, *args, **kwargs):
+		
+		def __implementer__(*args, **kwargs):
+			return self.pico(self.__exec_str__(fn, *args, **kwargs))
+
+		return __implementer__
+
 		if self.unsafe:
+			print(fn, args, kwargs)
 			execstr = self.__exec_str__(fn, args, kwargs)
 			print("Exec: ", execstr)
 			return self.pico(execstr)
@@ -34,6 +41,9 @@ class PicoProxyObject:
 				raise AttributeError(f"'{type(self.obj).__name__}' object has no attribute '{fn}'")
 
 	def __exec_str__(self, fn, *args, **kwargs):
+		
+		print(args)
+		print(kwargs)
 		args_str = ""
 		kwargs_str = ""
 
@@ -49,7 +59,7 @@ class PicoProxyObject:
 				kwargs_str += (str(key) + "=" + obj)
 				if i != len(kwargs)-1:
 					kwargs_str += ", "
-		
+
 		construction = f"{self.obj}.{fn}({args_str}{optional_comma}{kwargs_str})"
 		print("Construction: ", construction)
 		return construction
