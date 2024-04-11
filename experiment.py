@@ -248,7 +248,7 @@ class Experiment:
 		try:
 			start = time.time_ns()
 			print(start)
-			for i in track(range(steps), description=f"exp-step: blocking delay: [red]{name}[default] | [blue]{seconds}s[default] >> "):
+			for i in track(range(steps), description=f"exp-step: blocking delay: [red]{name}[default] | [cyan]{seconds}s[default] >> "):
 			    time.sleep(seconds/steps)  # Simulate work being done
 			self.log(name, attrib={"type":"delay", "duration":seconds, "start_ns":start, 
 								   "end_ns": time.time_ns(), "interrupted": False, "counter":self.counter})
