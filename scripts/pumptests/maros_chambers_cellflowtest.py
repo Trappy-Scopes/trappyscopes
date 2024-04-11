@@ -36,6 +36,8 @@ cam.close()
 min_delay_sec = 60*10
 relax_delay_sec = 30
 freq = 10
+motor_id = "motor2"
+motor = scope[motor_id]
 
 speedset = []
 """
@@ -76,12 +78,15 @@ exp.logs["min_delay_sec"] = min_delay_sec
 exp.logs["relax_delay_sec"] = relax_delay_sec
 exp.logs["results"] = []
 exp.logs["magnification"] = 4
+exp.logs["motor_id"] = motor_id
 
 
 ## Set Frequency
-motor_pico(f"motor.fwdpin.freq({freq})")
-motor_pico(f"motor.revpin.freq({freq})")
-print(f"Fwd pin freq: {motor_pico('print(motor.fwdpin.freq())')}")
+motor.fwdpin.freq(freq)
+motor.revpin.freq(freq)
+
+
+print(f"Fwd pin freq: {motor_pico(f'print({motor_id}.fwdpin.freq())')}")
 
 print(f"Speeds: {speedset}")
 print(f"Will test {len(speedset)} speeds!")
@@ -92,9 +97,9 @@ print(f"Will test {len(speedset)} speeds!")
 print("Load pipe ??????????  -- type ``load-pipe`` ")
 if exp.user_prompt(None, label="load-pipe") == "load-pipe":
 	exp.log_event("load-pipe-triggered")
-	motor_pico("motor.speed(0.5)")
+	motor.speed(0.5)
 	exp.delay("Pump working", 7)
-	motor_pico("motor.hold()")
+	motor.hold()
 	exp.log_event("load-pipe-completed")
 ####
 
@@ -116,7 +121,7 @@ if exp.user_prompt(None, label="more-load") == "more-load":
 
 ### Start Experiment
 exp.user_prompt("start-exp")
-motor_pico(f"motor.speed({speedset[0]})")
+motor.speed(speedset[0])
 exp.log_event(f"motor-started-speed-{speedset[0]}")
 exp.delay("Experiment start delay", 30)
 exp.log_event(f"init-stabilization-{30}s")
@@ -128,7 +133,7 @@ for i, speed in enumerate(speedset):
 
 	### set speed
 	print(f"Motor speed: {speed}")
-	motor_pico(f"motor.speed({speed})")
+	motor.speed(speed)
 	print("Speed updated.")
 	
 
@@ -154,7 +159,7 @@ for i, speed in enumerate(speedset):
 
 	## Record measurements
 	dur = stop-start
-	result = {"duty":(motor_pico("print(motor.duty)").rstrip("\r\n")), 
+	result = {"duty":(motor_pico(f"print({motor_id}.duty)").rstrip("\r\n")), 
 			  "speed": speed, "freq":freq,  "duration":dur,
 			  "mdevice": mdevice_type, "flow_type": flow_type,
 			  "setup": "syringe_to_syringe", "overflow": 0, "success": None,
@@ -168,7 +173,7 @@ for i, speed in enumerate(speedset):
 	print("Measurement done!!!")
 
 ## Stop motor and end experiment.
-motor_pico("motor.hold()")
+motor.hold()
 exp.close()
 
 
