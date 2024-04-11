@@ -106,7 +106,7 @@ for script in args.scriptlist_:
         scriptlist.append(script)
     else:
         scriptlist += [script[1]]*int(script[0])
-if None ion scriptlist:
+if None in scriptlist:
     scriptlist.remove(None)
 ScriptEngine.execlist = scriptlist
 ####### --------------------------------------
