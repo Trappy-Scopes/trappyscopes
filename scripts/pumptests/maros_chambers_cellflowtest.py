@@ -27,6 +27,7 @@ exp.delay("Init stabilization", 5)
 #motor_pico.exec_main()
 motor_pico = pico
 print(motor_pico)
+print(motor)
 cam.close()
 
 
