@@ -1,6 +1,9 @@
 name: null
 uuid: null
 type: null
+frame: null
+optics:
+  lenses: null
 hardware:
   pico: null
   camera: null

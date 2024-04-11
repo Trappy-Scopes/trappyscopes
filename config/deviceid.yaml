@@ -1,6 +1,24 @@
 name: MDev
 uuid: null
 type: microscope
+frame:
+- pico
+- topplate
+- lit
+- diffuser
+- lenses.asphere
+- sample
+- samplestage
+- midplate
+- zoomlens
+- zoomlensholdplate
+- camera
+- baseplate
+optics:
+  lenses:
+  - 120deg plastic asphere
+  - ACL2520U
+  - zoomlens
 hardware:
   pico:
   - nullpico
