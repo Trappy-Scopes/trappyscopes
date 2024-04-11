@@ -88,7 +88,7 @@ exp.logs["motor_id"] = motor_id
 
 ## Set Frequency
 motor.fwdpin.freq(freq)
-motor_id.revpin.freq(freq)
+motor.revpin.freq(freq)
 
 
 print(f"Fwd pin freq: {motor_pico(f'print({motor_id}.fwdpin.freq())')}")
