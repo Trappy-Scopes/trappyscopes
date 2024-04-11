@@ -158,6 +158,7 @@ print(Markdown("# SCOPE READY"))
 scope = ScopeAssembly()
 scope.add_device("cam", cam, description="Main camera.")
 scope.add_device("pico", pico, description="Main microcontroller on Serial.")
+scope.add_device("picoprox", RPiPicoDevice.Emit("", pico))
 all_pico_devs = pico.exec_cleanup("print(Handshake.obj_list(globals_=globals()))")
 for d in all_pico_devs:
 	scope.add_device(d, RPiPicoDevice.Emit(d, pico), description="Pico peripheral.")
