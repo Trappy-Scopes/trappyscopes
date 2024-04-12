@@ -37,6 +37,9 @@ motor = scope[motor_id]
 print(motor)
 exp.logs["motor"] = motor_id
 
+### Pico decision
+motor_pico = pico
+
 
 ### Set motor properties
 motor.fwdpin.freq(freq)
