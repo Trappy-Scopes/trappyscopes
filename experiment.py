@@ -13,10 +13,13 @@ import time
 from rich import print
 from rich.progress import track
 from rich.text import Text
+from rich.prompt import Prompt
+from rich.rule import Rule
 
 import config.common
 from user import User
 from sharing import Share
+from utilities.resolvetypes import resolve_type
 
 class Experiment:
 	"""
@@ -119,6 +122,7 @@ class Experiment:
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
 		self.init_time = time.perf_counter()
 		self.counter = 0
+		self.exp_timer = 0 ### Populated by time.perf_counter() values.
 
 		#TODO self.metadata = Metadata()
 
@@ -162,6 +166,7 @@ class Experiment:
 		self.logs["user"] = User.info
 
 		Experiment.current = self
+
 
 	
 	def __repr__(self):
@@ -328,12 +333,52 @@ class Experiment:
 
 	@increment_counter
 	@autosave
+	def multiprompt(self, callables, labels=[]):
+		"""
+		The received prompt is sent through all callable functions in sequence.
+		A callable that accepts the prompt must return True.
+		A callbale function takes one arguement : the prompt which has been type deducted and cleaned.
+		"""
+		#labels = [str(l) for l in labels]
+		inp = Prompt.ask(f"Experiment user-multiprompt :: [cyan]choices: {labels}[default]", default=False)
+		
+		inp = inp.strip("\n")
+		inp = resolve_type(inp)
+
+		callableid = -1
+		for i, call in enumerate(callables):
+			response = call(inp)
+			if response == True:
+				callableid = i
+				break
+		if callableid == -1:
+			print(Rule(title="Exp multiprompt >> Prompt not accepted!", align="center", style="red"))
+			self.logs("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp,
+					  "choices":labels, "counter":self.counter,
+					  "accepted": False, "prompt_requested":startdt, "prompt_received": datetime.datetime.now()})
+		else:
+			print(print(Rule(title=f"Exp multiprompt >> Prompt accepted: {prompt} : {callables[callableid]}"), align="center", style="green"))
+			self.logs("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp,
+					  "choices":labels, "counter":self.counter,
+					  "accepted": True, "prompt_requested":startdt, "prompt_received": datetime.datetime.now()})
+		return inp
+
+
+	@increment_counter
+	@autosave
 	def interrupted(self):
 		"""
 		Marks an interrupt event - Experiment flow was interrupted by the user.
 		"""
 		self.log("interrupted", attrib={"type": "interrupt",
 									    "counter":self.counter})
+
+
+	### ───────────────────────────── Timers ──────────────────────────────
+	def start_timer(self):
+		self.exp_timer = time.perf_counter()
+	def timer_elapsed(self):
+		return time.perf_counter() - self.exp_timer
 
 class Calibration(Experiment):
 	

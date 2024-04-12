@@ -25,10 +25,11 @@ class FluidicsDevice:
 		#if not frames == None:
 		#	rings = Chamber.detect_ring(frames, **kwargs)
 		#	self.diameter = min([ring.diameter for ring in rings])
+		self.attribs = kwargs
 		FluidicsDevice.current = self
 
 	def __getstate__(self):
-		return {"name": self.name, "type": "fluidicsdevice", "dia_mm": self.dia_mm}
+		return {"name": self.name, "type": "fluidicsdevice", "dia_mm": self.dia_mm, **self.attribs}
 
 	def region_detection(self):
 		"""
