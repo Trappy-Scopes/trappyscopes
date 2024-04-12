@@ -30,10 +30,11 @@ exp.logs["speed_set"] = speedset
 exp.logs["pwm_freq"] = freq
 exp.logs["speedset"] = speedset
 exp.logs["lit"] = "arbitrary"
-exp.logs["results"] = {}
+exp.logs["results"] = []
 ### Get a motor
 motor_id = "motor2"
-motor = scope[motor_id]
+#motor = scope[motor_id]
+motor = scope.picoprox.motor2
 print(motor)
 exp.logs["motor"] = motor_id
 
@@ -60,25 +61,28 @@ for i, speed in enumerate(speedset):
 
 	break_ = False
 	mcnt = 0
-	result = {"success": True}
-	
-	def end_cycle(prompt):
-		if prompt == "end":
-			break_ = True
-			result["end"] : exp.timer_elapsed()
-			return True
-	def mark_fail(prompt):
-		if prompt == "fail":
-			result["success"] = False
-			return True
-	def measure(prompt):
-		if isinstance(prompt, float):
-			result.extend({"duration_s": exp.timer_elapsed(), "mL": prompt})
-			return True
-	def tell_time(prompt):
-		if prompt == "time":
-			print("Elapsed time: ", exp.timer_elapsed(), s)
-			return True
+	result = {"success": False}
+	class Handler:
+		break_ = False
+		result = {}
+		def end_cycle(prompt):
+			if prompt == "end":
+				Handler.break_ = True
+				Handler.result["end"] : exp.timer_elapsed()
+				return True
+		def mark_fail(prompt):
+			if prompt == "fail":
+				Handler.result["success"] = False
+				Handler.break_ = True
+				return True
+		def measure(prompt):
+			if isinstance(prompt, float) or isinstance(prompt, int):
+				Handler.result.update({"fill_duration_s": exp.timer_elapsed(), "mL": prompt, "success": True})
+				return True
+		def tell_time(prompt):
+			if prompt == "time":
+				print("Elapsed time: ", exp.timer_elapsed(), "s")
+				return True
 
 
 	print(f"Motor speed: {speed}")
@@ -88,10 +92,15 @@ for i, speed in enumerate(speedset):
 	motor.speed(speed)
 
 	### Internal loop
-	while not break_:
+	Handler.break_ = False
+	while not Handler.break_:
 
-		prompt = exp.multiprompt([end_cycle, mark_fail, tell_time, measure], labels=["end", "fail", "time", "<mL : float>"])
-	
+		prompt = exp.multiprompt([Handler.end_cycle, Handler.mark_fail, Handler.tell_time, Handler.measure], 
+								 labels=["end", "fail", "time", "<mL : float>"])
+		#if prompt == "end" or isinstance(prompt, float) or \
+		#isinstance(prompt, int):
+		#	print(prompt)
+		#	break_ = True
 	
 	motor.hold()
 	stop = time.perf_counter()
@@ -99,14 +108,15 @@ for i, speed in enumerate(speedset):
 
 	### Fix this
 	result_ = {"duty":(pico(f"print({motor_id}.duty)").rstrip("\r\n")), "motor_id": motor_id,
-				  "speed": speed, "freq":freq,  "duration":dur, "mL":fill_mL,
+				  "speed": speed, "freq":freq,  "duration":dur,
 				  "setup": "syringe_to_syringe", "overflow": 0, "fluidics": trap.__getstate__(),
 				  "experiment_type": "duty_perturbation"}
-	result.extend(result_)
+	Handler.result.update(result_)
 	
-	print(Markdown("#Result"), result)
+	print(Markdown("# Result"), Handler.result)
 
-	exp.logs["results"].append()
+	exp.logs["results"].append(Handler.result)
+	Handler.result = {"success": False}
 	exp.__save__()
 
 	

@@ -340,26 +340,27 @@ class Experiment:
 		A callbale function takes one arguement : the prompt which has been type deducted and cleaned.
 		"""
 		#labels = [str(l) for l in labels]
+		startdt = datetime.datetime.now()
 		inp = Prompt.ask(f"Experiment user-multiprompt :: [cyan]choices: {labels}[default]", default=False)
 		
-		inp = inp.strip("\n")
 		inp = resolve_type(inp)
 
 		callableid = -1
 		for i, call in enumerate(callables):
 			response = call(inp)
+			#print("closure: ", call.__closure__)
 			if response == True:
 				callableid = i
 				break
 		if callableid == -1:
 			print(Rule(title=f"Exp multiprompt >> Prompt not accepted : {inp}!", align="center", style="red"))
-			self.logs("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp,
-					  "choices":labels, "counter":self.counter,
+			self.log("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp, \
+					  "choices":labels, "counter":self.counter, \
 					  "accepted": False, "prompt_requested":startdt, "prompt_received": datetime.datetime.now()})
 		else:
-			print(print(Rule(title=f"Exp multiprompt >> Prompt accepted: {inp} : {callables[callableid]}"), align="center", style="green"))
-			self.logs("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp,
-					  "choices":labels, "counter":self.counter,
+			print(Rule(title=f"Exp multiprompt >> Prompt accepted: {inp} : {callables[callableid]}", align="center", style="green"))
+			self.log("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp, \
+					  "choices":labels, "counter":self.counter, \
 					  "accepted": True, "prompt_requested":startdt, "prompt_received": datetime.datetime.now()})
 		return inp
 
@@ -377,6 +378,7 @@ class Experiment:
 	### ───────────────────────────── Timers ──────────────────────────────
 	def start_timer(self):
 		self.exp_timer = time.perf_counter()
+		return self.exp_timer
 	def timer_elapsed(self):
 		return time.perf_counter() - self.exp_timer
 
