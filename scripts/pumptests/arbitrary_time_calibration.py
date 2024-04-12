@@ -61,10 +61,9 @@ for i, speed in enumerate(speedset):
 
 	break_ = False
 	mcnt = 0
-	result = {"success": False}
 	class Handler:
 		break_ = False
-		result = {}
+		result = {"success": False}
 		def end_cycle(prompt):
 			if prompt == "end":
 				Handler.break_ = True
