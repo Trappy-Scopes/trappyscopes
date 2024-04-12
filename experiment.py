@@ -352,12 +352,12 @@ class Experiment:
 				callableid = i
 				break
 		if callableid == -1:
-			print(Rule(title="Exp multiprompt >> Prompt not accepted!", align="center", style="red"))
+			print(Rule(title=f"Exp multiprompt >> Prompt not accepted : {inp}!", align="center", style="red"))
 			self.logs("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp,
 					  "choices":labels, "counter":self.counter,
 					  "accepted": False, "prompt_requested":startdt, "prompt_received": datetime.datetime.now()})
 		else:
-			print(print(Rule(title=f"Exp multiprompt >> Prompt accepted: {prompt} : {callables[callableid]}"), align="center", style="green"))
+			print(print(Rule(title=f"Exp multiprompt >> Prompt accepted: {inp} : {callables[callableid]}"), align="center", style="green"))
 			self.logs("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp,
 					  "choices":labels, "counter":self.counter,
 					  "accepted": True, "prompt_requested":startdt, "prompt_received": datetime.datetime.now()})
