@@ -8,7 +8,7 @@ import nanoid
 import datetime
 from colorama import Fore
 import time
-
+from collections import OrderedDict
 
 from rich import print
 from rich.progress import track
@@ -20,22 +20,54 @@ import config.common
 from user import User
 from sharing import Share
 from utilities.resolvetypes import resolve_type
+from bookeeping.session import Session
+from uid import uid
+from yamlprotocol import YamlProtocol
+from devicestate import sys_perma_state
+
 
 class Experiment:
 	"""
-	Experiment_name
+	
+	## Metadata and fields
+		|- name
+		|- eid (uid)
+		|- created
+		|- system-info (syspermastate)
+		|- camera-info !!!
+		|-Session
+		:	|- sid (uid) 
+		:	|- <User login info>
+		:	|- <git commit details>
+		:	|- <python package information>
+		:	|- <eid>
+		:	|- <last-counter>
+		|- Measurements
+		:	|- series1
+		:	|- series2
+		|- <Event 1>
+		|- <Event 2>
+		|- <Event 3>
+		|- <Event n>
+
+
+	## File structure
+	<Experiment_name>
 		|- .experiment 			    (identifier)
 		|- Experiment_name.yaml     (event logs)
 		|- data1, data2, data3, ... (data - in the repository)
 		|- postprocess              (postprocessed data)
 		|- analysis                 (analysis results)
+	## Clean until exp.events() return  coherant and chronological sequence of
+	## experiment steps.
+
 
 	"""
 
-	###############
-	current = None
 
-	###############
+	#####SINGLETON#####
+	current = None
+	#####SINGLETON#####
 
 
 	def new(name, append_eid=False):
@@ -43,7 +75,7 @@ class Experiment:
 		Create a new experiment with the given name.
 		"""
 
-		uuid = nanoid.generate('1234567890abcdef', 10)
+		uuid = uid()
 
 		if append_eid:
 			name = name + "_" + uuid
@@ -63,10 +95,10 @@ class Experiment:
 		with open(os.path.join(dir_, "experiment.yaml"), "w") as f:
 			now = datetime.datetime.now()
 			#print(yaml.dump({"Experiment created": [name, uuid]}))
-			f.write(yaml.dump({"Experiment created": 
-									{"name": name, 
-									"uuid": uuid,
-									"created": now}}))
+			f.write(yaml.dump({"name": name, 
+							   "uuid": uuid,
+							   "created": now,
+							   "syspermastate": sys_perma_state()}))
 		return name
 
 
@@ -115,35 +147,31 @@ class Experiment:
 
 		self.exp_dir = os.path.join(config.common.DATA_DIR, self.name)
 		self.log_file = os.path.join(self.exp_dir, "experiment.yaml")
-		self.user = ""
-		self.logs = {}
-		self.events = []
+		
+
+		self.logs = OrderedDict()
+
 		self.unsaved = False # Flag that indicates unsaved changes
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
 		self.init_time = time.perf_counter()
 		self.counter = 0
 		self.exp_timer = 0 ### Populated by time.perf_counter() values.
-
+		self.attribs = {}
+		self.modalities = {} ## Measuremnt modalities
 		#TODO self.metadata = Metadata()
 
 		### Draw ruler
 		from rich.rule import Rule
 		print(Rule(title="Experiment open", align="center", style="green"))
 		####
-
-
 		log.info(f"Loading Experiment: {self.name}")
-		print("Experiment so far: ")
-		pprint([file for file in os.listdir(self.exp_dir) \
-				if os.path.isfile(os.path.join(self.exp_dir, file))])
-		
+
 		# Load experiment logs
 		with open(self.log_file) as file:
 			logs_in_file = yaml.load(file, Loader=Loader)
 		if logs_in_file:
 			self.logs = logs_in_file
 		
-		self.events = list(self.logs.keys())
 			
 
 		## Read scope-id
@@ -158,6 +186,7 @@ class Experiment:
 		self.lastwd = os.getcwd()
 		os.chdir(self.exp_dir)
 		print(f"Working directory changed to: {os.getcwd()}")
+		print(f"[cyan]{self.filetree()}[default]")
 
 		print("Devnotes: Experiment class TODO: submodule Metadata object.")
 
@@ -165,6 +194,7 @@ class Experiment:
 		## User Information
 		self.logs["user"] = User.info
 
+		self.log("session", attrib=Session.current.__getstate__())
 		Experiment.current = self
 
 
@@ -191,13 +221,42 @@ class Experiment:
 			f.write(yaml.dump(self.logs))
 		print(f"Experiment logs updated: {self.log_file}")
 		if self.active:
-			print(f"Experiment {self.name} was closed.")
 			os.chdir(self.lastwd)
 			print(f"Working directory changed to: {os.getcwd()}")
 			Share.updateps1(exp="")
 			self.active = False
 		from rich.rule import Rule
 		print(Rule(title="Experiment closed", align="center", style="red"))
+
+	def filetree(self):
+		"""
+		Print the current file tree of the experiment.
+		"""
+		from subprocess import run
+		out = run(["tree", "-a"], capture_output=True, text=True)
+		return out.stdout
+
+
+	def set_sync_flag(self):
+		"""
+		Mark the experiment for synchronisation.
+		"""
+		syncid = uid()
+		sync = {"sync": True, "syncid": syncid, "dt": datetime.datetime.now()}
+		YamlProtocol.dump(".sync", sync)
+		log.critical(f"Set experiment syncronisation with syncid: {syncid}")
+		self.log("set_sync", attrib={"syncid": syncid})
+
+	def unset_sync_flag(self):
+		"""
+		Umark the experiment **explicitly** for synchronisation.
+		Note: In the absence of .sync file, syncronisation is not performed.
+		"""
+		if os.path.isfile(".sync"):
+			os.remove(".sync")
+		log.critical("Unset experiment syncronisation.")
+		self.log("unset_sync")
+
 
 	def log(self, action, attrib={}):
 		if action in self.logs:
@@ -207,38 +266,76 @@ class Experiment:
 		self.logs[action] = log_
 		return action
 
+	def events(self):
+		return list(self.logs.keys())
+
 	def log_event(self, string):
 		"""
-		Format -> Event: datetime
+		Format -> Event: datetime. ### Obsolete
 		"""
 		if self.active:
 			now = datetime.datetime.now() 
 			self.logs[str(now)] = string
-			self.events.append(string)
 			self.unsaved = True
 		else:
-			print("Experiment is not active. Pleace use exp_close() function or start a new experiment.")
+			print("Experiment is not active. Please use exp_close() function or start a new experiment.")
+
+	### User text & metadata entry
+
+
+	@increment_counter
+	@autosave
+	def note(self, string):
+		self.log("user_note", attrib={"note": string, "type":"user_note"})
+
+	def write(self):
+		"""
+		Wrapper that opens the user prompt. Maybe more modalities - confusion, problem, e
+		"""
+		inp = Prompt.ask("[blue] User Note >>> ")
+		self.note(inp)
+		return inp
+
+	@increment_counter
+	@autosave
+	def add_attrib(key, value):
+		"""
+		Is this a useful function?
+		Add an attribute to the Experiment object.
+		"""
+		self.attribs[key] = value
+
+	###
 
 	def unique(self, string):
 		return not (string in self.logs)
 
+	def __sanatize__(self, name):
+		return name
 
-	def run(self, script):
-		print(f"{Fore.RED} Executing script: {script}{Fore.RESET}")
-		#with open(script) as f:
-		#    exec(f.read(), globals())
-		#script = script.split(".")[0]
-		__import__(script, globals(), locals())
+	def __node_validator__(self, name, type_=None):
+		"""
+		Validate node/acquisition/filenames
+		"""
+		return True
+	def __head_validator__(name):
+		"""
+		Validate experiment directory name.
+		"""
+		return True
 
-	def run(script):
-		print(f"{Fore.RED} Executing script: {script}{Fore.RESET}")
-		#with open(script) as f:
-		#    exec(f.read(), globals())
-		#script = script.split(".")[0]
-		__import__(script, globals(), locals())
 
-	def toggle_beacon(pico):
-		pico("beacon.toggle()")
+	## ----- Measurements ----------------------------
+	def new_measuement(self, name, measurand={}, attribs={}):
+		"""
+		Returns a Stream wrapper aroind a given measurement object.
+		"""
+		onemeasure = Measurement(name, measurand=measurand, attribs=attribs)
+		self.modalities[name] = onemeasure
+		log.log(f"Added measurment modality: {name}")
+		return self.modalities(self.modalities[name]).Stream()
+
+
 
 	### ----- Event Model -----------------------------
 

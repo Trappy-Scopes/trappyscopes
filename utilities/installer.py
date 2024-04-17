@@ -5,7 +5,9 @@ import os
 import sys
 
 class Installer:
-	pylibs = ["rich", "pyyaml", "colorama", "nanoid", "plotext", "asciichartpy", "prompt_toolkit"]
+	pylibs = ["rich", "pyyaml", "colorama", "nanoid", 
+			  "plotext", "asciichartpy", "prompt_toolkit", 
+			  "gitpython"]
 	binlibs = []
 	gitclones = []
 	

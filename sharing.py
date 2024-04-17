@@ -1,14 +1,25 @@
 import sys
 from config.common import Common
+import os
 
 class Share:
+
+	## Software level info
+	scopecli_fullpath = os.path.abspath(".")
+
+
+
 	scopeid = None
 	argparse = {"noep": False}
 
+	### User info
 	user = "ghost"
-	expname = None
 
+	## Experiment info
+	expname = None
 	expdir = Common.expdir
+
+	## 
 
 	def updateps1(user=None, exp=None):
 		

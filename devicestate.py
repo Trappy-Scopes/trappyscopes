@@ -3,8 +3,8 @@ Functions that aggregate and bookeep device permanent state attributes
 and defines the default harware to the experiment object. 
 """
 
-from configr import Configr
-from metadata2 import MetaData
+#from configr import Configr
+#from metadata2 import MetaData
 
 
 # TODO:
@@ -12,12 +12,13 @@ from metadata2 import MetaData
 # Publish metadata2 and submodule it
 # 
 
-def device_perma_state():
+def sys_perma_state():
 	"""
 	Device state which is not subject to change and can be reliably collected anytime.
 	"""
 	from uuid import getnode as get_mac
 	from socket import gethostname, gethostbyname
+	import platform
 	mac=get_mac()
 	mac_str=':'.join(("%012X" % mac) [i:i+2] for i in range(0,12,2))
 
@@ -27,25 +28,11 @@ def device_perma_state():
 	ds =  {
 
 		   # Hardware/Raspberry Pi Settings
-		   "rpi_mac_address" : mac_str,
-		   "rpi_ip_address"  : gethostbyname(gethostname()),
-		   "rpi_hostname"    : gethostname(),
-		   "rpi_os"          : platform.system(),
-		   "rpi_os_release"  : platform.release(),
-
-		   # Calibration Data
-		   "calibration": {
-		   					"illumination_last_date" : None,
-		   					"illumination_channels"  : {},
-		   					"th_last_date"           : {},
-		   					"th_temperature"         : {},
-		   					"th_humidity"            : {}
-		   				  },
-
-		   	"alignment": {"last_alignment_date" : None,
-		   				  "global_alignment"    : False,
-		   				  "section_alignment"   : False             
-		   				 }
+		   "mac_address" : mac_str,
+		   "ip_address"  : gethostbyname(gethostname()),
+		   "hostname"    : gethostname(),
+		   "os"          : platform.system(),
+		   "os_release"  : platform.release()
 		  }
 	return ds
 
@@ -71,9 +58,23 @@ def device_state(reconfig=None):
 				"object_distance_mm" : None,
 				"sample_condensor_distance_mm" : None,
 				"led_height_mm" : None,
-				"led_condensor_height_mm" : None
-	}
+				"led_condensor_height_mm" : None,
 
+				# Calibration Data
+				"calibration": {
+									"illumination_last_date" : None,
+									"illumination_channels"  : {},
+									"th_last_date"           : {},
+									"th_temperature"         : {},
+									"th_humidity"            : {}
+								  },
+
+					"alignment": {"last_alignment_date" : None,
+								  "global_alignment"    : False,
+								  "section_alignment"   : False             
+								 }
+	}
+"""
 	# Collect Microscope ID file
 	device_state = 	Configr(ext=".yaml", ref=ds_ref):
 	device_state.default_config_name = "trappy_config.yaml"
@@ -110,4 +111,4 @@ def device_state(reconfig=None):
 
 			# Export file — !!! Replaces the old one
 			ds_reconfigr.export("trappy_config.yaml", ds_reconfigr.config)
-
+"""

@@ -64,8 +64,13 @@ from rich.markdown import Markdown
 
 ## Import DeviceMetadata
 
+## Login
 from user import User
 User.login(Share.argparse["user"])
+
+## Create Session 
+from bookeeping.session import Session
+session = Session()
 
 
 print("\n\n")
@@ -120,8 +125,6 @@ from fluidicsdevice import FluidicsDevice
 trap = FluidicsDevice("unknown microfluidics device")
 
 
-from bookeeping.session import Session
-session = Session()
 
 RPiPicoDevice.print_all_ports()
 

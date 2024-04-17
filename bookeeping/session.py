@@ -1,8 +1,11 @@
 import datetime
 import os
 import logging as log
-
 from uid import uid
+import git
+import pkg_resources
+
+from sharing import Share
 
 class Session:
 	current = None
@@ -12,15 +15,41 @@ class Session:
 
 	def __init__(self):
 		self.name = uid()
+		self.git_commit_id_ = self.commitid()
+		self.pypkglist_ = self.pypkglist()
 		Session.current = self
+
 	def __repr__(self):
 		return f"< Session : {self.name} >"
 	def __getstate__(self):
-		return {"type": "session", "name": self.name, "id": self.name}
+		return {"type": "session", "name": self.name, "id": self.name,
+				"git_commit_id": self.git_commit_id_, "pypkglist": self.pypkglist_}
 	def reset(self):
 		new = Session()
 		self.name = new.name
 		return new
+
+	def commitid(self):
+		# Open the repository
+		repo = git.Repo(Share.scopecli_fullpath)
+		head = repo.head
+		commit_id = head.commit.hexsha
+		return commit_id
+
+	def wayback_machine(self):
+		"""
+		Restore state to earlier one. Make black and white.
+		"""
+		pass
+
+	def pypkglist(self):
+		packages = [(pkg.key, pkg.version) for pkg in pkg_resources.working_set]
+
+		lst = []
+		for package, version in packages:
+			lst.append([package, version])
+		return lst
+
 
 	
 	"""

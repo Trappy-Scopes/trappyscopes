@@ -120,6 +120,9 @@ for i, speed in enumerate(speedset):
 
 	
 
+
+	
+
 	
 motor.hold()
 exp.close()
