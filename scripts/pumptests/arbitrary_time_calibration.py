@@ -53,7 +53,8 @@ print(f"Will test {len(speedset)} speeds!")
 
 
 from fluidicsdevice import FluidicsDevice
-trap = FluidicsDevice("2mm-inhouse", dia_mm=2, id_="37b8b8c592")
+#trap = FluidicsDevice("2mm-inhouse", dia_mm=2, id_="37b8b8c592")
+trap = FluidicsDevice("maros_traps", dia_mm=5, id_="d985968316")
 exp.logs["fluidicsdevice"] = trap
 
 for i, speed in enumerate(speedset):
