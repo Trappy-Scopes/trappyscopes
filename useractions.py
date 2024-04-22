@@ -1,5 +1,15 @@
 import os
 from rich import print
+from rich.rule import Rule
+from time import sleep
+def clear():
+	"""
+	Clear screen function.
+	"""
+	os.system('clear')
+	print("You can also use Ctrl+L to clear the screen.", Rule())
+	sleep(1)
+	os.system('clear')
 
 def capture(action, name, *args, **kwargs):
 	"""

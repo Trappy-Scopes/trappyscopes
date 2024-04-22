@@ -36,4 +36,7 @@ class User:
 
 	def updateps1():
 		Share.updateps1(user=User.info["user"])
+
+	def name():
+		return User.info["user"]
 		

@@ -8,7 +8,7 @@ class Share:
 	scopecli_fullpath = os.path.abspath(".")
 
 
-
+	mid = None
 	scopeid = None
 	argparse = {"noep": False}
 

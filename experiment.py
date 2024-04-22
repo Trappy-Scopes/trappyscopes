@@ -24,24 +24,57 @@ from bookeeping.session import Session
 from uid import uid
 from yamlprotocol import YamlProtocol
 from devicestate import sys_perma_state
+from tsexceptions import InvalidNameException
+
+
+class ExpEvent(OrderedDict):
+	def __init__(self, kind="event"):
+		self = {
+					"type"       : kind, 
+					"scopeid"    : Share.scopeid,
+					"mid"        : Share.mid, 
+			 		"eid"        : Experiment.current.eid,
+			 		"expname"    : Experiment.current.name,
+					"scriptid"   : Experiment.current.scriptid,
+			 		"sid"        : Session.current.name,
+			 		"dt"         : datetime.datetime.now(),
+			 		"sessiontime": Session.current.timer_elapsed(),
+			  		"exptime"    : Experiment.current.timer_elapsed(),
+			  		"machinetime": time.time_ns(),
+		   		}
+ExperimentEvent = ExpEvent
 
 
 class Experiment:
 	"""
+
+	ExperimentEvents emiited into the <experiemtn_name>.yaml file, and are broadly
+	classified into two kinds based on extra fields that are added to the datastruct.
+
+	An experiment is qualified programaatically as a directory with a .experiment file.
+
+
+				.
+			 	|---> Events (user actions, actuator movements, file _emissions, acquisitions, measurement_stream)
+	Experiment--|
+	Event		|---> Measurements
+				·
 	
-	## Metadata and fields
+	## Experiment is structured as follows.
+	<experiment_name>.yaml file
+		.
 		|- name
 		|- eid (uid)
 		|- created
 		|- system-info (syspermastate)
 		|- camera-info !!!
-		|-Session
+		|- <sessions.yaml>
 		:	|- sid (uid) 
 		:	|- <User login info>
 		:	|- <git commit details>
 		:	|- <python package information>
 		:	|- <eid>
-		:	|- <last-counter>
+		:	|- <last-eventid>
 		|- Measurements
 		:	|- series1
 		:	|- series2
@@ -54,7 +87,10 @@ class Experiment:
 	## File structure
 	<Experiment_name>
 		|- .experiment 			    (identifier)
-		|- Experiment_name.yaml     (event logs)
+		|- .sync                    (Experiment has been setup for synchronisation)
+		|- .analysis                (Information about use in specific analyses)
+		|- <experiment_name>.yaml   (experiment logs)
+		|- <logs>
 		|- data1, data2, data3, ... (data - in the repository)
 		|- postprocess              (postprocessed data)
 		|- analysis                 (analysis results)
@@ -88,23 +124,30 @@ class Experiment:
 		os.mkdir(os.path.join(dir_, "converted"))
 
 		# Copy payload to the dir_
-
 		with open(os.path.join(dir_, ".experiment"), "w") as f:
 			f.write(uuid)
 
+
+		# Create experiment.yaml and sessions.yaml file
 		with open(os.path.join(dir_, "experiment.yaml"), "w") as f:
 			now = datetime.datetime.now()
 			#print(yaml.dump({"Experiment created": [name, uuid]}))
-			f.write(yaml.dump({"name": name, 
-							   "uuid": uuid,
-							   "created": now,
-							   "syspermastate": sys_perma_state()}))
-		return name
+			init_md = {"name": name, 
+					   "eid": uuid,
+					   "created": now,
+					   "syspermastate": sys_perma_state()}
+			f.write(yaml.dump(init_md))
+			print(init_md)
 
+		with open(os.path.join(dir_, "sessions.yaml"), "w") as f:
+			f.write(yaml.dump([]))
+		Session.current = Session(name=uuid)
+
+		return name
 
 	def list_all():
 		"""
-		Returns a list of all qualified experiments.
+		Returns a list of the fullpath of all qualified experiments.
 		"""
 		all_dirs = os.listdir(config.common.DATA_DIR)
 		all_dirs = [os.path.join(config.common.DATA_DIR, dir_) for dir_ in all_dirs if \
@@ -112,89 +155,133 @@ class Experiment:
 		return all_dirs
 
 	def list_all_names():
+		"""
+		Returns a list of just the names of all qualified experiments.
+		"""
 		exps = Experiment.list_all()
 		return [e.rsplit("/", 1)[1] for e in exps]
 
 
 	def autosave(func, *args, **kwargs):
+		"""
+		Decorator that can be used to save the experiment file after certain changes
+		are made.
+		"""
 		def wrapper( *args, **kwargs):
 			func( *args, **kwargs)
 			Experiment.current.__save__()
 		return wrapper
 
-	def increment_counter(func, *args, **kwargs):
+	def is_event(func, *args, **kwargs):
+		"""
+		Decorate a meember function as a function that generates an event.
+		"""
 		def wrapper( *args, **kwargs):
-			Experiment.current.counter += 1
+			Experiment.current.eventid += 1
 			func( *args, **kwargs)
 		return wrapper
 
-	def __init__(self, name, append_eid=False):
 
-		### Close current
+	def Construct(*args, **kwargs):
+		...
+
+
+	def __init__(self, name, append_eid=False, **kwargs):
+		"""
+		Create an experiment.
+
+		name: Experiment name.
+		append_eid : append the experiment eid at the end of the name.
+		Other common kwargs: md -> experiment metadata passed to Experiment.Construct.
+		"""
+
+		### Close current - if open
 		if isinstance(Experiment.current, Experiment):
 			Experiment.current.close()
 
+		all_exps = Experiment.list_all()
+		
+		## First stage validation -> detect obvious culprits
+		if not self.__head_validator__(name):
+			raise InvalidNameException(f"{Fore.RED}Experiment name invalid!")
+		
+		## Clean experiment name
+		self.name = self.__sanatize__(name)
+		## Second stage validaion -> detect any unwanted artifacts.
+		if not self.__head_validator__(name):
+			raise InvalidNameException(f"{Fore.RED}Sanatized experiment name invalid!")
+		
 
-
-		self.all_exps = Experiment.list_all()
-		self.name = name
-		# Check if the experiment exists
-		if not os.path.join(config.common.DATA_DIR, self.name) in self.all_exps:
+		# Check if the experiment exists -> a sanatised and valid name is guaranted
+		# to pass through and will always be recovered.
+		if not os.path.join(config.common.DATA_DIR, self.name) in all_exps:
 			self.name = Experiment.new(self.name, append_eid=append_eid)
-			log.info(f"Creating New Experiment: {self.name}")
-			#log.info(f"{self.name}: {self.exp_dir}")
-
+			log.info(f"Creating new experiment: {self.name}")
 
 		self.exp_dir = os.path.join(config.common.DATA_DIR, self.name)
 		self.log_file = os.path.join(self.exp_dir, "experiment.yaml")
 		
 
-		self.logs = OrderedDict()
-
-		self.unsaved = False # Flag that indicates unsaved changes
-		self.active = True   # Flag that indicates whether the Experiment is currently active.
-		self.init_time = time.perf_counter()
-		self.counter = 0
-		self.exp_timer = 0 ### Populated by time.perf_counter() values.
-		self.attribs = {}
-		self.modalities = {} ## Measuremnt modalities
-		#TODO self.metadata = Metadata()
-
-		### Draw ruler
+		### Draw ruler -> declare the experiment open!
 		from rich.rule import Rule
 		print(Rule(title="Experiment open", align="center", style="green"))
-		####
 		log.info(f"Loading Experiment: {self.name}")
 
-		# Load experiment logs
-		with open(self.log_file) as file:
-			logs_in_file = yaml.load(file, Loader=Loader)
-		if logs_in_file:
-			self.logs = logs_in_file
+
+		## Load logs
+		self.logs = YamlProtocol.load(self.log_file)
+		if not self.logs:
+			log.error("Experiment logs missing!")
+			self.logs = OrderedDict()
+	
 		
-			
-
-		## Read scope-id
-		self.scopeid = ""
-		with open("config/deviceid.yaml") as deviceid:
-			device_metadata = yaml.load(deviceid, Loader=SafeLoader)
-			self.scopeid = device_metadata["name"]
-
-
 		# Changing Working Directory to Experiment Directory		
 		Share.updateps1(exp=self.name)
 		self.lastwd = os.getcwd()
 		os.chdir(self.exp_dir)
 		print(f"Working directory changed to: {os.getcwd()}")
 		print(f"[cyan]{self.filetree()}[default]")
-
 		print("Devnotes: Experiment class TODO: submodule Metadata object.")
 
 
 		## User Information
 		self.logs["user"] = User.info
 
-		self.log("session", attrib=Session.current.__getstate__())
+		## eid and scriptid
+		if "eid" in self.logs:
+			self.eid = self.logs["eid"]
+		else:
+			self.eid = None
+			log.critical("Experiment id is missing!")
+		self.scriptid = None
+
+
+		## Session
+		YamlProtocol.append_list("sessions.yaml", 
+								 {"eid": self.eid,
+					  			  **Session.current.__getstate__()}
+					  			)
+		self.sessions = YamlProtocol.load("sessions.yaml")
+		self.log("session", attrib={"sessionid": Session.current.__getstate__()["name"]})
+
+		
+		self.unsaved = False # Flag that indicates unsaved changes
+		self.active = True   # Flag that indicates whether the Experiment is currently active.
+		
+
+		
+		self.eventid = 0
+		self.init_time = time.perf_counter()  ## Experiment init time
+		self.exp_timer = 0 ### Populated by time.perf_counter() values.
+		self.expclock = 0
+		if "expclock" in self.logs:
+			self.expclock = float(self.logs["expclock"])
+
+		self.attribs = {}
+		self.modalities = {} ## Measuremnt modalities
+		#TODO self.metadata = Metadata()
+
+		### Set the current pointer
 		Experiment.current = self
 
 
@@ -203,6 +290,7 @@ class Experiment:
 		end_time = time.perf_counter()
 		return f"< Experiment: {self.name} :::: duration: {end_time-self.init_time:.3f} s >"
 
+	
 	def __save__(self):
 		if self.active:
 			with open(self.log_file, "w") as f:
@@ -227,6 +315,23 @@ class Experiment:
 			self.active = False
 		from rich.rule import Rule
 		print(Rule(title="Experiment closed", align="center", style="red"))
+
+
+	def newfile(self, filename, attribs={}):
+
+		## Clean
+		filename = self.__sanatize__(filename)
+
+		## Combine
+		filename = f"{self.eid}_{filename}"
+
+		if self.__node_validator__(filename):
+			### Log
+			self.log("file_emitted", attrib=attribs)
+			return filename
+		else:
+			log.critical(f"File name invalid: {filename}")
+			return None
 
 	def filetree(self):
 		"""
@@ -283,7 +388,7 @@ class Experiment:
 	### User text & metadata entry
 
 
-	@increment_counter
+	@is_event
 	@autosave
 	def note(self, string):
 		self.log("user_note", attrib={"note": string, "type":"user_note"})
@@ -296,7 +401,7 @@ class Experiment:
 		self.note(inp)
 		return inp
 
-	@increment_counter
+	@is_event
 	@autosave
 	def add_attrib(key, value):
 		"""
@@ -318,11 +423,17 @@ class Experiment:
 		Validate node/acquisition/filenames
 		"""
 		return True
-	def __head_validator__(name):
+	def __head_validator__(self, name):
 		"""
 		Validate experiment directory name.
 		"""
-		return True
+		flag = True
+		matchers = ["()", ".", "\n", "\r", "\\n", "\\r"]
+		matching = [partstr for partstr in name if any((matcher in name) 
+					for matcher in matchers)]
+		if matching:
+			flag = False
+		return flag
 
 
 	## ----- Measurements ----------------------------
@@ -340,7 +451,7 @@ class Experiment:
 	### ----- Event Model -----------------------------
 
 	
-	@increment_counter
+	@is_event
 	@autosave
 	def delay(self, name, seconds, steps=100):
 		"""
@@ -353,14 +464,14 @@ class Experiment:
 			for i in track(range(steps), description=f"exp-step: blocking delay: [red]{name}[default] | [cyan]{seconds}s[default] >> "):
 			    time.sleep(seconds/steps)  # Simulate work being done
 			self.log(name, attrib={"type":"delay", "duration":seconds, "start_ns":start, 
-								   "end_ns": time.time_ns(), "interrupted": False, "counter":self.counter})
+								   "end_ns": time.time_ns(), "interrupted": False, "eventid":self.eventid})
 		except KeyboardInterrupt:
 			self.log(name, attrib={"type":"delay", "duration":seconds, "start_ns":start,
-					 "end_ns": time.time_ns(), "interrupted": True, "counter":self.counter})
+					 "end_ns": time.time_ns(), "interrupted": True, "eventid":self.eventid})
 		print(time.time_ns())
 
 	
-	@increment_counter
+	@is_event
 	@autosave
 	def track(self, name, task, *args, **kwargs):
 		"""
@@ -383,14 +494,14 @@ class Experiment:
 			end = time.time_ns()
 			self.log(name, attrib={"type":"tracked_task", "duration":float(end-start)/1**-9, "start_ns":start, 
 								   "end_ns": end, "interrupted": False, "task": str(task), "args": args, "kwargs":kwargs,
-								   "description": desc, "counter":self.counter})
+								   "description": desc, "eventid":self.eventid})
 		except KeyboardInterrupt:
 			end = time.time_ns()
 			self.log(name, attrib={"type":"tracked_task", "duration":float(end-start)/1**-9, "start_ns":start,
 								   "end_ns": end, "interrupted": True, "task": str(task), "args": args, "kwargs":kwargs,
-								   "description": desc, "counter":self.counter})
+								   "description": desc, "eventid":self.eventid})
 	
-	@increment_counter
+	@is_event
 	@autosave
 	def user_prompt(self, prompt, label=None):
 		prompt_ = prompt
@@ -412,7 +523,7 @@ class Experiment:
 			name = "prompt"
 
 		event = self.log(name, attrib={"type": "user_prompt", "prompt":prompt,
-									   "label":label, "counter":self.counter})
+									   "label":label, "eventid":self.eventid})
 		
 		self.logs[event]["prompt_requested"] = datetime.datetime.now()
 		
@@ -428,7 +539,7 @@ class Experiment:
 	def follow_protocol(self, *args):
 		pass
 
-	@increment_counter
+	@is_event
 	@autosave
 	def multiprompt(self, callables, labels=[]):
 		"""
@@ -452,24 +563,24 @@ class Experiment:
 		if callableid == -1:
 			print(Rule(title=f"Exp multiprompt >> Prompt not accepted : {inp}!", align="center", style="red"))
 			self.log("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp, \
-					  "choices":labels, "counter":self.counter, \
+					  "choices":labels, "eventid":self.eventid, \
 					  "accepted": False, "prompt_requested":startdt, "prompt_received": datetime.datetime.now()})
 		else:
 			print(Rule(title=f"Exp multiprompt >> Prompt accepted: {inp} : {callables[callableid]}", align="center", style="green"))
 			self.log("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp, \
-					  "choices":labels, "counter":self.counter, \
+					  "choices":labels, "eventid":self.eventid, \
 					  "accepted": True, "prompt_requested":startdt, "prompt_received": datetime.datetime.now()})
 		return inp
 
 
-	@increment_counter
+	@is_event
 	@autosave
 	def interrupted(self):
 		"""
 		Marks an interrupt event - Experiment flow was interrupted by the user.
 		"""
 		self.log("interrupted", attrib={"type": "interrupt",
-									    "counter":self.counter})
+									    "eventid":self.eventid})
 
 
 	### ───────────────────────────── Timers ──────────────────────────────
@@ -481,15 +592,15 @@ class Experiment:
 
 class Calibration(Experiment):
 	
-	def __init__(self, name, append_eid=False):
+	def __init__(self, name, append_eid=False, **kwargs):
 		super().__init__(name, append_eid=append_eid)
 		self.exp_dir = os.path.join(config.common.CALIB_DIR, self.name)
 
 class Test(Experiment):
 
-	def __init__(self, name, append_eid=False):
+	def __init__(self, name, append_eid=False, **kwargs):
 		self.checks = []
-		super().__init__(name, append_eid=append_eid)
+		super().__init__(name, append_eid=append_eid, kwargs=kwargs)
 
 	def check(self, callable_, *args, **kwargs):
 		"""

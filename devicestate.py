@@ -26,13 +26,11 @@ def sys_perma_state():
 
 	# Non-mutable configs
 	ds =  {
-
 		   # Hardware/Raspberry Pi Settings
 		   "mac_address" : mac_str,
 		   "ip_address"  : gethostbyname(gethostname()),
 		   "hostname"    : gethostname(),
-		   "os"          : platform.system(),
-		   "os_release"  : platform.release()
+		   "os"          : [platform.system(), platform.release()]
 		  }
 	return ds
 

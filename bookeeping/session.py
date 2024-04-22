@@ -4,8 +4,14 @@ import logging as log
 from uid import uid
 import git
 import pkg_resources
+import time
+
 
 from sharing import Share
+from user import User
+
+from rich.rule import Rule
+from rich import print
 
 class Session:
 	current = None
@@ -13,20 +19,30 @@ class Session:
 	def reset(self):
 		return Session()
 
-	def __init__(self):
+	def __init__(self, name=None):
 		self.name = uid()
+		if name:
+			self.name = name
 		self.git_commit_id_ = self.commitid()
 		self.pypkglist_ = self.pypkglist()
+
+		self.init_time = time.perf_counter()
+
 		Session.current = self
+
+		print(Rule(title=f"<Session: {self.name}>", style="dull"))
+
 
 	def __repr__(self):
 		return f"< Session : {self.name} >"
+		
 	def __getstate__(self):
-		return {"type": "session", "name": self.name, "id": self.name,
+		return {"type": "session", "name": self.name, "id": self.name, "user": User.name(), 
 				"git_commit_id": self.git_commit_id_, "pypkglist": self.pypkglist_}
-	def reset(self):
-		new = Session()
+	def reset(self, name=None):
+		new = Session(name=name)
 		self.name = new.name
+		self.start_timer()
 		return new
 
 	def commitid(self):
@@ -35,6 +51,13 @@ class Session:
 		head = repo.head
 		commit_id = head.commit.hexsha
 		return commit_id
+
+	def start_timer(self):
+		self.init_time = time.perf_counter()
+		return self.init_time
+	def timer_elapsed(self):
+		return time.perf_counter() - self.init_time
+
 
 	def wayback_machine(self):
 		"""

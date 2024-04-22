@@ -2,6 +2,7 @@ from colorama import Fore, Style
 from rich import print
 from rich.rule import Rule
 from rich.panel import Panel
+
 from experiment import Experiment
 
 class ScriptEngine:
