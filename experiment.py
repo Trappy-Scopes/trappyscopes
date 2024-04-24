@@ -9,6 +9,8 @@ import datetime
 from colorama import Fore
 import time
 from collections import OrderedDict
+import schedule
+from threading import Thread
 
 from rich import print
 from rich.progress import track
@@ -44,6 +46,30 @@ class ExpEvent(OrderedDict):
 		   		}
 ExperimentEvent = ExpEvent
 
+
+class ExpScheduler(schedule.Scheduler):
+	def __init__(self):
+		super().__init__()
+		self.thread = None
+		self.end_thread = False
+	def post_register(self, name):
+		Experiment.current.log(name, 
+			attrib={"type": "periodic_task", "info": self.get_jobs()[-1]})
+	def loop(self):
+		def callback():
+			while not self.end_thread:
+				self.run_pending()
+				time.sleep(0.5)
+			print("Experiment.schedule.loop has been terminated.")
+		self.thread = Thread(name="exp.schedule.loop", target=callback)
+		self.thread.start()
+
+	## TODO - Is this worth it?
+	#def every(self, interval: int = 1):
+	#	job = super().every(interval=interval)
+	#	return job
+	#def do(self, job_func, *args, **kwargs):
+	#	obj = super().do(job_func=job_func, *args, **kwargs)
 
 class Experiment:
 	"""
@@ -281,6 +307,7 @@ class Experiment:
 		self.modalities = {} ## Measuremnt modalities
 		#TODO self.metadata = Metadata()
 
+		self.schedule = ExpScheduler()
 		### Set the current pointer
 		Experiment.current = self
 
@@ -301,6 +328,9 @@ class Experiment:
 		self.close()
 
 	def close(self):
+		self.schedule.end_thread = True
+
+
 		#if self.unsaved:
 		end_time = time.perf_counter()
 		print(f"Experiment duration: {end_time-self.init_time:.3f} seconds.")
@@ -309,10 +339,17 @@ class Experiment:
 			f.write(yaml.dump(self.logs))
 		print(f"Experiment logs updated: {self.log_file}")
 		if self.active:
+			self.active = False
+
+			if isinstance(self.schedule.thread, Thread):
+				self.schedule.thread.join()
+
 			os.chdir(self.lastwd)
 			print(f"Working directory changed to: {os.getcwd()}")
 			Share.updateps1(exp="")
-			self.active = False
+
+
+			
 		from rich.rule import Rule
 		print(Rule(title="Experiment closed", align="center", style="red"))
 
