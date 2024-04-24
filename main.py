@@ -313,6 +313,8 @@ def exit():
 			cam.close()
 	sys.exit()
 
+from transmit.hivemqtt import HiveMQTT
+HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})
 
 ### Run all scripts
 ScriptEngine.run_all(globals())
@@ -321,6 +323,5 @@ from measurement import Measurement
 m = Measurement(q=2, qq=123, m=234, o=1.123)
 Share.updateps1()
 
-from transmit.hivemqtt import HiveMQTT
-HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})
+
 
