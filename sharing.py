@@ -18,7 +18,7 @@ class Share:
 	## Experiment info
 	expname = None
 	expdir = Common.expdir
-
+	logdir = Common.expdir
 	## 
 
 	def updateps1(user=None, exp=None):
