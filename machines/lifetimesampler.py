@@ -9,9 +9,9 @@ class LifeTimeSampler(Machine):
 		self.attribs = attribs
 	
 ## Setup machine configuration
-	
-
-machine = LifeTimeSampler(acq_time_min=5, acq_delay_min=55, tandh_speriod_min=5)
+scope.machine = LifeTimeSampler(acq_time_min=5, acq_delay_min=55, tandh_speriod_min=5)
+#scope.assert_device("actuators", "light")
+#scope.assert_device("actuators", "pump")
 
 
 if exp.state.setup:
@@ -42,11 +42,24 @@ if exp.state.setup:
 				Handler.break_ = True
 				Handler.result["end"] : exp.timer_elapsed()
 				schedule.clear()
+		def pulse_pump(prompt):
+			if prompt == "start-pump":
+				def pulse_callback():
+					scope.actuators.pump.speed(0.035)
+					time.sleep(2)
+					scope.actuators.pump.hold()
+				exp.schedule.every(1).hour()
+
+	
 	def promptfn():
 		while not Handler.break_:
-			exp.multiprompt([Handler.pump_flow, Handler.tell_time, Handler.end],
-					   labels=["<record-flow-mL>", "time", "end"])
-	 
+			exp.multiprompt([Handler.pump_flow, Handler.tell_time, 
+							 Handler.end, Handler.pulse_pump],
+					   		labels=["<record-flow-mL>", "time", 
+					   				 "end", "start-pump"])
+
+
+	
 	prompt = threading.Thread(name=prompt, target=promptfn())
 
 	## --------------------------------------------------------------------------------
@@ -57,7 +70,7 @@ if exp.state.setup:
 		dt = str(datetime.date.today()).replace("-", "_")
 		t = time.localtime(time.time())
 		cam.acquire(exp.newfile(f"{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}"))
-
+		exp.delay("Acquisition waiting time", 55*60)
 	exp.schedule.every(1).hours.do(acq_fn)
 
 
