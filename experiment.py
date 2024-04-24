@@ -312,7 +312,7 @@ class Experiment:
 		Experiment.current = self
 
 		from transmit.hivemqtt import HiveMQTT
-		HiveMQTT.send(f"{scopeid}/experiment", {"state": "init", "session": Session.current.name, "eid":self.eid})
+		HiveMQTT.send(f"{Share.scopeid}/experiment", {"state": "init", "session": Session.current.name, "eid":self.eid})
 
 
 	
