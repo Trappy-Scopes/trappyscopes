@@ -311,6 +311,9 @@ class Experiment:
 		### Set the current pointer
 		Experiment.current = self
 
+		from transmit.hivemqtt import HiveMQTT
+		HiveMQTT.send(f"{scopeid}/experiment", {"state": "init", "session": Session.current.name, "eid":self.eid})
+
 
 	
 	def __repr__(self):
