@@ -10,7 +10,6 @@ import argparser
 ### Printing and logging -------
 from rich import pretty
 pretty.install()
-import logging
 # ------------------------------
 
 
@@ -61,6 +60,15 @@ from rich.markdown import Markdown
 
 
 ## Set Logging
+import logging
+from rich.logging import RichHandler
+
+FORMAT = "%(message)s"
+logging.basicConfig(
+    level="NOTSET", format=FORMAT, datefmt="[%X]", handlers=[RichHandler(rich_tracebacks=True)]
+)
+
+log = logging.getLogger("main")
 
 ## Import DeviceMetadata
 
@@ -76,8 +84,7 @@ session = Session()
 print("\n\n")
 ## 0. Setlogging and device state
 og_directory = os.getcwd()
-log = logging.Logger("main")
-log.setLevel(0)
+
 
 User.exp_hook = exp
 
