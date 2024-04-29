@@ -2,7 +2,7 @@ import platform
 from logging import log
 
 import asyncio
-import websockets
+import websocket
 
 from rich import print
 from rich.panel import Panel
@@ -182,7 +182,7 @@ class NetworkMPDevice(MicropythonDevice):
 	def connect(self, port):
 		try:
 			ws = websocket.WebSocketApp(ws_url)
-		    ws.run_forever()
+			ws.run_forever()
 			self.port = port
 			self.device = ws
 			self.connected = True
@@ -273,7 +273,7 @@ class SerialMPDevice(MicropythonDevice):
 		# Selective port connections based on system scan
 		for pport in SerialMPDevice.potential_ports():
 			if "Board in FS mode" in pport:
-				print(f"Trying out -> {pport.split(" ")[0]}")
+				print(f"Trying out -> {pport.split(' ')[0]}")
 				self.connect(port=pport.split(" ")[0])
 
 			if self.connected:
