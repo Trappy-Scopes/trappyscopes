@@ -2,7 +2,7 @@ import platform
 from logging import log
 
 import asyncio
-import websocket
+import websockets
 
 from rich import print
 from rich.panel import Panel
