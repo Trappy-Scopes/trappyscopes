@@ -93,6 +93,13 @@ for i, speed in enumerate(speedset):
 				print("Marked for pressure buildup at junction.")
 				Handler.result.update({"pressure_buildup": True})
 				return True
+		def fill_pipe(prompt):
+			if prompt == "fillpipe":
+				print("Filling pipe! @ speed 0.5 for 5 seconds.")
+				motor.speed(0.5)
+				sleep(5)
+				motor.speed(speed)
+				return True
 
 	print(f"Motor speed: {speed}")
 	exp.user_prompt("start")
@@ -105,8 +112,8 @@ for i, speed in enumerate(speedset):
 	while not Handler.break_:
 
 		prompt = exp.multiprompt([Handler.end_cycle, Handler.mark_fail, Handler.tell_time, 
-								  Handler.measure, Handler.mark_air, Handler.mark_pressure], 
-								 labels=["end", "fail", "time", "<mL : float>", "air", "pressure"])
+								  Handler.measure, Handler.mark_air, Handler.mark_pressure, Handler.fill_pipe], 
+								 labels=["end", "fail", "time", "<mL : float>", "air", "pressure", "fillpipe"])
 		#if prompt == "end" or isinstance(prompt, float) or \
 		#isinstance(prompt, int):
 		#	print(prompt)

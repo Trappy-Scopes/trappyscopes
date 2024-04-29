@@ -9,7 +9,7 @@ class Installer:
 			  "plotext", "asciichartpy", "prompt_toolkit", 
 			  "GitPython", "schedule", "paho-mqtt"]
 	binlibs = []
-	gitclones = []
+	gitclones = ["https://github.com/Trappy-Scopes/network.git"]
 	
 
 	def do_all():
@@ -47,6 +47,7 @@ class Installer:
 		
 
 	def install_py_libs(required_libs):
+
 		for i, lib in enumerate(required_libs):
 			try: 
 				__import__(lib)
@@ -59,8 +60,26 @@ class Installer:
 	def install_bin_libs(required_libs):
 		pass
 
-	def gitclone(loc="./utilities"):
-		pass
+	def gitclone(dir_="../"):
+
+		from git import Repo
+
+		dir_ = os.path.abspath(dir_)
+		required_libs = list(required_libs)
+		
+		for lib in required_libs:
+			print(f"Git clone: Checking :  {lib}")
+			lib_name = lib.split("/")[-1].rstrip(".git")  
+			installer = lambda:	os.system(f"git clone {lib} -C {dir_}")
+			if not os.path.isdir(os.path.join(dir_, lib_name)):
+				installer()
+			else:
+				try:
+					repo = Repo(os.path.join(dir_, lib_name))
+				except:
+					installer()
+
+			
 
 	def check_submodules():
 		pass

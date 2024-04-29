@@ -21,6 +21,10 @@ class Share:
 	logdir = Common.expdir
 	## 
 
+
+	## Main directories
+	networkinfo_path = "../network/network.yaml"
+
 	def updateps1(user=None, exp=None):
 		
 		if user:

@@ -4,6 +4,11 @@ from rich import print
 import yaml
 import json
 
+
+from sharing import Share
+from yamlprotocol import YamlProtocol
+
+
 class RPi():
 	"""
 	Placeholder object for RPi 4B.
@@ -42,6 +47,7 @@ class ScopeAssembly:
 	def __init__(self):
 		self.tree = {}
 		self.descs = {}
+		self.network = YamlProtocol.load(Share.networkinfo_path)
 
 		self.add_device("rpi", RPi())
 		#self.draw_tree()
@@ -65,6 +71,18 @@ class ScopeAssembly:
 
 		if description == None:
 			self.descs[name] = "Mystery device does magical things!"
+
+	def connect(self, devicename):
+		if "." in devicename: ## To check if it is an ip address
+			ip = devicename
+		else:
+			ip = self.network[devicename]["ip"]
+		print(f"Attempting connections to device:: {devicename} at {ip}.")
+
+		if self.network[devicename]["os"] == "micropython":
+			self.tree[devicename] = MicropythonDevice(ip=ip)
+
+
 
 	def draw_tree(self):
 		print({"assembly": self.tree})
