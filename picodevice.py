@@ -1,5 +1,5 @@
 import platform
-from logging import log
+import logging as log
 
 import asyncio
 import websockets
