@@ -131,7 +131,7 @@ class Camera(AbstractCamera):
 		if self.cam.is_open:
 			self.cam.close()
 			now = time.perf_counter()
-			log.info(f"PiCamera2 Camera was closed: {now} : duration {now-self.opentime_ns:.2f}s")
+			log.info(f"PiCamera2 Camera was closed: {now} : duration {now-self.opentime_ns:.2f} s.")
 
 
 	def new_config(self):
