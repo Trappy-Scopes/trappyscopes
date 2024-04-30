@@ -22,7 +22,7 @@ exp.delay("Start delay", 5)
 #speedset = [0.99, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
 
 ## extensive
-do_cam_acquisitions = True
+do_cam_acquisitions = False
 cam.close()
 fill_mL = 20
 freq = 10
@@ -138,7 +138,7 @@ for i, speed in enumerate(speedset):
 	result_ = {"duty":(pico(f"print({motor_id}.duty)").rstrip("\r\n")), "motor_id": motor_id,
 				  "speed": speed, "freq":freq,  "duration":dur,
 				  "setup": "syringe_to_syringe", "overflow": 0, "fluidics": trap.__getstate__(),
-				  "experiment_type": "duty_perturbation"}
+				  "experiment_type": "duty_perturbation", "flow_dir": "push"}
 	Handler.result.update(result_)
 	
 	print(Markdown("# Result"), Handler.result)
