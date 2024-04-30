@@ -22,6 +22,7 @@ exp.delay("Start delay", 5)
 #speedset = [0.99, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09]
 
 ## extensive
+do_cam_acquisitions = True
 fill_mL = 20
 freq = 10
 #speedset = \#[0.027, 0.028, 0.029, 0.030, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, \
@@ -106,6 +107,15 @@ for i, speed in enumerate(speedset):
 
 	start = exp.start_timer()
 	motor.speed(speed)
+	
+	if do_cam_acquisitions:
+		exp.delay("Acq delay", 5)
+
+		name = f"peristat_speed_{str(speed).replace('.', '_')}.h264"
+		os.system(f"libcamera-vid -t {10*1000} -f -o {name}")
+		Handler.result.update({"acq": name, "traps_close": False})
+
+
 
 	### Internal loop
 	Handler.break_ = False
