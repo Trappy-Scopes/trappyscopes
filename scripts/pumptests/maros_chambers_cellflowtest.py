@@ -12,8 +12,12 @@ t = time.localtime(time.time())
 
 
 
-mdevice_type = "2mm_inhouse"
+mdevice_type = "maros"
 flow_type = "pull"
+from fluidicsdevice import FluidicsDevice
+#trap = FluidicsDevice("2mm-inhouse", dia_mm=2, id_="37b8b8c592")
+trap = FluidicsDevice("maros_traps", dia_mm=5, id_="2d255a89b2")
+exp.logs["fluidicsdevice"] = trap
 
 exp = Calibration(f"{scopeid}_{mdevice_type}_cellflow_test_{flow_type}_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}", append_eid=True)
 exp.delay("Init stabilization", 5)
@@ -169,7 +173,7 @@ for i, speed in enumerate(speedset):
 			  "mdevice": mdevice_type, "flow_type": flow_type,
 			  "setup": "syringe_to_syringe", "overflow": 0, "success": None,
 		      "experiment_type": "flow_threshold_with_cells", 
-		      "acq": name, "lit_state":"arbitrary", "flow":False}
+		      "acq": name, "lit_state":"arbitrary", "flow":False, "fluidics": trap.__getstate__()}
 	pprint.pprint(result)
 	exp.logs["results"].append(result)
 
