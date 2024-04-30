@@ -14,10 +14,7 @@ t = time.localtime(time.time())
 
 mdevice_type = "maros"
 flow_type = "pull"
-from fluidicsdevice import FluidicsDevice
-#trap = FluidicsDevice("2mm-inhouse", dia_mm=2, id_="37b8b8c592")
-trap = FluidicsDevice("maros_traps", dia_mm=5, id_="2d255a89b2")
-exp.logs["fluidicsdevice"] = trap
+
 
 exp = Calibration(f"{scopeid}_{mdevice_type}_cellflow_test_{flow_type}_{dt}_{t.tm_hour}_{t.tm_min}_{t.tm_sec}", append_eid=True)
 exp.delay("Init stabilization", 5)
@@ -37,7 +34,10 @@ print(motor)
 cam.close()
 
 
-
+from fluidicsdevice import FluidicsDevice
+#trap = FluidicsDevice("2mm-inhouse", dia_mm=2, id_="37b8b8c592")
+trap = FluidicsDevice("maros_traps", dia_mm=5, id_="2d255a89b2")
+exp.logs["fluidicsdevice"] = trap
 
 ## extensive
 min_delay_sec = 60*10
