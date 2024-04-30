@@ -23,6 +23,7 @@ exp.delay("Start delay", 5)
 
 ## extensive
 do_cam_acquisitions = True
+cam.close()
 fill_mL = 20
 freq = 10
 #speedset = \#[0.027, 0.028, 0.029, 0.030, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, \
