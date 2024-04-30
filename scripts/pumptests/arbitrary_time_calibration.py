@@ -26,8 +26,8 @@ do_cam_acquisitions = False
 cam.close()
 fill_mL = 20
 freq = 10
-#speedset = \#[0.027, 0.028, 0.029, 0.030, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, \
-speedset = [0.37, 0.038, 0.040, 0.050, 0.070, 0.090, 0.100, 0.120, 0.150, 0.170, 0.190, 0.210, 0.250]
+speedset = [0.027, 0.028, 0.029, 0.030, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, \
+			0.038, 0.040, 0.050, 0.070, 0.090, 0.100, 0.120, 0.150, 0.170, 0.190, 0.210, 0.250]
 exp.logs["speed_set"] = speedset
 exp.logs["pwm_freq"] = freq
 exp.logs["speedset"] = speedset
@@ -56,7 +56,7 @@ print(f"Will test {len(speedset)} speeds!")
 
 from fluidicsdevice import FluidicsDevice
 #trap = FluidicsDevice("2mm-inhouse", dia_mm=2, id_="37b8b8c592")
-trap = FluidicsDevice("maros_traps", dia_mm=5, id_="2d255a89b2")
+trap = FluidicsDevice("maros_traps", dia_mm=5, id_="d985968316")
 exp.logs["fluidicsdevice"] = trap
 
 for i, speed in enumerate(speedset):
