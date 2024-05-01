@@ -36,7 +36,7 @@ cam.close()
 
 from fluidicsdevice import FluidicsDevice
 #trap = FluidicsDevice("2mm-inhouse", dia_mm=2, id_="37b8b8c592")
-trap = FluidicsDevice("maros_traps", dia_mm=5, id_="2d255a89b2")
+trap = FluidicsDevice("maros_traps", dia_mm=5, id_="6cf1805e5d")
 exp.logs["fluidicsdevice"] = trap
 
 ## extensive
