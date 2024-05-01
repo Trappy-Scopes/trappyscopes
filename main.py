@@ -1,71 +1,50 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-### Parse args -----------------
-import argparser
-## -----------------------------
 
 
+"""
+Goal of this script:
 
-### Printing and logging -------
-from rich import pretty
-pretty.install()
-# ------------------------------
+-> Set up trappy-scopes control layer interface.
+	|- 1. Parse arguments that enable special features (intaller, uid generation, etc).
+	|_ 2. Condition machone - set up console and logging operations.
+	|- 2. Update and maintain a prescription of repositories that are required for lab function.
+	|- 3. Set-up a ScopeAssembly object on the machine - the virtual microscope object.
+	|- 4. Expose standard object name for user convenience (exp, cam, lit, pico, etc).
+	|- 5. Run the user-defined experimental script in the Experiment-Orchastration-Engine. 
+	|- 6. Expose higher order functions for user conveneience (capture(), delexp(), findexp(), etc).
+	*
+"""
 
 
-## ---- Crash safety------------
-global exp
-exp = None      # For crash safety
-#-------------------------------
-
-
-import pprint
-from pprint import pprint as ppprint
-from rich import print
-import os
-import sys
-sys.path.append(os.path.abspath("./abcs"))
-import abcs
-import readline
-
-import yaml
-from yaml.loader import SafeLoader
-from colorama import Fore
-
-# Hardware
-from cameras.selector import CameraSelector
-from lights.selector import LightSelector
-from picodevice import RPiPicoDevice
-from utilities import autocompleter
-
-# Other Resources
-from experiment import Experiment
-from utilities.fluff import pageheader, intro
-from sync import SyncEngine
-from time import sleep
-from devicetree import ScopeAssembly
-from terminalplot import *
-from sharing import Share
-from loadscripts import ScriptEngine
-#sys.path.append(["./cameras/", "./lights/", "./abcs/"])
-from user import User
+## ------------------------------––------------------------------- Goal 1 -----------------------------------------------------------------------
+## Configurations
 from config.common import Common
+from sharing import Share
+import argparser
 
+
+## ------------------------------––-------------------------------  Goal 2 ----------------------------------------------------------------------
+
+### Pretty printing
+import readline
+from rich import pretty
+from rich import print
 from rich.markdown import Markdown
-
-
-
-#### ---------- Library Level processing ----------------------
+pretty.install()
 
 
 
 ## Set Logging
-import logsettings
+import logsettings ## Why is this required ?
 import logging
 log = logging.getLogger("main")
 
 
-## Import DeviceMetadata
+## Define exp object - for Crash safety
+global exp
+exp = None    # For crash safety - so far only standard python packages are invoked (except argparser).
 
 ## Login
 from user import User
@@ -75,22 +54,71 @@ User.login(Share.argparse["user"])
 from bookeeping.session import Session
 session = Session()
 
+## Depreciate
+import pprint
+from pprint import pprint as ppprint
+from colorama import Fore
+
+import os
+import sys
+from time import sleep
+
+
+import yaml
+from yaml.loader import SafeLoader
+from yamlprotocol import YamlProtocol
+
+
+# Hardware - Depreciate
+from cameras.selector import CameraSelector
+from lights.selector import LightSelector
+from picodevice import RPiPicoDevice
+
+
+
+# Trappy-Scopes  Resources
+from utilities import autocompleter ## TODO - sets completer upon 
+import abcs
+from experiment import Experiment
+from utilities.fluff import pageheader, intro
+from sync import SyncEngine
+from devicetree import ScopeAssembly
+from terminalplot import *
+from sharing import Share
+from loadscripts import ScriptEngine
+
+
+
+
+
+## ------------------------------––-------------------------------  Goal 3 ----------------------------------------------------------------------
+## Gitupdate repositories
+import socket
+
+def is_internet_available():
+    try:
+        # Attempt to resolve Google's DNS server
+        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        return True
+    except OSError:
+        return False
+
+# Check if internet is available
+if is_internet_available():
+    print("Internet access available.")
+else:
+    print("No internet access.")
+
+## 
+
+#### ---------- Library Level processing ----------------------
 
 print("\n\n")
 ## 0. Setlogging and device state
 og_directory = os.getcwd()
-
-
 User.exp_hook = exp
 
-## 1. Check script files
-scriptfiles = None
-if len(sys.argv) > 1:
-	scriptfiles = [os.path.abspath(file) for file in sys.argv[1:]]
-	scriptfiles = [file for file in scriptfiles if ".py" in file]
 
-print("Scripts that will be loaded: ")
-print(scriptfiles)
 
 
 ## 2. Load device ID an metadata

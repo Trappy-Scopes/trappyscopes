@@ -2,7 +2,21 @@ import requests
 from rich import print
 from rich.markdown import Markdown
 
+
+
+
+def update_repo(repodir_name, loc=".."):
+    """
+    Update the repo/submodule respectivey. 
+    """
+    pass
+
+
+
 def get_file(repo, path, branch='main'):
+    """
+    Pulls a trappy scope publically accessible repo file.
+    """
     url = f"https://raw.githubusercontent.com/Trappy-Scopes/{repo}/{branch}/{path}"
     print(url)
     response = requests.get(url)

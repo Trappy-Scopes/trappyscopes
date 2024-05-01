@@ -58,7 +58,7 @@ speedset = [0.027, 0.027, 0.027,
 			0.036, 0.036, 0.036,
 			0.037, 0.037, 0.037,
 			0.038, 0.038, 0.038]
-"""
+
 speedovelaps = [0.037, 0.037, 0.037,
 				0.038, 0.038, 0.038]
 speedset_fast = [0.040, 0.040, 0.040,
@@ -72,9 +72,10 @@ speedset_fast = [0.040, 0.040, 0.040,
 				 0.190, 0.190, 0.190,
 				 0.210, 0.210, 0.210,
 				 0.250, 0.250, 0.250]
-speedset.extend(speedovelaps)
-speedset.extend(speedset_fast)
-
+"""
+#speedset.extend(speedovelaps)
+#speedset.extend(speedset_fast)
+speedset = [0.2, 0.025, 0.027, 0.03 ,0.032, 0.035, 0.037, 0.040 ,0.045, 0.050, 0.055, 0.06, 0.07, 0.08, 0.09, 0.1, 0.3]
 
 
 #speedset.reverse()

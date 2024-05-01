@@ -14,6 +14,7 @@ import argparse
 
 from sharing import Share
 import os
+import sys
 
 parser = argparse.ArgumentParser(description='Trappy-Scopes Control Layer', 
                                  prog="Trappy-Scopes scope-cli")
@@ -30,10 +31,10 @@ parser.add_argument('-itr', '--iterate', metavar=('N', '<script>'), dest='script
 ### ------------------------------------
 
 ### --- login --------------------------
-parser.add_argument('-su', '--setuser', dest='user', default="ghost", action='store',
+parser.add_argument('-su', '--setuser', dest='user', default=["ghost"], action='store',
                     nargs=1, help='Login/Set user for the microscope.',  type=str,
                     metavar='<user-initials>') 
-parser.add_argument('--login', dest='user', default="ghost", action='store', type=str,
+parser.add_argument('--login', dest='user', default=["ghost"], action='store', type=str,
                     nargs=1, help='Login/Set user for the microscope.',
                     metavar='<user-initials>')
 ### ------------------------------------
@@ -95,6 +96,7 @@ parser.add_argument('-uid', '--uid', dest='uid',
 
 
 ### Parse !!!!!!!!!!!!!!!
+print("Passed arguements:", sys.argv)
 args = parser.parse_args()
 
 
@@ -110,6 +112,8 @@ if None in scriptlist:
 if len(scriptlist) > 0:
     from loadscripts import ScriptEngine
     ScriptEngine.execlist = scriptlist
+    print("Scripts that will be loaded: ")
+    print(ScriptEngine.execlist)
 ####### --------------------------------------
 
 
