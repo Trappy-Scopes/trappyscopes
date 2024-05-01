@@ -3,6 +3,11 @@ from abc import abstractmethod
 
 class BaseDevice:
 	"""
+	A BaseDevice is a group of processors that are controlled by the same operating
+	system or firmware.
+		|- LinuxDevice       : RPi 4B -> 4 processors
+		|- MicropythinDevice : RPi pico -> 2 processors + 8 PIO cores
+
 	Abstract base class for interfacing with any generic device.
 	Specialisations planned: MicropythonDevice and LinuxDevice.
 
@@ -14,6 +19,11 @@ class BaseDevice:
 		def __init__(self, object_, device):
 			self.obj = object_
 			self.device = device
+
+
+			self.compute_processors = 0
+			self.processor_map = {}
+
 			log.debug(f"Created BaseDevice.Proxy: {self.obj}")
 
 		def __getattr__(self, fn, *args, **kwargs):

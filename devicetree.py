@@ -3,11 +3,13 @@ from pprint import pprint
 from rich import print
 import yaml
 import json
+import logging as log
 
 
 from sharing import Share
 from yamlprotocol import YamlProtocol
 
+import abcs #Abstract Base Classses
 
 class RPi():
 	"""
@@ -47,12 +49,16 @@ class ScopeAssembly:
 	def __init__(self):
 		self.tree = {}
 		self.descs = {}
+		self.actuators = {}
+		self.sensors = {}
+		self.basedevices = {}
+
 		self.network = YamlProtocol.load(Share.networkinfo_path)
 
 		self.add_device("rpi", RPi())
 		#self.draw_tree()
 		#pprint({"assembly": self.tree}, indent=4)
-
+		log.debug("Constructing scope assembly.")
 	def __getattr__(self, device):
 		if device in self.tree:
 			return self.tree[device]
@@ -72,6 +78,7 @@ class ScopeAssembly:
 		if description == None:
 			self.descs[name] = "Mystery device does magical things!"
 
+
 	def connect(self, devicename):
 		if "." in devicename: ## To check if it is an ip address
 			ip = devicename
@@ -84,6 +91,47 @@ class ScopeAssembly:
 
 
 
+	def device_type(self, device):
+		"""
+		Autoscans and appends the device type to its respectie list.
+		Assumes that the devices have an attribute called "name" and the name is unique.
+		"""
+		devmap = {"actuator": abcs.Actuator, "sensor": abcs.Sensor, "basedevice": abcs.BaseDevice}
+		desmap = {"actuator": self.actuators, "sensor": self.sensors, "basedevice": self.basedevices}
+
+		for id_, devtype in devmap.items():
+			if isinstance(device, devtype) or ("proxy" in device.__repr__().lower() 
+											    and
+												id_     in device.__repr__().lower()):
+				desmap[id_][device.name] = device
+				log.info(f"{device.name} : is identified as a(n) {id_}.")
+				return True
+		log.error(f"{device.name} : could not be identified. Ignoring it.")
+		return False
+
+
+	def net_scan(self):
+		"""
+		Ping each device on the network and set value in the network dict - reachable.
+		Takes long and is a blocking function.
+		"""
+
+		def ping(ip_address):
+			import subprocess
+
+			# Run ping command and capture the output
+			result = subprocess.run(['ping', '-c', '1', ip_address], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			    
+			reachable = result.returncode == 0
+			if not reachable: 
+				print(f"The device at {ip_address} is not reachable.")
+			else:
+				print(f"The device at {ip_address} is reachable.")
+			return reachable
+			
+			    
+		for device in self.network["network"]:
+			device["reachable"] = ping(device["ip"])
 	def draw_tree(self):
 		print({"assembly": self.tree})
 		return
@@ -99,6 +147,6 @@ class ScopeAssembly:
 
 		print(tree_str)
 
-	def reconnections(self, device="cam", callback_fn="is_open"):
+	def reconnections(self, device="cam", check_fn="is_open", reconnect_fn="reinit"):
 		pass
 
