@@ -29,21 +29,20 @@ from devicestate import sys_perma_state
 from tsexceptions import InvalidNameException
 
 
-class ExpEvent(OrderedDict):
+class ExpEvent(dict):
 	def __init__(self, kind="event"):
-		self = {
+		self.update({
 					"type"       : kind, 
 					"scopeid"    : Share.scopeid,
 					"mid"        : Share.mid, 
 			 		"eid"        : Experiment.current.eid,
-			 		"expname"    : Experiment.current.name,
 					"scriptid"   : Experiment.current.scriptid,
 			 		"sid"        : Session.current.name,
 			 		"dt"         : datetime.datetime.now(),
 			 		"sessiontime": Session.current.timer_elapsed(),
 			  		"exptime"    : Experiment.current.timer_elapsed(),
 			  		"machinetime": time.time_ns(),
-		   		}
+		   			})
 ExperimentEvent = ExpEvent
 
 
