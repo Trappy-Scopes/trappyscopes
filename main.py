@@ -355,6 +355,7 @@ from measurement import MeasurementStream
 ms = MeasurementStream(m, name="test stream")
 ms.auto_update_tables = True
 tab = ms.tabulate("measureidx", "m", "o", "q", "sid")
-
+ms.auto_update_explogs = True
+ms.auto_update_df = True
 
 

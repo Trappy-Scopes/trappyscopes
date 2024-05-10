@@ -100,7 +100,7 @@ class Experiment:
 		:	|- <python package information>
 		:	|- <eid>
 		:	|- <last-eventid>
-		|- Measurements
+		|- Measurements / results
 		:	|- series1
 		:	|- series2
 		|- <Event 1>
@@ -271,6 +271,8 @@ class Experiment:
 
 		## User Information
 		self.logs["user"] = User.info
+		if "results" not in self.logs:
+			self.logs["results"] = []
 
 		## eid and scriptid
 		if "eid" in self.logs:

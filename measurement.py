@@ -9,6 +9,9 @@ from config.common import Common
 from bookeeping.session import Session
 from uid import uid
 import logging as log
+from terminalplot import *
+
+from pandas import DataFrame, concat
 
 from pprint import pformat
 from rich.pretty import Pretty
@@ -95,6 +98,8 @@ class MeasurementStream:
 		self.datapoint["measureid"] = self.uid
 		self.datapoint["measureidx"] = -1
 
+		self.df = DataFrame(columns=self.datapoint.keys())
+		self.df.set_index("measureidx")
 		self.readings = []
 
 		self.detections = []
@@ -102,6 +107,8 @@ class MeasurementStream:
 		self.monitors = []
 
 		self.auto_update_tables = False
+		self.auto_update_explogs = False
+		self.auto_update_df = False
 		self.tables = {}
 
 
@@ -133,18 +140,32 @@ class MeasurementStream:
 		return table
 
 
+	def plot(self, *args, title=None):
+		Plotter.show()
 	
 	def __call__(self, **kwargs):
 		self.readings.append(deepcopy(self.advance()))
 		for k, v in dict(kwargs).items():
 			self.readings[-1][k] = v
 		
+		## Tables ----------------------------------------
 		if self.auto_update_tables:
 			for tab in self.tables:
 				row = []
 				for key in tab:
 					row.append(str(self.readings[-1][key]))
 				self.tables[tab].add_row(*row)
+
+		## Exp logs ---------------------------------------
+		if self.auto_update_explogs and Experiment.current != None:
+			Experiment.current.logs["results"].append(self.readings[-1])
+			Experiment.current.__save__()
+
+		## Dataframe update -------------------------------
+		if self.auto_update_df:
+			#self.df = pd.concat([pd.DataFrame([[1,2]], columns=df.columns), df], ignore_index=True)
+			#self.df = concat([self.df, DataFrame(self.readings[-1].values())], ignore_index=True)
+			self.df.loc[len(self.df)] = self.readings[-1]
 
 	def measure(self, **kwargs):
 		self.__call__(**kwargs)
@@ -175,3 +196,11 @@ class MeasurementStream:
 			for _ in range(40):
 				time.sleep(0.4)
 				live.update(table)
+
+	def plot(self, x, y, label=""):
+		plt.cld()
+		plt.plot(self.df[x], self.df[y], label=label)
+		plt.xlabel(x)
+		plt.ylabel(y)
+		plt.title(f"Measurement Stream Plot{f':: {self.name}'*(self.name!=None)} :: {x}-{y}")
+		plt.show()

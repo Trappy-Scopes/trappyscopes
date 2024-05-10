@@ -1,7 +1,9 @@
 import asciichartpy as acp
 import plotext as plt
 
-class Plotter:
+plt.theme("dark")
+
+class Plotter():
 	
 	def animate():
 		pass
