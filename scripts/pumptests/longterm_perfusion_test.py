@@ -44,7 +44,7 @@ def acq_protocol():
 		pass
 
 ## Schedule acquisitions
-exp.schedule.every().second.do(acq_protocol)
+exp.schedule.every().hour.do(acq_protocol)
 exp.schedule.post_register("hourly_capture")
 
 
