@@ -72,7 +72,7 @@ class Camera():
 		gc.collect()
 
 	def __process__(self, cmd):
-		self.process = Popen(cmd_list, stdout=sys.stdout, stderr=sys.stderr, shell=True,\
+		self.process = Popen(cmd, stdout=sys.stdout, stderr=sys.stderr, shell=True,\
 					    universal_newlines=True)
 		
 		pid = process.pid
