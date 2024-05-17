@@ -21,7 +21,7 @@ def CameraSelector(device, *args, **kwargs):
 		return Camera(*args, **kwargs)
 
 	if device == "libcamera":
-		from libcamera import Camera
+		from libcameraint import Camera
 		return Camera(*args, **kwargs)
 
 	log.error(f"Invalid camera mode: {device}")
