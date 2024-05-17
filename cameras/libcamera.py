@@ -15,7 +15,7 @@ from subprocess import Popen, PIPE
 
 from rich import print
 
-class Camera(AbstractCamera):
+class Camera():
 	def __init__(self):
 		self.process = None
 		self.status  = "standby"
@@ -78,6 +78,10 @@ class Camera(AbstractCamera):
 		pid = process.pid
 		stdout, stderr = process.communicate()
 		return process.returncode, stdout, stderr, pid
+
+	def preview(self, tsec=10):
+		return self.__preview__(tsec=tsec)
+
 
 	def __preview__(self, tsec=10):
 		cmd_list = f"libcamera-vid -t {tsec*1000} -f"
