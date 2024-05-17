@@ -75,9 +75,9 @@ class Camera():
 		self.process = Popen(cmd, stdout=sys.stdout, stderr=sys.stderr, shell=True,\
 					    universal_newlines=True)
 		
-		pid = process.pid
-		stdout, stderr = process.communicate()
-		return process.returncode, stdout, stderr, pid
+		pid = self.process.pid
+		stdout, stderr = self.process.communicate()
+		return self.process.returncode, stdout, stderr, pid
 
 	def preview(self, tsec=10):
 		return self.__preview__(tsec=tsec)
