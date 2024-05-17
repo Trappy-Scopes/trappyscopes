@@ -4,7 +4,8 @@ import time
 from copy import deepcopy
 
 from sharing import Share
-from experiment import Experiment, ExpEvent
+from experiment import ExpEvent
+from experiment import Experiment as Experiment_
 from config.common import Common
 from bookeeping.session import Session
 from uid import uid
@@ -67,7 +68,7 @@ class Measurement(ExpEvent):
 		super().__init__()
 		self.update({
 					"type"         : "measurement",
-			  		"measureid"    : Experiment.current.eid,
+			  		"measureid"    : Experiment_.current.eid,
 			   		"measureidx"   : 0,
 			   		"success"      : None,
 		   			})
@@ -157,22 +158,23 @@ class MeasurementStream:
 				self.tables[tab].add_row(*row)
 
 		## Exp logs ---------------------------------------
-		if self.auto_update_explogs and Experiment.current != None:
-			Experiment.current.logs["results"].append(self.readings[-1])
-			Experiment.current.__save__()
+		if self.auto_update_explogs and Experiment_.current != None:
+			Experiment_.current.logs["results"].append(dict(self.readings[-1]))
+			Experiment_.current.__save__()
 
 		## Dataframe update -------------------------------
 		if self.auto_update_df:
 			#self.df = pd.concat([pd.DataFrame([[1,2]], columns=df.columns), df], ignore_index=True)
 			#self.df = concat([self.df, DataFrame(self.readings[-1].values())], ignore_index=True)
 			self.df.loc[len(self.df)] = self.readings[-1]
+		return self.readings[-1]
 
 	def measure(self, **kwargs):
-		self.__call__(**kwargs)
+		return self.__call__(**kwargs)
 
 	def advance(self, **kwargs):
 		self.datapoint["sessiontime"] = Session.current.timer_elapsed()
-		self.datapoint["exptime"]     = Experiment.current.timer_elapsed()
+		self.datapoint["exptime"]     = Experiment_.current.timer_elapsed()
 		self.datapoint["machinetime"] = time.time_ns()
 		self.datapoint["measureidx"] = self.datapoint["measureidx"] + 1
 		return self.datapoint

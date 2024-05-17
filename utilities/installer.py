@@ -7,7 +7,9 @@ import sys
 class Installer:
 	pylibs = ["rich", "pyyaml", "colorama", "nanoid", 
 			  "plotext", "asciichartpy", "prompt_toolkit", 
-			  "GitPython", "schedule", "paho-mqtt", "websockets", "beepy"]
+			  "GitPython", "schedule", "paho-mqtt", "websockets", 
+			  "pandas"]
+	
 	binlibs = []
 	gitclones = ["https://github.com/Trappy-Scopes/network.git"]
 	

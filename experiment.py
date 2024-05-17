@@ -17,6 +17,7 @@ from rich.progress import track
 from rich.text import Text
 from rich.prompt import Prompt
 from rich.rule import Rule
+from rich.align import Align
 
 import config.common
 from user import User
@@ -28,9 +29,8 @@ from yamlprotocol import YamlProtocol
 from devicestate import sys_perma_state
 from tsexceptions import InvalidNameException
 
-
 class ExpEvent(dict):
-	def __init__(self, kind="event"):
+	def __init__(self, kind="event", attribs={}):
 		self.update({
 					"type"       : kind, 
 					"scopeid"    : Share.scopeid,
@@ -43,6 +43,7 @@ class ExpEvent(dict):
 			  		"exptime"    : Experiment.current.timer_elapsed(),
 			  		"machinetime": time.time_ns(),
 		   			})
+		self.update(attribs)
 ExperimentEvent = ExpEvent
 
 
@@ -51,9 +52,11 @@ class ExpScheduler(schedule.Scheduler):
 		super().__init__()
 		self.thread = None
 		self.end_thread = False
+		self.loop()
+
 	def post_register(self, name):
-		Experiment.current.log(name, 
-			attrib={"type": "periodic_task", "info": self.get_jobs()[-1]})
+		Experiment.current.log("periodic_task", 
+			attribs={"name": name, "info": str(self.get_jobs()[-1])})
 	def loop(self):
 		def callback():
 			while not self.end_thread:
@@ -193,8 +196,9 @@ class Experiment:
 		are made.
 		"""
 		def wrapper( *args, **kwargs):
-			func( *args, **kwargs)
+			ret = func( *args, **kwargs)
 			Experiment.current.__save__()
+			return ret
 		return wrapper
 
 	def is_event(func, *args, **kwargs):
@@ -203,7 +207,8 @@ class Experiment:
 		"""
 		def wrapper( *args, **kwargs):
 			Experiment.current.eventid += 1
-			func( *args, **kwargs)
+			ret = func( *args, **kwargs)
+			return ret
 		return wrapper
 
 
@@ -273,6 +278,8 @@ class Experiment:
 		self.logs["user"] = User.info
 		if "results" not in self.logs:
 			self.logs["results"] = []
+		if "events" not in self.logs:
+			self.logs["events"] = []
 
 		## eid and scriptid
 		if "eid" in self.logs:
@@ -282,15 +289,12 @@ class Experiment:
 			log.critical("Experiment id is missing!")
 		self.scriptid = None
 
-
 		## Session
 		YamlProtocol.append_list("sessions.yaml", 
 								 {"eid": self.eid,
 					  			  **Session.current.__getstate__()}
 					  			)
 		self.sessions = YamlProtocol.load("sessions.yaml")
-		self.log("session", attrib={"sessionid": Session.current.__getstate__()["name"]})
-
 		
 		self.unsaved = False # Flag that indicates unsaved changes
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
@@ -305,12 +309,16 @@ class Experiment:
 			self.expclock = float(self.logs["expclock"])
 
 		self.attribs = {}
-		self.modalities = {} ## Measuremnt modalities
+		self.streams = {} ## Measuremnt modalities
 		#TODO self.metadata = Metadata()
 
 		self.schedule = ExpScheduler()
+		
 		### Set the current pointer
 		Experiment.current = self
+
+		## Start logging events
+		self.log("session", attribs={"sessionid": Session.current.__getstate__()["name"]})
 
 		from transmit.hivemqtt import HiveMQTT
 		HiveMQTT.send(f"{Share.scopeid}/experiment", {"state": "init", "session": Session.current.name, "eid":self.eid})
@@ -326,10 +334,13 @@ class Experiment:
 		if self.active:
 			with open(self.log_file, "w") as f:
 				f.write(yaml.dump(self.logs))
-		print(Text("⬤   exp logs saved.", style="green dim", justify="right"))
+		print(Align.right(Text("⬤   exp logs saved", style="green dim", justify="right")))
 
 	def __exit__(self):
 		self.close()
+
+	def endthread(self):
+		self.schedule.end_thread = True
 
 	def close(self):
 		self.schedule.end_thread = True
@@ -368,7 +379,7 @@ class Experiment:
 
 		if self.__node_validator__(filename):
 			### Log
-			self.log("file_emitted", attrib=attribs)
+			self.log("file_emitted", attribs=attribs)
 			return filename
 		else:
 			log.critical(f"File name invalid: {filename}")
@@ -382,6 +393,10 @@ class Experiment:
 		out = run(["tree", "-a"], capture_output=True, text=True)
 		return out.stdout
 
+	@autosave
+	def dirstat(self):
+		stat = {file:os.stat(file) for file in os.listdir(".")}
+		self.log("files_stat", attribs=stat)
 
 	def set_sync_flag(self):
 		"""
@@ -391,7 +406,7 @@ class Experiment:
 		sync = {"sync": True, "syncid": syncid, "dt": datetime.datetime.now()}
 		YamlProtocol.dump(".sync", sync)
 		log.critical(f"Set experiment syncronisation with syncid: {syncid}")
-		self.log("set_sync", attrib={"syncid": syncid})
+		self.log("set_sync", attribs={"syncid": syncid})
 
 	def unset_sync_flag(self):
 		"""
@@ -404,13 +419,16 @@ class Experiment:
 		self.log("unset_sync")
 
 
-	def log(self, action, attrib={}):
-		if action in self.logs:
-			action = f"{action}-{time.time_ns()}"
-		log_ = {"mtime": time.time_ns(), "dt":datetime.datetime.now()}
-		log_.update(attrib)
-		self.logs[action] = log_
-		return action
+	#def log(self, action, attrib={}):
+	#	if action in self.logs:
+	#		action = f"{action}-{time.time_ns()}"
+	#	log_ = {"mtime": time.time_ns(), "dt":datetime.datetime.now()}
+	#	log_.update(attrib)
+	#	self.logs[action] = log_
+	#	return action
+
+	def log(self, event, attribs={}):
+		self.logs["events"].append(dict(ExpEvent(kind=event, attribs=attribs)))
 
 	def events(self):
 		return list(self.logs.keys())
@@ -432,7 +450,8 @@ class Experiment:
 	@is_event
 	@autosave
 	def note(self, string):
-		self.log("user_note", attrib={"note": string, "type":"user_note"})
+		self.log("user_note", attribs={"note": string})
+		return string
 
 	def write(self):
 		"""
@@ -478,15 +497,39 @@ class Experiment:
 
 
 	## ----- Measurements ----------------------------
-	def new_measuement(self, name, measurand={}, attribs={}):
+	@autosave
+	def new_measurementstream(self, name, detections=[], measurements=[], monitors=[]):
 		"""
-		Returns a Stream wrapper aroind a given measurement object.
+		Returns a stream wrapper aroind a given measurement object.
 		"""
-		onemeasure = Measurement(name, measurand=measurand, attribs=attribs)
-		self.modalities[name] = onemeasure
-		log.log(f"Added measurment modality: {name}")
-		return self.modalities(self.modalities[name]).Stream()
+		from measurement import MeasurementStream
 
+		ms = MeasurementStream(name=name)
+		for detection in detections:
+			ms.add_detection(detection)
+		for measurement in measurements:
+			ms.add_measurement(measurement)
+		for monitor in monitors:
+			ms.add_monitor(monitor)
+
+		ms.auto_update_tables = True
+		ms.auto_update_explogs = True
+		ms.auto_update_df = True
+
+		self.streams[name] = ms
+		log.info(f"Added measurment stream: {name}")
+		self.log("measurement_stream", attribs={"name":name,
+				 "detections":ms.detections, "measurements":ms.measurements,
+				 "monitors":ms.monitors})
+		print(self.streams[name])
+		return self.streams[name]
+
+	@autosave
+	def new_measurement(self, **kwargs):
+		from measurement import Measurement
+
+		self.logs["results"].append(Measurement(**kwargs))
+		return self.logs["results"][-1]
 
 
 	### ----- Event Model -----------------------------
@@ -499,16 +542,17 @@ class Experiment:
 		Add a experiment step dealy with a progress bar and automatic logging.
 		Todo: Correct processor drift.
 		"""
+		interrupted = False
+		start = time.time_ns()
+		print(start)
 		try:
-			start = time.time_ns()
-			print(start)
 			for i in track(range(steps), description=f"exp-step: blocking delay: [red]{name}[default] | [cyan]{seconds}s[default] >> "):
 			    time.sleep(seconds/steps)  # Simulate work being done
-			self.log(name, attrib={"type":"delay", "duration":seconds, "start_ns":start, 
-								   "end_ns": time.time_ns(), "interrupted": False, "eventid":self.eventid})
 		except KeyboardInterrupt:
-			self.log(name, attrib={"type":"delay", "duration":seconds, "start_ns":start,
-					 "end_ns": time.time_ns(), "interrupted": True, "eventid":self.eventid})
+			interrupted = True
+			print(f"[red]Dealy interrupted @ {((time.time_ns()-start)*10**-9):3f}/{seconds}")
+		self.log("delay", attribs={"name":name, "duration":seconds, "start_ns":start,
+				 "end_ns": time.time_ns(), "interrupted": interrupted})
 		print(time.time_ns())
 
 	
@@ -526,21 +570,22 @@ class Experiment:
 		print(f"Task: {task}\nDescription: {kwargs.pop('desc')}")
 		
 		
-
+		print(desc)
+		interrupted = False
+		start = time.time_ns()
 		try:
-			start = time.time_ns()
-			print(desc)
+			
+			#####################
 			task(*args, **kwargs)
+			#####################
 			
 			end = time.time_ns()
-			self.log(name, attrib={"type":"tracked_task", "duration":float(end-start)/1**-9, "start_ns":start, 
-								   "end_ns": end, "interrupted": False, "task": str(task), "args": args, "kwargs":kwargs,
-								   "description": desc, "eventid":self.eventid})
+			print(f"Task duration: {float(end-start)*10**-9} s")
 		except KeyboardInterrupt:
 			end = time.time_ns()
-			self.log(name, attrib={"type":"tracked_task", "duration":float(end-start)/1**-9, "start_ns":start,
-								   "end_ns": end, "interrupted": True, "task": str(task), "args": args, "kwargs":kwargs,
-								   "description": desc, "eventid":self.eventid})
+		self.log("tracked_task", attribs={"name":name, "duration":float(end-start)*(10**-9), "start_ns":start, 
+				 "end_ns": end, "interrupted": False, "task": str(task), "args": args, "kwargs":kwargs,
+				 "description": desc})
 	
 	@is_event
 	@autosave
@@ -563,10 +608,10 @@ class Experiment:
 		if prompt == None:
 			name = "prompt"
 
-		event = self.log(name, attrib={"type": "user_prompt", "prompt":prompt,
-									   "label":label, "eventid":self.eventid})
+		attribs={"name": name, "prompt":prompt, "label":label}
 		
-		self.logs[event]["prompt_requested"] = datetime.datetime.now()
+		
+		attribs[event]["prompt_requested"] = datetime.datetime.now()
 		
 		inp = "no_inp"
 		inp = input(f"{Fore.RED}{prompt_string}{Fore.RESET}")
@@ -575,7 +620,8 @@ class Experiment:
 		
 		print(f"[green]--- prompt accepted : {prompt_} --- [default]")
 		
-		self.logs[event]["prompt_received"] = datetime.datetime.now()
+		attribs["prompt_received"] = datetime.datetime.now()
+		event = self.log("user_prompt", attribs=attribs)
 
 	def follow_protocol(self, *args):
 		pass
@@ -601,16 +647,15 @@ class Experiment:
 			if response == True:
 				callableid = i
 				break
+		accepted = False
 		if callableid == -1:
 			print(Rule(title=f"Exp multiprompt >> Prompt not accepted : {inp}!", align="center", style="red"))
-			self.log("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp, \
-					  "choices":labels, "eventid":self.eventid, \
-					  "accepted": False, "prompt_requested":startdt, "prompt_received": datetime.datetime.now()})
 		else:
 			print(Rule(title=f"Exp multiprompt >> Prompt accepted: {inp} : {callables[callableid]}", align="center", style="green"))
-			self.log("user_multiprompt", attrib={"type": "user_multiprompt", "prompt":inp, \
-					  "choices":labels, "eventid":self.eventid, \
-					  "accepted": True, "prompt_requested":startdt, "prompt_received": datetime.datetime.now()})
+			accepted = True
+		self.log("user_multiprompt", attrib={"prompt":inp, \
+			     "choices":labels, "accepted": accepted, "prompt_requested":startdt, 
+			     "prompt_received": datetime.datetime.now()})
 		return inp
 
 
@@ -620,8 +665,7 @@ class Experiment:
 		"""
 		Marks an interrupt event - Experiment flow was interrupted by the user.
 		"""
-		self.log("interrupted", attrib={"type": "interrupt",
-									    "eventid":self.eventid})
+		self.log("exp_interrupted")
 
 
 	### ───────────────────────────── Timers ──────────────────────────────
@@ -643,11 +687,11 @@ class Test(Experiment):
 		self.checks = []
 		super().__init__(name, append_eid=append_eid, kwargs=kwargs)
 
-	def check(self, callable_, *args, **kwargs):
+	def testfn(self, callable_, *args, **kwargs):
 		"""
 		Only fails if exceptions are raised. TODO
 		"""
-		self.log(f"check-{len(self.checks)}", attrib={"check":str(callable_)})
+		self.log("testfn", attribs={"check":str(callable_)})
 		print(f"<< Check {len(self.checks)} >>")
 		try:
 			if not args and not kwargs:

@@ -152,7 +152,7 @@ from scopeframe import ScopeFrame
 ScopeFrame.populate(device_metadata)
 
 from fluidicsdevice import FluidicsDevice
-trap = FluidicsDevice("unknown microfluidics device")
+trap = FluidicsDevice("unknown microfluidics device", type="unknown")
 
 
 
@@ -177,23 +177,27 @@ pico = RPiPicoDevice.Select(picomode, name=device_metadata["hardware"]["pico"][1
 pico.auto_connect()
 #pico.connect("/dev/ttyACM1")
 print(pico)
+
+
 if not pico.connected:
-	log.error("Could not get a pico device - exiting.")
-	exit(1)
-pico.exec_main()
-log.info(pico)
+	log.error("Could not get a pico device!")
+else:
+	pico.exec_main()
+	log.info(pico)
 
-lit = RPiPicoDevice.Emit("l1", pico)
-
+print("[red]Light object l1 is no longer recognised.[default]")
+#lit = RPiPicoDevice.Emit("l1", pico)
 print("\n\n")
+
 print(Markdown("# CAMERA"))
 cam = CameraSelector(device_metadata["hardware"]["camera"])
 #cam.open() # Camera should be already open upon creation.
+
 if not cam.is_open():
-	log.error("Could not get a camera device - exiting.")
-	exit(1)
-#cam.configure()
-log.info(cam)
+	log.error("Could not get a camera device!")
+else:
+	#cam.configure()
+	log.info(cam)
 
 #----
 print(Markdown("# SCOPE READY"))
@@ -257,19 +261,6 @@ def close_exp():
 		if cam.is_open():
 			cam.close()
 	print("--- Exiting experiment --\n")
-
-# Overloaded Exit function
-def exit():
-	if exp:
-		if exp.active:
-			exp.close()
-	if device_metadata["auto_fsync"]:
-		SyncEngine.fsync(device_metadata)
-	
-	if cam:
-		if cam.is_open():
-			cam.close()
-	sys.exit()
 
 
 
@@ -347,6 +338,9 @@ HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.na
 ### Run all scripts
 ScriptEngine.run_all(globals())
 
+
+
+## Test measurements
 from measurement import Measurement
 m = Measurement(q=2, qq=123, m=234, o=1.123)
 Share.updateps1()

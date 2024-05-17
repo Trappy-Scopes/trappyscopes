@@ -23,3 +23,8 @@ class ScriptEngine:
 					except KeyboardInterrupt:
 						print('\n', Rule(title="Experiment interrupted!", align="center", style="red"))
 						Experiment.current.interrupted()
+
+	def now(globals_, script):
+		ScriptEngine.execlist = [script]
+
+		ScriptEngine.run_all(globals_)
