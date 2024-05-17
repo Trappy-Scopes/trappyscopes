@@ -15,7 +15,7 @@ from subprocess import Popen, PIPE
 
 from rich import print
 
-class Camera():
+class Camera:
 	def __init__(self):
 		self.process = None
 		self.status  = "standby"
