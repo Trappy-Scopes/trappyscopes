@@ -19,8 +19,8 @@ class Camera():
 	def __init__(self):
 		self.process = None
 		self.status  = "standby"
-		self.modes = {"preview": self.__preview__, "video": self.__video__, 
-					  "image": self.__image__}
+		self.modes = {"preview": self.__preview__, "vid": self.__video__, 
+					  "img": self.__image__}
 
 	def capture(self, action, filename, tsec=1,
 				it=1, it_delay_s=0, init_delay_s=0, **kwargs):
@@ -89,7 +89,7 @@ class Camera():
 
 	def __image__(self, filename, *args, **kwargs):
 		print("Capturing in 5 seconds!")
-		cmd_list = f"libcamera-still -t {5*1000} -f"
+		cmd_list = f"libcamera-still -t {5*1000} -f -o {filename}"
 		return self.__process__(cmd_list)
 
 	def __video__(self, filename, *args, **kwargs):
@@ -98,6 +98,9 @@ class Camera():
 
 		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename}"
 		return self.__process__(cmd_list)
+
+	def is_open(self):
+		return False
 
 
 
