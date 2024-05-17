@@ -203,7 +203,7 @@ else:
 print(Markdown("# SCOPE READY"))
 scope = ScopeAssembly()
 scope.add_device("cam", cam, description="Main camera.")
-if pico:
+if pico.connected:
 	scope.add_device("pico", pico, description="Main microcontroller on Serial.")
 	scope.add_device("picoprox", RPiPicoDevice.Emit("", pico))
 	all_pico_devs = pico.exec_cleanup("print(Handshake.obj_list(globals_=globals()))")
