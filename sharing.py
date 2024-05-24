@@ -1,5 +1,5 @@
 import sys
-from config.common import Common
+#from config.common import Common
 import os
 
 class Share:
@@ -17,8 +17,8 @@ class Share:
 
 	## Experiment info
 	expname = None
-	expdir = Common.expdir
-	logdir = Common.expdir
+	expdir = os.path.join(os.path.expanduser("~"), "experiments")
+	logdir = os.path.join(os.path.expanduser("~"), "experiments")
 	## 
 
 

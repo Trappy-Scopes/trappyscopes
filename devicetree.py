@@ -16,6 +16,8 @@ class RPi():
 	Placeholder object for RPi 4B.
 	"""
 	description = "Placeholder RPi 4B object."
+	def __init__(self, name, ip="localhost"):
+		pass
 	#def __repr__(self):
 		#return device_perma_state()
 	#	pass
@@ -53,12 +55,14 @@ class ScopeAssembly:
 		self.sensors = {}
 		self.basedevices = {}
 
-		self.network = YamlProtocol.load(Share.networkinfo_path)
-
-		self.add_device("rpi", RPi())
+		self.network = YamlProtocol.load(Share.networkinfo_path)["network"]
+		self.iptable = {dev["name"] : dev["ip"] for dev in self.network}
+		
+		self.add_device("rpi", RPi("localhost", ip="localhost"))
 		#self.draw_tree()
 		#pprint({"assembly": self.tree}, indent=4)
 		log.debug("Constructing scope assembly.")
+	
 	def __getattr__(self, device):
 		if device in self.tree:
 			return self.tree[device]
@@ -110,7 +114,7 @@ class ScopeAssembly:
 		return False
 
 
-	def net_scan(self):
+	def netscan(self):
 		"""
 		Ping each device on the network and set value in the network dict - reachable.
 		Takes long and is a blocking function.
@@ -120,18 +124,20 @@ class ScopeAssembly:
 			import subprocess
 
 			# Run ping command and capture the output
+			print("pinging -> ", ip_address, end=" : ")
 			result = subprocess.run(['ping', '-c', '1', ip_address], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 			    
 			reachable = result.returncode == 0
 			if not reachable: 
-				print(f"The device at {ip_address} is not reachable.")
+				print(f"The device at {ip_address} is [red]not reachable.[default]")
 			else:
-				print(f"The device at {ip_address} is reachable.")
+				print(f"The device at {ip_address} is [green]reachable.[default]")
 			return reachable
 			
 			    
-		for device in self.network["network"]:
+		for device in self.network:
 			device["reachable"] = ping(device["ip"])
+	
 	def draw_tree(self):
 		print({"assembly": self.tree})
 		return

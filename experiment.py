@@ -28,22 +28,19 @@ from uid import uid
 from yamlprotocol import YamlProtocol
 from devicestate import sys_perma_state
 from tsexceptions import InvalidNameException
+from tsevents import TSEvent
 
-class ExpEvent(dict):
-	def __init__(self, kind="event", attribs={}):
+class ExpEvent(TSEvent):
+	def __init__(self, kind="expevent", attribs={}):
+		super().__init__()
+		
 		self.update({
-					"type"       : kind, 
-					"scopeid"    : Share.scopeid,
-					"mid"        : Share.mid, 
+					"type"       : kind, ## Can be overrided here.
 			 		"eid"        : Experiment.current.eid,
 					"scriptid"   : Experiment.current.scriptid,
-			 		"sid"        : Session.current.name,
-			 		"dt"         : datetime.datetime.now(),
-			 		"sessiontime": Session.current.timer_elapsed(),
-			  		"exptime"    : Experiment.current.timer_elapsed(),
-			  		"machinetime": time.time_ns(),
+			  		"exptime"    : Experiment.current.timer_elapsed()
 		   			})
-		self.update(attribs)
+		
 ExperimentEvent = ExpEvent
 
 
@@ -339,7 +336,7 @@ class Experiment:
 	def __exit__(self):
 		self.close()
 
-	def endthread(self):
+	def endthreads(self):
 		self.schedule.end_thread = True
 
 	def close(self):

@@ -42,6 +42,7 @@ def acq_protocol():
 		m["tandh"] = scope.pico.tandh.read()
 	except:
 		pass
+	m.panel()
 
 ## Schedule acquisitions
 exp.schedule.every().hour.do(acq_protocol)

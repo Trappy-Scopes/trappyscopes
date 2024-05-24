@@ -341,16 +341,8 @@ ScriptEngine.run_all(globals())
 
 
 
-## Test measurements
-from measurement import Measurement
-m = Measurement(q=2, qq=123, m=234, o=1.123)
 Share.updateps1()
 
-from measurement import MeasurementStream
-ms = MeasurementStream(m, name="test stream")
-ms.auto_update_tables = True
-tab = ms.tabulate("measureidx", "m", "o", "q", "sid")
-ms.auto_update_explogs = True
-ms.auto_update_df = True
+
 
 
