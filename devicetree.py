@@ -54,8 +54,11 @@ class ScopeAssembly:
 		self.actuators = {}
 		self.sensors = {}
 		self.basedevices = {}
+		self.network = None
+		net = YamlProtocol.load(Share.networkinfo_path)
+		if net != None:
+			self.network = net
 
-		self.network = YamlProtocol.load(Share.networkinfo_path)["network"]
 		self.iptable = {dev["name"] : dev["ip"] for dev in self.network}
 		
 		self.add_device("rpi", RPi("localhost", ip="localhost"))
