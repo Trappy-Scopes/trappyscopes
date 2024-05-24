@@ -57,9 +57,8 @@ class ScopeAssembly:
 		self.network = None
 		net = YamlProtocol.load(Share.networkinfo_path)
 		if net != None:
-			self.network = net
-
-		self.iptable = {dev["name"] : dev["ip"] for dev in self.network}
+			self.network = net["network"]
+			self.iptable = {dev["name"] : dev["ip"] for dev in self.network}
 		
 		self.add_device("rpi", RPi("localhost", ip="localhost"))
 		#self.draw_tree()
