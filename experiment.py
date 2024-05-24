@@ -40,6 +40,7 @@ class ExpEvent(TSEvent):
 					"scriptid"   : Experiment.current.scriptid,
 			  		"exptime"    : Experiment.current.timer_elapsed()
 		   			})
+		self.update(attribs)
 		
 ExperimentEvent = ExpEvent
 
