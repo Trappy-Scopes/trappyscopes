@@ -131,14 +131,14 @@ class MeasurementStream:
 		Create a tabulated view of the measurement stream with the provided keys.
 		"""
 		filtered_args = [arg for arg in args if arg in self.datapoint.keys()]
-		if args != filtered_args:
+		if list(args) != list(filtered_args):
 			log.error("Missing keys passed to MeasurementStream.tabulate. Ignoring those keys.")
 
 		table = Table(*filtered_args, title=f"Table {len(self.tables)}{f' : {title}'*bool(title)}")
 		self.tables[tuple(args)] = table
-		#for i, key in enumerate(args):
-		#	print(i)
-		#	table.columns[i].style = f"color({i})"
+		for i, key in enumerate(args):
+			print(i)
+			table.columns[i].style = f"color({i})"
 		return table
 
 
@@ -183,13 +183,13 @@ class MeasurementStream:
 	def __repr__(self):
 		return pretty.pretty_repr({"detections" : self.detections,
 								   "measuremnts": self.measurements,
-								   "monitoes"   : self.monitors,
+								   "monitors"   : self.monitors,
 								   "readings"   :self.readings})
 
 	def panel(self):
 		print((Panel(Pretty({"detections" : self.detections,
 								   "measuremnts": self.measurements,
-								   "monitoes"   : self.monitors,
+								   "monitors"   : self.monitors,
 								   "readings"   :self.readings}),
 			title=f"Measurement Stream {f':: {self.name}'*(self.name!=None)}")))
 
