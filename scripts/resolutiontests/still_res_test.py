@@ -38,7 +38,7 @@ exp.scriptid = __name__
 ### Configure experiment
 exp.attribs.update({"setup" : ["still_resolution_tests", "usaf_test_target"],
 					"description" : description,
-					"voltage": 2, "itr": 3,  "channels": ["r", "g", "b", "w"], 
+					"voltage": 1, "itr": 3,  "channels": ["r", "g", "b", "w"], 
 				    "res_set":[[1332, 990], [2028, 1080], [2028,1520], [4056, 3040], [1920, 1080]],
 
 				    "magnification": 1.0,
@@ -151,7 +151,7 @@ for res in exp.attribs["res_set"]:
 				  )
 
 			exp.delay("Delay before capture", 5)
-			cam.cam.start_and_capture_file(show_preview=True)
+			cam.cam.start_and_capture_file(acq, show_preview=True)
 
 			## Print Measurement Table
 			print(tab)
