@@ -70,6 +70,7 @@ print("Registering lit controller!")
 if "lit" not in scope:
 	lit = RPiPicoDevice.Emit("lit", pico)
 	scope.add_device("lit", lit)
+	scope.draw_tree()
 
 
 
