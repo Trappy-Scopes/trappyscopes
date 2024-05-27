@@ -86,7 +86,7 @@ m = magms(acq="magnification_std.png", config_size=list(cam.cam.still_configurat
 		  size=cam.cam.still_configuration.size)
 
 exp.user_prompt(None, label="Place the USAF test target and focus at 1X.")
-cam.cam.create_preview_configuration()
+cam.cam.create_video_configuration()
 cam.preview(tsec=30)
 
 
@@ -103,7 +103,7 @@ for res in exp.attribs["res_set"]:
 		                       			     "min_res_um"],
 		                       	monitors=["rV", "gV", "bV", "res"]) ## Calculated afterwards
 	print(ms)
-	tab = ms.tabulate("rV", "gV", "bV", "res")
+	tab = ms.tabulate("measureidx", "rV", "gV", "bV", "res")
 
 	###################################
 
