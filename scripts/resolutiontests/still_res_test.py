@@ -99,7 +99,8 @@ for res in exp.attribs["res_set"]:
 	ms = exp.new_measurementstream(tuple(res), 
 		                       measurements=["usaftt_group", 
 		                       			     "usaftt_element", 
-		                       			     "min_res_um"]) ## Calculated afterwards	
+		                       			     "min_res_um"]) ## Calculated afterwards
+	print(ms)
 	tab = ms.tabulate("rV", "gV", "bV", "res", "config_size")
 
 	###################################
@@ -144,7 +145,8 @@ for res in exp.attribs["res_set"]:
 		for i in range(exp.attribs["itr"]):
 			acq=name+f"_cntr_{i}.png"
 			m = ms(rV=lightmap[channel][0], gV=lightmap[channel][1], bV=lightmap[channel][2],
-					res=res, magnification=exp.attribs["magnification"], config_size=list(cam.cam.still_configuration.sensor["output_size"]),
+					res=res, magnification=exp.attribs["magnification"], 
+					#config_size=list(cam.cam.still_configuration.sensor["output_size"]),
 					itr_no=i, quality=cam.cam.options["quality"], compression=cam.cam.options["compress_level"], acq=acq
 				  )
 
