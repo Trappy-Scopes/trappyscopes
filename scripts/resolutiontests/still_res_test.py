@@ -96,7 +96,7 @@ cam.close()  ## Close camera
 for res in exp.attribs["res_set"]:
 
 	## Set measurement stream ##########
-	ms = new_measurementstream(tuple(res), 
+	ms = exp.new_measurementstream(tuple(res), 
 		                       measurements=["usaftt_group", 
 		                       			     "usaftt_element", 
 		                       			     "min_res_um"]) ## Calculated afterwards	
