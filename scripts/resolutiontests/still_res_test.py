@@ -44,7 +44,7 @@ exp.attribs.update({"setup" : ["still_resolution_tests", "usaf_test_target"],
 				    "magnification": 1.0,
 				    "itr" : 3,
 
-				    "exposure_time": 50000,
+				    "exposure_time": 25000,
 				    "awb_enable" :  False,
 				    "ae_enable" :  False,
 				    "brightness" :  0.3,
