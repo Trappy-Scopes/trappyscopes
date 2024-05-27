@@ -130,7 +130,7 @@ for res in exp.attribs["res_set"]:
 	read_config =  safepicam2_config(cam.cam.still_configuration)
 	print(read_config)
 	
-	exp.dealy("Configuration checking delay", 10)
+	exp.delay("Configuration checking delay", 10)
 
 	for channel in lightmap:
 
