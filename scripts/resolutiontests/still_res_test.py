@@ -101,7 +101,7 @@ for res in exp.attribs["res_set"]:
 		                       			     "usaftt_element", 
 		                       			     "min_res_um"]) ## Calculated afterwards
 	print(ms)
-	tab = ms.tabulate("rV", "gV", "bV", "res", "config_size")
+	tab = ms.tabulate("rV", "gV", "bV", "res")
 
 	###################################
 
