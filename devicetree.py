@@ -72,6 +72,7 @@ class ScopeAssembly:
 			raise TSDeviceNotRegistered(f"Device not found: {device}")
 
 	def __getitem__(self, device):
+		print(device)
 		if device in self.tree:
 			return self.tree[device]
 		else:
