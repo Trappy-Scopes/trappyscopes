@@ -167,4 +167,4 @@ for res in exp.attribs["res_set"]:
 
 
 # Close experiment
-exp.close()
+##exp.close()
