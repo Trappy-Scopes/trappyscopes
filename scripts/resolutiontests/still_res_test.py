@@ -150,7 +150,7 @@ for res in exp.attribs["res_set"]:
 					itr_no=i, quality=cam.cam.options["quality"], compression=cam.cam.options["compress_level"], acq=acq
 				  )
 
-			exp.dealy("Delay before capture", 5)
+			exp.delay("Delay before capture", 5)
 			cam.cam.start_and_capture_file(show_preview=True)
 
 			## Print Measurement Table
