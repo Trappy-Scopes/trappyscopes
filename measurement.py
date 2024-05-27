@@ -137,6 +137,7 @@ class MeasurementStream:
 		table = Table(*filtered_args, title=f"Table {len(self.tables)}{f' : {title}'*bool(title)}")
 		self.tables[tuple(args)] = table
 		for i, key in enumerate(args):
+			print(i)
 			table.columns[i].style = f"color({i})"
 		return table
 
