@@ -66,6 +66,9 @@ lightmap = {"r": [exp.attribs["voltage"], 0, 0],
 			"b": [0, 0, exp.attribs["voltage"]], 
 			"w": [exp.attribs["voltage"], exp.attribs["voltage"], exp.attribs["voltage"]]
 		   }
+if not "lit" in scope:
+	lit = RPiPicoDevice.Emit("lit", pico)
+	scope.add_device("lit", lit)
 
 
 
