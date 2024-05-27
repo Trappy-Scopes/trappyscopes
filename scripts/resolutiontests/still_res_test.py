@@ -9,7 +9,7 @@ from cleaners import safepicam2_config
 
 
 
-description=
+description= \
 """
 Protocol to measure resolution with several modes - 4 modes. 4 colors, 3 images per channel.
 
@@ -31,6 +31,9 @@ t = time.localtime(time.time())
 exp = Experiment(f"{scopeid}_still_res_test_usaf_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
 test = exp
 
+
+print(__name__)
+exp.scriptid = __name__
 
 ### Configure experiment
 exp.attribs.update({"setup" : ["still_resolution_tests", "usaf_test_target"],
