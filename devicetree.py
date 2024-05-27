@@ -75,7 +75,7 @@ class ScopeAssembly:
 		if device in self.tree:
 			return self.tree[device]
 		else:
-			raise KeyError("device")
+			raise KeyError(device)
 
 	def add_device(self, name, deviceobj, description=None):
 		self.tree[name] = deviceobj
