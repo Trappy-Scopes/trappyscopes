@@ -609,7 +609,7 @@ class Experiment:
 		attribs={"name": name, "prompt":prompt, "label":label}
 		
 		
-		attribs[event]["prompt_requested"] = datetime.datetime.now()
+		attribs["prompt_requested"] = datetime.datetime.now()
 		
 		inp = "no_inp"
 		inp = input(f"{Fore.RED}{prompt_string}{Fore.RESET}")
