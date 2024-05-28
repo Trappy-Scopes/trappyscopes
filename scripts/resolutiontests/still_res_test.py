@@ -135,7 +135,7 @@ for res in exp.attribs["res_set"]:
 	
 	exp.delay("Configuration checking delay", 10)
 
-	for channel in lightmap:
+	for channel in ["w"]:
 
 		### Set-light color
 		scope.lit.setVs(*lightmap[channel])
