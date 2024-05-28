@@ -41,7 +41,7 @@ exp.attribs.update({"setup" : ["still_resolution_tests", "usaf_test_target"],
 					"voltage": 1, "itr": 3,  "channels": ["r", "g", "b", "w"], 
 				    "res_set":[[1332, 990], [2028, 1080], [2028,1520], [4056, 3040], [1920, 1080]],
 
-				    "magnification": 2.0,
+				    "magnification": 4.0,
 				    "itr" : 3,
 
 				    "exposure_time": 25000,
