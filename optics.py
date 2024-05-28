@@ -13,6 +13,15 @@ class Lenses:
 
 	"""
 
+	class TransferElement:
+		def __init__(self):
+			self.attribs = {}
+		def light_gathering_factor(self):
+			"""
+			f/#
+			"""
+			return self.attribs["focal_length_mm"]/self.attribs["dia_mm"]
+
 	class AchromaticDoublet:
 		pass
 

@@ -343,6 +343,8 @@ class Experiment:
 	def close(self):
 		self.schedule.end_thread = True
 
+		###
+		self.logs["attribs"] = self.attribs
 
 		#if self.unsaved:
 		end_time = time.perf_counter()
