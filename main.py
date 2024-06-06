@@ -154,7 +154,7 @@ with open("config/deviceid.yaml") as deviceid:
 
 from utilities.wallpaper import generate_wallpaper, def_wallpaper_path
 generate_wallpaper(device_metadata)
-os.system(f"pcmanfm --set-wallpaper {def_wallpaper_path}")
+os.system(f"pcmanfm --wallpaper-mode=fit --set-wallpaper {def_wallpaper_path}")
 
 ## -------- Synchronize ------------
 SyncEngine.git_sync(device_metadata)
