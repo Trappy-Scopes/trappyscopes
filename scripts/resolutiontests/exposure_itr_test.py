@@ -90,7 +90,7 @@ for exposure in exp.attribs["exposure_time_set"]:
 		                       measurements=["usaftt_group", 
 		                       			     "usaftt_element", 
 		                       			     "min_res_um"],
-		                       	monitors=["rV", "gV", "bV", "res", "exposure_time"]) ## Calculated afterwards
+		                       	monitors=["rV", "gV", "bV", "res", "exposure_time_us"]) ## Calculated afterwards
 	print(ms)
 	tab = ms.tabulate("measureidx", "rV", "gV", "bV", "res", "exposure_time_us")
 
