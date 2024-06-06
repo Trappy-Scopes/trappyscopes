@@ -21,7 +21,7 @@ optics:
   - zoomlens
 hardware:
   pico:
-  - nullpico
+  - pico
   - pico1
   - nullpico
   camera: nullcamera

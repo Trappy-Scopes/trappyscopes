@@ -40,6 +40,33 @@ pretty.install()
 import logsettings ## Why is this required ?
 import logging
 log = logging.getLogger("main")
+import logging
+
+class ErrorCollectingHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.errors = []
+
+    def emit(self, record):
+        if record.levelno >= logging.ERROR:
+            self.errors.append(self.format(record))
+
+    def summarize_errors(self):
+        if not self.errors:
+            return "No errors logged."
+        return "\n".join(self.errors)
+
+# Setup the custom handler
+error_collector = ErrorCollectingHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+error_collector.setFormatter(formatter)
+
+# Get the root logger
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)  # or any level you need
+logger.addHandler(error_collector)
+
+
 
 
 ## Define exp object - for Crash safety
@@ -284,8 +311,19 @@ for i, exp_ in enumerate(Experiment.list_all()):
 print(Panel(exppanel, title="All current experiments on the Microscope"))
 
 
+
+
 exp_name = None
 print("\nCall intro() to get an introduction.")
+
+# Output the summary of errors
+from rich.rule import Rule
+print(Rule(title="Summary of errors", style="red"))
+
+print("Summary of errors:")
+print(error_collector.summarize_errors())
+print(Rule(style="red"))
+
 if not Share.argparse["noep"]:
 	
 	print("\n\n")
@@ -338,6 +376,9 @@ def exit():
 
 from transmit.hivemqtt import HiveMQTT
 HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})
+
+
+
 
 ### Run all scripts
 ScriptEngine.run_all(globals())
