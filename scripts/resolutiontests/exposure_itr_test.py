@@ -106,7 +106,7 @@ for exposure in exp.attribs["exposure_time_set"]:
 	cam.cam.still_configuration.controls.AwbEnable    = exp.attribs["awb_enable"]
 	cam.cam.still_configuration.controls.AeEnable     = exp.attribs["ae_enable"]
 	cam.cam.still_configuration.controls.AnalogueGain = exp.attribs["analogue_gain"]
-	cam.cam.still_configuration.controls.DigitalGain = exp.attribs["digital_gain"]
+	#cam.cam.still_configuration.controls.DigitalGain = exp.attribs["digital_gain"]
 	cam.cam.still_configuration.controls.Brightness   = exp.attribs["brightness"]
 	cam.cam.still_configuration.controls.Contrast     = exp.attribs["contrast"]
 	cam.cam.still_configuration.controls.ColourGains  = exp.attribs["colour_gains"]
