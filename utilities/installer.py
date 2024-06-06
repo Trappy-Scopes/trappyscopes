@@ -5,7 +5,7 @@ import os
 import sys
 
 class Installer:
-	pylibs = ["rich", "pyyaml", "colorama", "nanoid", 
+	pylibs = ["rich", "pyyaml", "colorama", "nanoid", "art",
 			  "plotext", "asciichartpy", "prompt_toolkit", 
 			  "GitPython", "schedule", "paho-mqtt", "websockets", 
 			  "pandas"]
