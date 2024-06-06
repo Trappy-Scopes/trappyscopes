@@ -39,7 +39,7 @@ max_exposure_time = 50000
 ### Configure experiment
 exp.attribs.update({"setup" : ["still_resolution_tests", "usaf_test_target", "exposure_time_tests"],
 					"description" : description,
-					"voltage": 2, "itr": 3,  "channels": ["r", "g", "b", "w"], 
+					"voltage": 3.0, "itr": 3,  "channels": ["r", "g", "b", "w"], 
 				    "res_set":[[4056, 3040]], ## Only do fullframe
 
 				    "magnification": 2.0,
