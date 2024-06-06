@@ -42,7 +42,7 @@ exp.attribs.update({"setup" : ["still_resolution_tests", "usaf_test_target", "ex
 					"voltage": 2, "itr": 3,  "channels": ["r", "g", "b", "w"], 
 				    "res_set":[[4056, 3040]], ## Only do fullframe
 
-				    "magnification": 4.0,
+				    "magnification": 2.0,
 				    "itr" : 3,
 				    "channels" : "rgbw",
 				    "exposure_time": max_exposure_time,
