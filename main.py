@@ -152,6 +152,10 @@ User.exp_hook = exp
 with open("config/deviceid.yaml") as deviceid:
 	device_metadata = yaml.load(deviceid, Loader=SafeLoader)
 
+from utilities.wallpaper import generate_wallpaper, def_wallpaper_path
+generate_wallpaper(device_metadata)
+os.system(f"pcmanfm --set-wallpaper {def_wallpaper_path}")
+
 ## -------- Synchronize ------------
 SyncEngine.git_sync(device_metadata)
 ## ---------------------------------
