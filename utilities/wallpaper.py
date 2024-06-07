@@ -17,7 +17,7 @@ def generate_wallpaper(info):
 	console.print("\n"*10)
 	console.print(pageheader())
 	console.print("\n"*10)
-	console.print("Control layer version: ", Session.commitid())
+	console.print("Control layer version: ", Session.current.commitid())
 	console.print(scopename)
 	console.print("\n\n\n")
 	console.print(info)
