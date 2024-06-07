@@ -13,10 +13,12 @@ def generate_wallpaper(info):
 	stream = io.StringIO() ## Temporary dump
 	scopename=text2art(info["name"], font="tarty8")
 	console = Console(record=True, file=stream)
+	console.print("\n"*10)
 	console.print(pageheader())
 	console.print(scopename)
 	console.print("\n\n\n")
 	console.print(info)
+	console.print("\n"*10)
 	console.save_svg(os.path.join(os.path.expanduser('~'), "wallpaper.svg"), theme=MONOKAI)
 
 def_wallpaper_path = os.path.join(os.path.expanduser('~'), "wallpaper.svg")
