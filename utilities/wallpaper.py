@@ -13,7 +13,7 @@ from bookeeping.session import Session
 def generate_wallpaper(info):
 	stream = io.StringIO() ## Temporary dump
 	scopename=text2art(info["name"], font="tarty8")
-	console = Console(record=True, file=stream, soft_wrap=True)
+	console = Console(record=True, file=stream, soft_wrap=True, new_line_start=True)
 	console.print("\n"*10)
 	console.print(pageheader())
 	console.print("\n"*10)
