@@ -8,13 +8,16 @@ import platform
 import io
 
 from .fluff import pageheader
+from bookeeping.session import Session
 
 def generate_wallpaper(info):
 	stream = io.StringIO() ## Temporary dump
 	scopename=text2art(info["name"], font="tarty8")
-	console = Console(record=True, file=stream)
+	console = Console(record=True, file=stream, title="Trappy-Scope")
 	console.print("\n"*10)
 	console.print(pageheader())
+	console.print("\n"*10)
+	console.print("Control layer version: ", Session.commitid())
 	console.print(scopename)
 	console.print("\n\n\n")
 	console.print(info)
