@@ -5,13 +5,15 @@ from rich.terminal_theme import MONOKAI
 import os
 import ctypes
 import platform
+import io
 
-
-
+from .fluff import pageheader
 
 def generate_wallpaper(info):
+	stream = io.StringIO() ## Temporary dump
 	scopename=text2art(info["name"], font="tarty8")
-	console = Console(record=True)
+	console = Console(record=True, file=stream)
+	console.print(pageheader())
 	console.print(scopename)
 	console.print("\n\n\n")
 	console.print(info)
