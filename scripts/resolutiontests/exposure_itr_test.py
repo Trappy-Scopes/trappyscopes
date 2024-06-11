@@ -49,7 +49,7 @@ exp.attribs.update({"setup" : ["still_resolution_tests", "usaf_test_target", "ex
 				    "awb_enable" :  False,
 				    "ae_enable" :  False,
 				    "brightness" :  0.3,
-				    "analogue_gain": 3,
+				    "analogue_gain": 2,
 				    "digital_gain":1,
 				    "contrast" :  2.5,
 				    "colour_gains" :  (0.,0.),
