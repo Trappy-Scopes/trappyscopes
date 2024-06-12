@@ -2,7 +2,7 @@ import datetime
 from experiment import Test
 import numpy as np
 import time
-
+import gc
 
 from cleaners import safepicam2_config
 
@@ -181,6 +181,7 @@ for res in exp.attribs["res_set"]:                                  ## 0
 							## Delay during iteration
 							if exp.attribs["itr"] > 1:
 								exp.delay("Delay between captures", 3)
+						gc.collect()
 		
 
 						
