@@ -152,7 +152,7 @@ for res in exp.attribs["res_set"]:                                  ## 0
 						
 
 						### Acquire image & metadata
-						name = f"res_{res[0]}_{res[1]}_{channel}_exposure_{exposure}".replace(".", "pt")
+						name = f"res_{res[0]}_{res[1]}_{ch}_exposure_{volt}V_exposureus_{exposure}_again_{again}".replace(".", "pt")
 
 						### --------------------------------------  ## 5
 						for i in range(exp.attribs["itr"]):
