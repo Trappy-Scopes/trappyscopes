@@ -161,8 +161,11 @@ for res in exp.attribs["res_set"]:                                  ## 0
 							acq=name+f"_cntr_{i}.png"
 							cam.cam.start_and_capture_file(acq, show_preview=True)
 							cam.cam.stop_preview()
+							cam.cam.stop()
 							
+
 							## Capture metadata
+							cam.cam.start()
 							frame_metadata = cam.frame_metadata()
 
 							measurement = ms(channel=ch, voltage=volt, again=again, exposure_time_us=exposure,
