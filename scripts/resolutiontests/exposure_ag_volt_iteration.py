@@ -160,7 +160,8 @@ for res in exp.attribs["res_set"]:                                  ## 0
 							## Capture image
 							acq=name+f"_cntr_{i}.png"
 							cam.cam.start_and_capture_file(acq, show_preview=True)
-
+							cam.cam.stop_preview()
+							
 							## Capture metadata
 							frame_metadata = cam.frame_metadata()
 
