@@ -133,10 +133,10 @@ for res in exp.attribs["res_set"]:                                  ## 0
 		ms = exp.new_measurementstream(ch,                          ## 1 
 			 measurements=["usaftt_group", "usaftt_element",        ## 1
 			               "min_res_um", "Lux"],                    ## 1
-			 monitors=["channel", "volt",                           ## 1
+			 monitors=["channel", "voltage",                        ## 1
 			           "again",  "exposure_time_us"])               ## 1 
 		tab = ms.tabulate("measureidx", "channel",                  ## 1
-						  "volt", "again", "Lux",                   ## 1
+						  "voltage", "again", "Lux",                ## 1
 						  "exposure_time_us", title=ch)             ## 1
 		print(tab)													## 1
 		## -------------------------------------------------------  ## 1
