@@ -172,7 +172,7 @@ for res in exp.attribs["res_set"]:                                  ## 0
 							measurement = ms(channel=ch, voltage=volt, again=again, exposure_time_us=exposure,
 											 rV=lightmap[0], gV=lightmap[1], bV=lightmap[2],
 											 res=res, magnification=exp.attribs["magnification"], itr_no=i, 
-											 acq=acq, acq_fullpath=os.path.join(exp.exp_dir, acq), *frame_metadata)
+											 acq=acq, acq_fullpath=os.path.join(exp.exp_dir, acq), **frame_metadata)
 							
 							## Print Measurement Table
 							print(tab)
