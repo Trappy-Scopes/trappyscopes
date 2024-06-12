@@ -170,7 +170,7 @@ for res in exp.attribs["res_set"]:                                  ## 0
 
 							lightmap = get_lightconditions(ch, volt)
 							measurement = ms(channel=ch, voltage=volt, again=again, exposure_time_us=exposure,
-											 rV=lightmap[ch][0], gV=lightmap[ch][1], bV=lightmap[ch][2],
+											 rV=lightmap[0], gV=lightmap[1], bV=lightmap[2],
 											 res=res, magnification=exp.attribs["magnification"], itr_no=i, 
 											 acq=acq, acq_fullpath=os.path.join(exp.exp_dir, acq), *frame_metadata)
 							
