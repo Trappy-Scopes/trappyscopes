@@ -168,6 +168,7 @@ for res in exp.attribs["res_set"]:                                  ## 0
 							cam.cam.start()
 							frame_metadata = cam.frame_metadata()
 
+							lightmap = get_lightconditions(ch, volt)
 							measurement = ms(channel=ch, voltage=volt, again=again, exposure_time_us=exposure,
 											 rV=lightmap[channel][0], gV=lightmap[channel][1], bV=lightmap[channel][2],
 											 res=res, magnification=exp.attribs["magnification"], itr_no=i, 
