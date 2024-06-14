@@ -100,6 +100,8 @@ def configure_camera(res, exposure, again):
 
 	cam.cam.still_configuration.size  = (res[0], res[1])
 	cam.cam.still_configuration.queue  = exp.attribs["queue"]
+	cam.cam.still_configuration.buffer_count  = 4
+
 
 	### Set compression and quality
 	cam.cam.options["quality"] = exp.attribs["quality"]
