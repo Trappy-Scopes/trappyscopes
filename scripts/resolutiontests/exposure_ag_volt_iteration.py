@@ -161,7 +161,7 @@ for res in exp.attribs["res_set"]:                                  ## 0
 							
 							## Capture image
 							acq=name+f"_cntr_{i}.png"
-							cam.cam.start_and_capture_file(acq, show_preview=True)
+							cam.cam.start_and_capture_file(acq, show_preview=False)
 							cam.cam.stop_preview()
 							cam.cam.stop()
 							
