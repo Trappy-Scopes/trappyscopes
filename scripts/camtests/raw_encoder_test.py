@@ -138,7 +138,7 @@ for encoder in encoder_map:
 					exp.delay("Recording delay", 5)
 					cam.cam.stop_recording()
 				test = exp.testfn(test)
-				measurement = ms(encoder=encoder, res=res, fps=fps, duration_s=5, acq=name, success=test)
+				#measurement = ms(encoder=encoder, res=res, fps=fps, duration_s=5, acq=name, success=test)
 
 				exp.delay("Iteration delay", 5)
 exp.conclude()
