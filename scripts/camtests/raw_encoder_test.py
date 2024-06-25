@@ -140,7 +140,7 @@ for encoder in encoder_map:
 					print("Failed!")
 					print(e)
 					cam.close()
-				exp.delay("Recording delay", 5)
+				exp.delay("Recording delay", 30)
 				cam.cam.stop_recording()
 				#test = exp.testfn(test)
 				#measurement = ms(encoder=encoder, res=res, fps=fps, duration_s=5, acq=name, success=test)
