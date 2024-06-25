@@ -10,7 +10,7 @@ import os
 import ctypes
 import platform
 import io
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 from .fluff import pageheader
 from bookeeping.session import Session
