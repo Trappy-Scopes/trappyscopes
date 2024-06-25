@@ -187,6 +187,16 @@ class Experiment:
 		exps = Experiment.list_all()
 		return [e.rsplit("/", 1)[1] for e in exps]
 
+	def list_all_eids():
+		"""
+		Return a dict with eid: experiment name.
+		"""
+		exps = Experiment.list_all()
+		expmap = {open(os.path.join(exp, ".experiment"), "r").read()
+					: exp.rsplit("/", 1)[1] for exp in exps}
+		return expmap
+
+
 
 	def autosave(func, *args, **kwargs):
 		"""
@@ -704,6 +714,7 @@ class Test(Experiment):
 				callable_(args, kwargs)
 			print(f"{Fore.GREEN}››{Fore.RESET} {callable_} : {Fore.GREEN}OK{Fore.RESET}")
 			self.checks.append(1) ## Inverted
+			return True
 
 		except Exception as e:
 			print(f"{Fore.RED}››{Fore.RESET} {callable_} : {Fore.RED}NOK{Fore.RESET}")
@@ -711,6 +722,7 @@ class Test(Experiment):
 			print(e)
 			print(Fore.RESET)
 			self.checks.append(0) ## Inverted
+			return False
 
 	def conclude(self):
 		if sum(self.checks) == len(self.checks):
