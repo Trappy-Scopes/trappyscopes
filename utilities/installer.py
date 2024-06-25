@@ -8,10 +8,11 @@ class Installer:
 	pylibs = ["rich", "pyyaml", "colorama", "nanoid", "art",
 			  "plotext", "asciichartpy", "prompt_toolkit", 
 			  "GitPython", "schedule", "paho-mqtt", "websockets", 
-			  "pandas"]
+			  "pandas", "rayoptics"]
 	
 	binlibs = []
-	gitclones = ["https://github.com/Trappy-Scopes/network.git"]
+	gitclones = ["https://github.com/Trappy-Scopes/network.git", 
+				"https://github.com/Trappy-Scopes/secrets.git"]
 	
 
 	def do_all():

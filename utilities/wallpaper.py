@@ -1,30 +1,70 @@
 from art import text2art
 from rich.console import Console
 from rich.terminal_theme import MONOKAI
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.pretty import Pretty
+
 
 import os
 import ctypes
 import platform
 import io
+import matplotlib.pyplot as plt
 
 from .fluff import pageheader
 from bookeeping.session import Session
 
+def_wallpaper_path = os.path.join(os.path.expanduser('~'), "wallpaper.svg")
+
+
 def generate_wallpaper(info):
 	stream = io.StringIO() ## Temporary dump
 	scopename=text2art(info["name"], font="tarty8")
-	console = Console(record=True, file=stream)
-	console.print("\n"*10)
-	console.print(pageheader(), soft_wrap=True, new_line_start=True)
-	console.print("\n"*10)
-	console.print("Control layer version: ", Session.current.commitid())
-	console.print(scopename)
-	console.print("\n\n\n")
-	console.print(info)
-	console.print("\n"*10)
+	console = Console(record=True, file=stream, width=int(1920/8), height=int(1080/8))
+	
+	layout = Layout()
+	layout.split_row(
+	    Layout(name="left"),
+	    Layout(name="right"),
+	)
+	layout["left"].size = int(1920/8*(1/2))
+	lpanel = "\n"*10 + pageheader() + "\n"*3 + f'Control layer version: {Session.current.commitid()}{" "}{scopename}'
+	p1 = Panel(lpanel)
+	p2 = Panel(Pretty(info), title="Scope parameters")
+
+	layout["left"].update(p1)
+	layout["right"].update(p2)
+
+	console.print(layout)
 	console.save_svg(os.path.join(os.path.expanduser('~'), "wallpaper.svg"), theme=MONOKAI, title="Trappy-Scope")
 
-def_wallpaper_path = os.path.join(os.path.expanduser('~'), "wallpaper.svg")
+def generate_wallpaper2(info):
+	
+	from PIL import ImageFont, ImageDraw, Image
+	import numpy as np
+	import cv2
+	image = np.ones((1080, 1920, 3), dtype=np.uint8)
+	# Convert to PIL Image
+	cv2_im_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+	pil_im = Image.fromarray(image)
+	draw = ImageDraw.Draw(pil_im)
+
+	# Choose a font
+	font = ImageFont.truetype("Adumu.ttf", 50)
+
+	### Print -> Trappy Scopes
+	draw.text((0, 5), text=pageheader(), font=font)
+
+	### Print -> Scope name
+	scopename=text2art(info["name"], font="tarty8")
+	draw.text((0, 1), text=scopename, font=font)
+
+
+
+	# Save the image
+	cv2_im_processed = cv2.cvtColor(np.array(pil_im), cv2.COLOR_RGB2BGR)
+	cv2.imwrite(os.path.join(os.path.expanduser('~'), "wallpaper.png"), cv2_im_processed)
 
 
 def set_wallpaper(path):
