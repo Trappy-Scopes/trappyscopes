@@ -25,11 +25,11 @@ Steps:
 unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
-exp = Test(f"{scopeid}_raw_encoder_tests_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
+exp = Test(f"{scopeid}_all_encoder_tests_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
 test = exp
 
 
-exp.scriptid = "raw_encoder_tests"
+exp.scriptid = "all_encoder_tests"
 
 
 ### Configure experiment
@@ -120,17 +120,23 @@ cam.close()  ## Close camera
 scope.lit.setVs(1,1,1)
 
 
-for res in exp.attribs["res_set"]:
-	for fps in exp.attribs["fps_set"]:
-		configure_picamera(res, fps)
-		from picamera2.encoders import Encoder
-		encoder = Encoder() ## Create null encoder
-		for i in range(exp.attribs["itr"]):
-			name = f"res_{res[0]}_{res[1]}_fps_{fps}_raw_encoded_itr_{i}".replace(".", "pt")
-			cam.cam.start_recording(encoder, f"{name}.raw")
-			exp.delay("Recording delay", 10)
-			cam.cam.stop_recording()
-			exp.delay("Iteration delay", 5)
+from picamera2.encoders import Encoder, H264Encoder, JpegEncode, MJPEGEncoder
+encoder_map = {"h264encoder": H264Encoder, "jpegencoder": JpegEncode, "mjpegencoder": MJPEGEncoder, "raw_encoder" : Encoder}
+for encoder in encoder_map:
+	for res in exp.attribs["res_set"]:
+		for fps in exp.attribs["fps_set"]:
+			configure_picamera(res, fps)
+			encoder = Encoder() ## Create null encoder
+			for i in range(exp.attribs["itr"]):
+				name = f"res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
+				
+				def test():
+					cam.cam.start_recording(encoder_map[encoder](), f"{name}.raw")
+					exp.delay("Recording delay", 5)
+					cam.cam.stop_recording()
+				exp.testfn(test)
+				exp.delay("Iteration delay", 5)
+exp.conclude()
 cam.close()
 exp.close()
 
