@@ -8,7 +8,7 @@ class Installer:
 	pylibs = ["rich", "pyyaml", "colorama", "nanoid", "art",
 			  "plotext", "asciichartpy", "prompt_toolkit", 
 			  "GitPython", "schedule", "paho-mqtt", "websockets", 
-			  "pandas", "rayoptics"]
+			  "pandas", "rayoptics", "matplotlib"]
 	
 	binlibs = []
 	gitclones = ["https://github.com/Trappy-Scopes/network.git", 
