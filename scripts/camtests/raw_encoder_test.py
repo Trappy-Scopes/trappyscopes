@@ -123,7 +123,7 @@ scope.lit.setVs(1,1,1)
 from picamera2.encoders import Encoder, H264Encoder, JpegEncoder, MJPEGEncoder
 encoder_map = {"h264encoder": H264Encoder, "jpegencoder": JpegEncoder, "mjpegencoder": MJPEGEncoder, "raw_encoder" : Encoder}
 extension_map = {"h264encoder": "h264", "jpegencoder": "mjpeg", "mjpegencoder": "mjpeg", "raw_encoder" : "yuv420"}
-ms = exp.new_measurementstream(monitors=["encoder", "res", "fps", "duration_s", "acq"])
+ms = exp.new_measurementstream("default", monitors=["encoder", "res", "fps", "duration_s", "acq"])
 for encoder in encoder_map:
 	for res in exp.attribs["res_set"]:
 		for fps in exp.attribs["fps_set"]:
