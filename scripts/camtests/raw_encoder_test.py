@@ -35,7 +35,7 @@ exp.scriptid = "all_encoder_tests"
 ### Configure experiment
 exp.attribs.update({"setup" : ["encoder_tests", "rawencoder", "nullencoder"],
 					"description" : description,
-					"voltage": 1.0, "itr": 3,  "channels": ["w"], 
+					"voltage": 1.0, "itr": 1,  "channels": ["w"], 
 				    "magnification": 1.0,
 				    "awb_enable" :  False,
 				    "ae_enable" :  False,
@@ -92,7 +92,7 @@ def configure_picamera(res, fps):
 
 
 	## Print -> set configuration
-	read_config =  safepicam2_config(cam.cam.still_configuration)
+	read_config =  safepicam2_config(cam.cam.video_configuration)
 	print(read_config)
 
 
@@ -121,22 +121,24 @@ scope.lit.setVs(1,1,1)
 
 
 from picamera2.encoders import Encoder, H264Encoder, JpegEncoder, MJPEGEncoder
-encoder_map = {"h264encoder": H264Encoder, "jpegencoder": JpegEncoder, "mjpegencoder": MJPEGEncoder, "raw_encoder" : Encoder}
+encoder_map = {"raw_encoder" : Encoder, "jpegencoder": JpegEncoder, "mjpegencoder": MJPEGEncoder, "h264encoder": H264Encoder}
 extension_map = {"h264encoder": "h264", "jpegencoder": "mjpeg", "mjpegencoder": "mjpeg", "raw_encoder" : "yuv420"}
 
 ms = exp.new_measurementstream("default", monitors=["encoder", "res", "fps", "duration_s", "acq"])
 for encoder in encoder_map:
 	for res in exp.attribs["res_set"]:
 		for fps in exp.attribs["fps_set"]:
+			
 			configure_picamera(res, fps)
-			encoder = Encoder() ## Create null encoder
+
 			for i in range(exp.attribs["itr"]):
 				name = f"res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
 				
 				try:
 					cam.cam.start_recording(encoder_map[encoder](), f'{name}.{extension_map[encoder]}')
-				except:
+				except Exception as e:
 					print("Failed!")
+					print(e)
 					cam.close()
 				exp.delay("Recording delay", 5)
 				cam.cam.stop_recording()
