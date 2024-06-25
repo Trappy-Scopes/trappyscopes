@@ -134,11 +134,11 @@ for encoder in encoder_map:
 				name = f"res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
 				
 				def test():
-					cam.cam.start_recording(encoder_map[encoder](), f"{name}.{extension_map[encoder]}")
+					cam.cam.start_recording(encoder_map[encoder](), f'{name}.{extension_map[encoder]}')
 					exp.delay("Recording delay", 5)
 					cam.cam.stop_recording()
 				test = exp.testfn(test)
-				ms(encoder=encoder, res=res, fps=fps, duration_s=5, acq=name, success=test)
+				measurement = ms(encoder=encoder, res=res, fps=fps, duration_s=5, acq=name, success=test)
 
 				exp.delay("Iteration delay", 5)
 exp.conclude()
