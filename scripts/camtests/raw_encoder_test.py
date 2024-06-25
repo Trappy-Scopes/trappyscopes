@@ -122,6 +122,8 @@ scope.lit.setVs(1,1,1)
 
 from picamera2.encoders import Encoder, H264Encoder, JpegEncode, MJPEGEncoder
 encoder_map = {"h264encoder": H264Encoder, "jpegencoder": JpegEncode, "mjpegencoder": MJPEGEncoder, "raw_encoder" : Encoder}
+extension_map = {"h264encoder": "h264", "jpegencoder": mjpeg, "mjpegencoder": "mjpeg", "raw_encoder" : ".yuv420"}
+
 for encoder in encoder_map:
 	for res in exp.attribs["res_set"]:
 		for fps in exp.attribs["fps_set"]:
@@ -131,7 +133,7 @@ for encoder in encoder_map:
 				name = f"res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
 				
 				def test():
-					cam.cam.start_recording(encoder_map[encoder](), f"{name}.raw")
+					cam.cam.start_recording(encoder_map[encoder](), f"{name}.{extension_map[encoder]}")
 					exp.delay("Recording delay", 5)
 					cam.cam.stop_recording()
 				exp.testfn(test)
