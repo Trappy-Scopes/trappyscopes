@@ -125,7 +125,7 @@ for res in exp.attribs["res_set"]:
 		configure_picamera(res, fps)
 		from picamera2.encoders import Encoder
 		encoder = Encoder() ## Create null encoder
-		for i in exp.attribs["itr"]:
+		for i in range(exp.attribs["itr"]):
 			name = f"res_{res[0]}_{res[1]}_fps_{fps}_raw_encoded_itr_{i}".replace(".", "pt")
 			cam.cam.start_recording(encoder, f"{name}.raw")
 			exp.delay("Recording delay", 10)
