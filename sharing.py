@@ -4,6 +4,13 @@ import os
 
 class Share:
 
+	## Scope Vars
+	class ScopeVars:
+		exp = None
+		cam = None
+		lit = None
+		pico = None
+
 	## Software level info
 	scopecli_fullpath = os.path.abspath(".")
 

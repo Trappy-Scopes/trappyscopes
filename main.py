@@ -29,10 +29,14 @@ from sharing import Share
 
 ### Pretty printing
 import readline
-from rich import pretty
-from rich import print
 from rich.markdown import Markdown
-pretty.install()
+from rich import print
+
+from rich import pretty ## Default pretty printing
+pretty.install()        ## Install pretty traceback handling
+from rich.traceback import install as tracebackinstall 
+tracebackinstall(show_locals=False)
+
 
 
 
@@ -71,7 +75,21 @@ logger.addHandler(error_collector)
 
 ## Define exp object - for Crash safety
 global exp
-exp = None    # For crash safety - so far only standard python packages are invoked (except argparser).
+exp = Share.ScopeVars.exp
+def exit():
+	"""
+	Custom overloaded exit function.
+	"""
+	if exp != None:
+		if exp.active:
+			exp.close()
+	#if device_metadata["auto_fsync"]:
+	#	SyncEngine.fsync(device_metadata)
+	
+	if cam:
+		if cam.is_open():
+			cam.close()
+	sys.exit()
 
 ## Login
 from user import User
@@ -178,6 +196,7 @@ Common.scopeid = scopeid
 
 from optics import Optics
 Optics.populate(device_metadata["optics"])
+#optics = Optics()
 
 from scopeframe import ScopeFrame
 ScopeFrame.populate(device_metadata)
@@ -202,11 +221,14 @@ print(pageheader())
 print(Markdown("# LIGHTS"))
 picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
            "normal" * (device_metadata["hardware"]["pico"][0] == "pico")
-
-pico = RPiPicoDevice.Select(picomode, name=device_metadata["hardware"]["pico"][1], \
+global pico
+Share.ScopeVars.pico = RPiPicoDevice.Select(picomode, name=device_metadata["hardware"]["pico"][1], \
 	   connect=False)
+pico = Share.ScopeVars.pico
 pico.auto_connect()
 #pico.connect("/dev/ttyACM1")
+
+
 print(pico)
 
 
@@ -221,7 +243,10 @@ print("[red]Light object l1 is no longer recognised.[default]")
 print("\n\n")
 
 print(Markdown("# CAMERA"))
-cam = CameraSelector(device_metadata["hardware"]["camera"])
+global cam
+
+Share.ScopeVars.cam = CameraSelector(device_metadata["hardware"]["camera"])
+cam = Share.ScopeVars.cam
 #cam.open() # Camera should be already open upon creation.
 
 if not cam.is_open():
@@ -246,56 +271,10 @@ if pico.connected:
 scope.draw_tree()
 
 # Defining variables for common modes
-vid = "vid"
-img = "img"
-vidmp4 = "vidmp4"
-prev = "preview"
-vid_noprev = "vid_noprev"
 unique_check = True   # Only asserted during experiment mode.
 
-def capture(action, name, *args, **kwargs):
-	"""
-	Default capture 
-	"""
-	if not cam.is_open():
-		cam.open()
-		sleep(1)
-	print(f"acq: {name}")
-	
-	if not action:
-		action = "video"
-	
-	# File  uniqueness check
-	if unique_check:
-		if exp.active:
-			if not exp.unique(name):
-				print(f"{Fore.RED}File already exists - ignoring the call.{Fore.RESET}")
-				return
-	
-	# Capture call -------------------------------
-	cam.capture(action, name,  *args, **kwargs) #|
-	#### -----------------------------------------
-
-	#cam.close()
-	
-	if exp or exp.active():
-		exp.log_event(name)
-
-def preview(tsec):
-	if cam:
-		if cam.is_open():
-			cam.preview(tsec=tsec)
 
 
-def close_exp():
-	"""
-	Close experiment and reset the current directory to the original.
-	"""
-	exp.close()
-	if cam:
-		if cam.is_open():
-			cam.close()
-	print("--- Exiting experiment --\n")
 
 
 
@@ -308,8 +287,9 @@ print(Markdown("# ACTION"))
 
 from rich.table import Table
 exppanel = Table("#.", "EID", "Experiment", box=None, show_lines=True)
-for i, exp_ in enumerate(Experiment.list_all()):
-	exppanel.add_row(str(i), "xx", os.path.basename(exp_))
+expmap = Experiment.list_all_eids()
+for i, key in enumerate(expmap):
+	exppanel.add_row(str(i), key, expmap[key])
 #exppanel = Panel(exppanel)
 
 print(Panel(exppanel, title="All current experiments on the Microscope"))
@@ -363,20 +343,7 @@ if exp_name:
 
 from useractions import *
 
-def exit():
-	"""
-	Custom overloaded exit function.
-	"""
-	if exp != None:
-		if exp.active:
-			exp.close()
-	#if device_metadata["auto_fsync"]:
-	#	SyncEngine.fsync(device_metadata)
-	
-	if cam:
-		if cam.is_open():
-			cam.close()
-	sys.exit()
+
 
 from transmit.hivemqtt import HiveMQTT
 HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})

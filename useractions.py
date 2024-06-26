@@ -2,6 +2,25 @@ import os
 from rich import print
 from rich.rule import Rule
 from time import sleep
+from sharing import Share
+import logging as log
+
+### Main imports
+from utilities.codeviewer import codeviewer
+from utilities.mp4box import MP4Box
+###
+
+
+### Variables -> mostly constants
+vid = "vid"
+img = "img"
+vidmp4 = "vidmp4"
+prev = "preview"
+vid_noprev = "vid_noprev"
+################
+
+
+# OK
 def clear():
 	"""
 	Clear screen function.
@@ -11,9 +30,11 @@ def clear():
 	sleep(1)
 	os.system('clear')
 
+
 def capture(action, name, *args, **kwargs):
 	"""
-	Default capture 
+	Default capture  -> Should be moved to experiment class. It not wise to 
+	acquire without starting an experiment. TODO
 	"""
 	if not cam.is_open():
 		cam.open()
@@ -39,33 +60,30 @@ def capture(action, name, *args, **kwargs):
 	if exp or exp.active():
 		exp.log_event(name)
 
-def preview(tsec):
-	if cam:
-		if cam.is_open():
-			cam.preview(tsec=30)
-
-
-def close_exp():
+# Ok
+def preview(tsec=30):
 	"""
-	Close experiment and reset the current directory to the original.
+	Start camera preview.
 	"""
-	exp.close()
+	cam = Share.ScopeVars.cam
+	
 	if cam:
-		if cam.is_open():
-			cam.close()
-	print("--- Exiting experiment --\n")
+		if not cam.is_open():
+			cam.open()
+		log.info("Starting camera preview.")
+		cam.preview(tsec=tsec)
+		log.info("Ending camera preview.")
+	else:
+		log.error("No camera found.")
+			
 
-# Overloaded Exit function
 
-
-
-
-
+# Ok
 def findexp():
 	"""
 	Find and load an experiment from the microscope. Only confirms once.
 	"""
-	global exp
+
 	print("\n\n")
 	print("[bold blue]Find experiment >>> [default]")
 	print("Press Ctrl+Z to exit or enter to ignore.")
@@ -80,9 +98,9 @@ def findexp():
 	exp_name.strip()
 
 
-	exp = None
+	Share.ScopeVars.exp = None
 	if exp_name:
-		exp = Experiment(exp_name)
+		Share.ScopeVars.exp = Experiment(exp_name)
 
 
 def delexp():
@@ -116,6 +134,7 @@ def delexp():
 			shutil.rmtree(path)
 
 
+# Ok
 def explorefn(fn):
 	"""
 	Inspect and print a function/callable.
