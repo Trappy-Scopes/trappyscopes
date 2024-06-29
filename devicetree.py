@@ -1,33 +1,22 @@
 #from device_state import device_perma_state
-from pprint import pprint
 from rich import print
 import yaml
 import json
 import logging as log
-
 
 from sharing import Share
 from yamlprotocol import YamlProtocol
 
 import abcs #Abstract Base Classses
 
-class RPi():
-	"""
-	Placeholder object for RPi 4B.
-	"""
-	description = "Placeholder RPi 4B object."
-	def __init__(self, name, ip="localhost"):
-		pass
-	#def __repr__(self):
-		#return device_perma_state()
-	#	pass
 
 class TSDeviceNotRegistered(Exception):
 	pass
 
 class ScopeAssembly:
 	"""
-	Its the collection of devices / independent peripherals with operational access.
+	Its the collection of devices or
+	independent peripherals with operational access.
 
 	* cluster	
 		|- trappy_scope
@@ -80,15 +69,23 @@ class ScopeAssembly:
 	def __contains__(self, device):
 		return device in self.tree
 
-	def add_device(self, name, deviceobj, description=None):
+	# Ok
+	def add_device(self, name, deviceobj):
+		type_ = self.device_type(deviceobj)
+		
 		self.tree[name] = deviceobj
-		self.descs[name] = description
+		self.descs[name] = type_
 
-		if description == None:
+		if type_ == None:
 			self.descs[name] = "Mystery device does magical things!"
+		log.info(f"Added device to devicetree: {name} : {self.descs[name]}")
 
 
-	def connect(self, devicename):
+	# NOK
+	def net_connect(self, devicename):
+		"""
+		Connect to a devicename over network
+		"""
 		if "." in devicename: ## To check if it is an ip address
 			ip = devicename
 		else:
@@ -99,7 +96,7 @@ class ScopeAssembly:
 			self.tree[devicename] = MicropythonDevice(ip=ip)
 
 
-
+	# Check
 	def device_type(self, device):
 		"""
 		Autoscans and appends the device type to its respectie list.
@@ -119,6 +116,7 @@ class ScopeAssembly:
 		return False
 
 
+	# Ok
 	def netscan(self):
 		"""
 		Ping each device on the network and set value in the network dict - reachable.
@@ -143,6 +141,8 @@ class ScopeAssembly:
 		for device in self.network:
 			device["reachable"] = ping(device["ip"])
 	
+
+	# Ok
 	def draw_tree(self):
 		print({"assembly": self.tree})
 		return
@@ -158,6 +158,24 @@ class ScopeAssembly:
 
 		print(tree_str)
 
+	# Check
+	def mount_all_mp_devices(self):
+		"""
+		This method mounts all available micropython serial ports to
+		the device tree.
+		"""
+		from hive.micropythondevice import SerialMPDevice
+		all_ports = SerialMPDevice.potential_ports()
+		for port in all_ports:
+			device = SerialMPDevice(connect=True, port=port)
+			if device.is_connected():
+				name = device.name
+				if name == None:
+					name = port
+				self.add_device(name, device)
+
 	def reconnections(self, device="cam", check_fn="is_open", reconnect_fn="reinit"):
 		pass
+
+
 
