@@ -112,11 +112,11 @@ def acquire():
 	m = Experiment.current.streams["captures"]() ## Generate measurement
 
 	## Capture
-	cam.open()
 	configure_camera()
 	exp.delay("Camera sync wait", 10)
 	cam.capture(vid, capname, tsec=30)
 	cam.close()
+	
 	m["acq"] = capname
 	m["fluidics"] = trap.name
 	m["fluidics_type"] = trap.attribs["type"]
@@ -131,15 +131,16 @@ def acquire():
 
 
 
-## Configure
-scope.picoprox.lit.setVs(exp.attribs["voltage"], 0, 0)
-configure_camera()
-exp.delay("Delay before first capture", 10)
-acquire() ## Make the first acquisition
+
 
 ## Schedule acquisitions
 exp.schedule.every().hour.do(acquire)
 exp.schedule.post_register("hourly_captures")
 
 
+## Configure
+scope.picoprox.lit.setVs(exp.attribs["voltage"], 0, 0)
+configure_camera()
+exp.delay("Delay before first capture", 10)
+acquire() ## Make the first acquisition
 
