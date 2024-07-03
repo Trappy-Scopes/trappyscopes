@@ -12,6 +12,7 @@ from experiment import Calibration
 from rich import print
 from rich.markdown import Markdown
 
+from cleaners import safepicam2_config
 
 
 
