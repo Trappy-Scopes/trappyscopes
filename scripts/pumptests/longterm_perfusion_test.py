@@ -85,8 +85,8 @@ def configure_camera():
 
 
 	### Set compression and quality
-	cam.cam.options["quality"] = exp.attribs["quality"]
-	cam.cam.options["compress_level"] = exp.attribs["compress_level"]
+	#cam.cam.options["quality"] = exp.attribs["quality"]
+	#cam.cam.options["compress_level"] = exp.attribs["compress_level"]
 
 
 	## Print -> set configuration
