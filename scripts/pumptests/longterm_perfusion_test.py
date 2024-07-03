@@ -90,7 +90,7 @@ def configure_camera():
 
 
 	## Print -> set configuration
-	read_config =  safepicam2_config(cam.cam.still_configuration)
+	read_config =  safepicam2_config(cam.cam.video_configuration)
 	print(read_config)
 
 
@@ -112,7 +112,11 @@ def acquire():
 	m = Experiment.current.streams["captures"]() ## Generate measurement
 
 	## Capture
+	cam.open()
+	configure_camera()
+	exp.delay("Camera sync wait", 10)
 	cam.capture(vid, capname, tsec=30)
+	cam.close()
 	m["acq"] = capname
 	m["fluidics"] = trap.name
 	m["fluidics_type"] = trap.attribs["type"]
