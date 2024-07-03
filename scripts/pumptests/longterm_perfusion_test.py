@@ -80,7 +80,7 @@ def configure_camera():
 	cam.cam.video_configuration.controls.Saturation   = exp.attribs["saturation"]
 
 	cam.cam.video_configuration.size  = (res[0], res[1])
-	cam.cam.video_configuration.queue  = exp.attribs["queue"]
+	#cam.cam.video_configuration.queue  = exp.attribs["queue"]
 	#cam.cam.video_configuration.buffer_count  = 4
 
 
