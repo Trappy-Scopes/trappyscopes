@@ -106,7 +106,7 @@ def epoch_to_hours(epoch_time):
 
 def acquire():
 	now = time.time()
-	capname = f"duration_{str(int(epoch_to_hours(now))).replace(".", "_")}h.h264"
+	capname = f"duration_{str(int(epoch_to_hours(now))).replace('.', '_')}h.h264"
 
 	m = Experiment.current.streams["captures"]() ## Generate measurement
 
