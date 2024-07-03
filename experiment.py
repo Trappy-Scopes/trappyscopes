@@ -27,7 +27,7 @@ from bookeeping.session import Session
 from uid import uid
 from yamlprotocol import YamlProtocol
 from devicestate import sys_perma_state
-from tsexceptions import InvalidNameException
+from tsexceptions import TS_InvalidNameException
 from tsevents import TSEvent
 
 class ExpEvent(TSEvent):
@@ -241,13 +241,13 @@ class Experiment:
 		
 		## First stage validation -> detect obvious culprits
 		if not self.__head_validator__(name):
-			raise InvalidNameException(f"{Fore.RED}Experiment name invalid!")
+			raise TS_InvalidNameException(f"{Fore.RED}Experiment name invalid!")
 		
 		## Clean experiment name
 		self.name = self.__sanatize__(name)
 		## Second stage validaion -> detect any unwanted artifacts.
 		if not self.__head_validator__(name):
-			raise InvalidNameException(f"{Fore.RED}Sanatized experiment name invalid!")
+			raise TS_InvalidNameException(f"{Fore.RED}Sanatized experiment name invalid!")
 		
 
 		# Check if the experiment exists -> a sanatised and valid name is guaranted
@@ -712,12 +712,12 @@ class Test(Experiment):
 				callable_(args)
 			else:
 				callable_(args, kwargs)
-			print(f"{Fore.GREEN}››{Fore.RESET} {callable_} : {Fore.GREEN}OK{Fore.RESET}")
+			print(Rule(title=f"{callable_} : OK", style="green"))
 			self.checks.append(1) ## Inverted
 			return True
 
 		except Exception as e:
-			print(f"{Fore.RED}››{Fore.RESET} {callable_} : {Fore.RED}NOK{Fore.RESET}")
+			print(Rule(title=f"{callable_} : NOK", style="red"))
 			print(Fore.RED)
 			print(e)
 			print(Fore.RESET)

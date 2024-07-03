@@ -49,7 +49,7 @@ class ScopeAssembly:
 			self.network = net["network"]
 			self.iptable = {dev["name"] : dev["ip"] for dev in self.network}
 		
-		self.add_device("rpi", RPi("localhost", ip="localhost"))
+		#self.add_device("rpi", RPi("localhost", ip="localhost"))
 		#self.draw_tree()
 		#pprint({"assembly": self.tree}, indent=4)
 		log.debug("Constructing scope assembly.")
@@ -70,15 +70,29 @@ class ScopeAssembly:
 		return device in self.tree
 
 	# Ok
-	def add_device(self, name, deviceobj):
-		type_ = self.device_type(deviceobj)
+	def add_device(self, name, deviceobj, description=None):
+		#type_ = self.device_type(deviceobj)
 		
 		self.tree[name] = deviceobj
-		self.descs[name] = type_
+		#self.descs[name] = type_
 
-		if type_ == None:
-			self.descs[name] = "Mystery device does magical things!"
-		log.info(f"Added device to devicetree: {name} : {self.descs[name]}")
+		#if type_ == None:
+		#	self.descs[name] = "Mystery device does magical things!"
+		#log.info(f"Added device to devicetree: {name} : {self.descs[name]}")
+
+	# Check
+	def add_mp_device(self, name, device):
+		if device.is_connected():
+			scope.add_device("name", device, description="Micropython device on serial connection.")
+			scope.add_device(f"{name}prox", device.emit_proxy(""), description= "Proxy for micropython device on derial connection.") 
+			
+			try:
+				all_pico_devs = device.exec_cleanup("print(Handshake.obj_list(globals_=globals()))")
+				for d in all_pico_devs:
+					proxdevice = device.emit_proxy(d)
+					scope.add_device(d, proxdevice)
+			except:
+				log.error(f"{device}: handshake failed!")
 
 
 	# NOK
@@ -172,9 +186,15 @@ class ScopeAssembly:
 				name = device.name
 				if name == None:
 					name = port
-				self.add_device(name, device)
+				self.add_mp_device(name, device)
 
 	def reconnections(self, device="cam", check_fn="is_open", reconnect_fn="reinit"):
+		pass
+
+
+class Exchange:
+
+	def __init__(self, devices):
 		pass
 
 

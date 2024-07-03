@@ -8,7 +8,7 @@ test = exp
 for i in range(0, 300):
 	
 	## Change actuator state
-	pico.actuators.motor.speed(0.01*i)
+	scope.actuators.motor.speed(0.01*i)
 
 	## Actuator monitor
 	val = pico.actuators.motor.speed()
