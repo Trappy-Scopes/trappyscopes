@@ -155,6 +155,7 @@ for encoder in encoder_map:
 					print(tab)
 
 					exp.delay("Iteration delay", 5)
+ms.plot("quality", "filesize_mb")
 exp.conclude()
 cam.close()
 exp.close()
