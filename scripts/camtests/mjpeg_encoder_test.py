@@ -123,11 +123,12 @@ lit.setVs(expa["voltage"],expa["voltage"],expa["voltage"])
 
 
 from picamera2.encoders import Encoder, H264Encoder, JpegEncoder, MJPEGEncoder
-encoder_map = {"raw_encoder" : Encoder, "jpegencoder": JpegEncoder, "mjpegencoder": MJPEGEncoder, "h264encoder": H264Encoder}
-extension_map = {"h264encoder": "h264", "jpegencoder": "mjpeg", "mjpegencoder": "mjpeg", "raw_encoder" : "yuv420"}
+encoder_map = {"mjpegencoder": MJPEGEncoder}
+extension_map = {"mjpegencoder": "mjpeg"}
 
 ms = exp.new_measurementstream("default", monitors=["encoder", "res", "fps", "duration_s", "acq"])
-for encoder in list(encoder_map["mjpegencoder"]):
+for encoder in encoder_map:
+	print(encoder)
 	for res in exp.attribs["res_set"]:
 		for fps in exp.attribs["fps_set"]:
 			
