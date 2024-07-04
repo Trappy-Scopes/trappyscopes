@@ -150,7 +150,7 @@ for encoder in encoder_map:
 					#test = exp.testfn(test)
 					measurement = ms()
 					measurement.update({"encoder":encoder, "res":res, "fps":fps, "duration_s":30, "acq":name, 
-										"success":None, "filesize_mb":round(os.path.getsize()/(pow(1024,2)), 2)})
+										"success":None, "filesize_mb":round(os.path.getsize(acq)/(pow(1024,2)), 2)})
 					print(tab)
 
 					exp.delay("Iteration delay", 5)
