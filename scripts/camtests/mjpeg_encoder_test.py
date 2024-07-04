@@ -39,7 +39,7 @@ exp.scriptid = "mjpeg_encoder_tests"
 ### Configure experiment
 exp.attribs.update({"setup" : ["encoder_tests", "mjpegencoder", "uhd_resolution", "video"],
 					"description" : description,
-					"voltage": 1.0, "itr": 1,  "channels": ["w"], 
+					"voltage": 1.0, "itr": 3,  "channels": ["w"], 
 				    "magnification": 2,
 				    "awb_enable" :  False,
 				    "ae_enable" :  False,
