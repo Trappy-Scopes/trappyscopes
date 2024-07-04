@@ -131,7 +131,7 @@ for encoder in list(encoder_map["mjpegencoder"]):
 	for res in exp.attribs["res_set"]:
 		for fps in exp.attribs["fps_set"]:
 			
-			for quality in exp.attribs["quality_set"]
+			for quality in exp.attribs["quality_set"]:
 				configure_picamera(res, fps, quality)
 
 				for i in range(exp.attribs["itr"]):
