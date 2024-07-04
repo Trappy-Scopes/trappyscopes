@@ -138,9 +138,9 @@ for encoder in encoder_map:
 
 				for i in range(exp.attribs["itr"]):
 					name = f"quality_{quality}_res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
-					
+					acq=f'{name}.{extension_map[encoder]}'
 					try:
-						cam.cam.start_recording(encoder_map[encoder](), f'{name}.{extension_map[encoder]}')
+						cam.cam.start_recording(encoder_map[encoder](), acq)
 					except Exception as e:
 						print("Failed!")
 						print(e)
@@ -149,8 +149,8 @@ for encoder in encoder_map:
 					cam.cam.stop_recording()
 					#test = exp.testfn(test)
 					measurement = ms()
-					measurement.update({"encoder":encoder, "res":res, "fps":fps, "duration_s":30, "acq":name, 
-										"success":None, "filesize_mb":round(os.path.getsize(name)/(pow(1024,2)), 2)})
+					measurement.update({"encoder":encoder, "res":res, "fps":fps, "duration_s":30, "acq":acq, 
+										"success":None, "filesize_mb":round(os.path.getsize(acq)/(pow(1024,2)), 2)})
 					print(tab)
 
 					exp.delay("Iteration delay", 5)
