@@ -103,11 +103,11 @@ mstream = exp.new_measurementstream("captures", measurements=["acq"],
 
 def epoch_to_hours(epoch_time):
     hours_since_epoch = epoch_time / 3600
-    return hours_since_epoch
+    return f"{hours_since_epoch:.2f}"
 
 def acquire():
 	now = time.time()
-	capname = f"duration_{str(int(epoch_to_hours(now))).replace('.', '_')}h.h264"
+	capname = f"duration_{str(epoch_to_hours(now)).replace('.', '_')}h.h264"
 
 	m = Experiment.current.streams["captures"]() ## Generate measurement
 
