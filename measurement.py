@@ -116,14 +116,17 @@ class MeasurementStream:
 	def add_detection(self, key):
 		self.detections.append(key)
 		self.datapoint[key] = Nan
+		self.df = DataFrame(columns=self.datapoint.keys())
 	
 	def add_measurement(self, key):
 		self.measurements.append(key)
 		self.datapoint[key] = Nan
+		self.df = DataFrame(columns=self.datapoint.keys())
 	
 	def add_monitor(self, key):
 		self.monitors.append(key)
 		self.datapoint[key] = Nan
+		self.df = DataFrame(columns=self.datapoint.keys())
 
 
 	def tabulate(self, *args, title=None):
