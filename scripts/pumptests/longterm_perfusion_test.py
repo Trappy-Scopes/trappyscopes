@@ -114,7 +114,7 @@ def acquire():
 	## Capture
 	configure_camera()
 	exp.delay("Camera sync wait", 10)
-	cam.capture(vid, capname, tsec=30)
+	cam.capture(vid_noprev, capname, tsec=30)
 	cam.close()
 	
 	m["acq"] = capname
