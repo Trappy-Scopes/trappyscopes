@@ -126,7 +126,7 @@ from picamera2.encoders import Encoder, H264Encoder, JpegEncoder, MJPEGEncoder
 encoder_map = {"mjpegencoder": MJPEGEncoder}
 extension_map = {"mjpegencoder": "mjpeg"}
 
-ms = exp.new_measurementstream("default", monitors=["encoder", "res", "fps", "duration_s", "acq"], measurement=["filesize_mb"])
+ms = exp.new_measurementstream("default", monitors=["encoder", "res", "fps", "duration_s", "acq"], measurements=["filesize_mb"])
 tab = ms.tabulate("measureid", "acq", "filesize_mb")
 for encoder in encoder_map:
 	print(encoder)
