@@ -149,8 +149,8 @@ for encoder in encoder_map:
 					cam.cam.stop_recording()
 					#test = exp.testfn(test)
 					
-					measurement = ms({"quality":quality, "encoder":encoder, "res":res, "fps":fps, "duration_s":30, "acq":acq, 
-									 "success":None, "filesize_mb":round(os.path.getsize(acq)/(pow(1024,2)), 2)})
+					measurement = ms(quality=quality, encoder=encoder, res=res, fps=fps, duration_s=30, acq=acq, 
+									 success=None, filesize_mb=round(os.path.getsize(acq)/(pow(1024,2)), 2))
 					#measurement.update()
 					print(tab)
 
