@@ -61,7 +61,7 @@ exp.attribs.update({"setup" : ["encoder_tests", "mjpegencoder", "uhd_resolution"
 					#"encoder_set": ["h264", "yuv420"], 
 					"res_set":[[2028,1520]],
 					"fps_set" : [20],
-					"quality_set" : [0, 5,20, 50, 70, 80, 95]
+					"quality_set" : [0, 5, 10, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 75, 80, 90, 95]
 				   })
 
 expa = exp.attribs
