@@ -6,16 +6,20 @@ import time
 
 from cleaners import safepicam2_config
 
-
+from rich.markdown import Markdown
+from rich.panel import Panel
 
 
 description= \
 """
-Test to check if the camera can dump raw videos at various resolutions.
+
+## Test Description
+
+Test the efficacy of the MJPEG encoder (hardware) by perturbing the quality open in picamera2 at [2028, 1520], fps=20 resolution.
 
 Steps:
 	
-	close-->open-->configure-->start-->close
+>>	close-->open-->configure-->start-->close
 """
 print(Panel(Markdown(description), title="description"))
 
@@ -25,18 +29,18 @@ print(Panel(Markdown(description), title="description"))
 unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
-exp = Test(f"{scopeid}_all_encoder_tests_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
+exp = Test(f"{scopeid}_mjpeg_encoder_tests_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
 test = exp
 
 
-exp.scriptid = "all_encoder_tests"
+exp.scriptid = "mjpeg_encoder_tests"
 
 
 ### Configure experiment
-exp.attribs.update({"setup" : ["encoder_tests", "rawencoder", "nullencoder"],
+exp.attribs.update({"setup" : ["encoder_tests", "mjpegencoder", "uhd_resolution", "video"],
 					"description" : description,
 					"voltage": 1.0, "itr": 1,  "channels": ["w"], 
-				    "magnification": 1.0,
+				    "magnification": 2,
 				    "awb_enable" :  False,
 				    "ae_enable" :  False,
 				    "brightness" :  0.3,
@@ -55,12 +59,13 @@ exp.attribs.update({"setup" : ["encoder_tests", "rawencoder", "nullencoder"],
 
 				    #"camera_set" : ["picamera2", "libcamera"],
 					#"encoder_set": ["h264", "yuv420"], 
-					"res_set":[[2028,1520], [1520,1520]],
-					"fps_set" : [20, 30]
+					"res_set":[[2028,1520]],
+					"fps_set" : [20],
+					"quality_set" : [0, 5,20, 50, 70, 80, 95]
 				   })
 
-
-def configure_picamera(res, fps):
+expa = exp.attribs
+def configure_picamera(res, fps, quality):
 	## Set Camera settings:
 	cam.close()
 	cam.open()
@@ -87,7 +92,7 @@ def configure_picamera(res, fps):
 
 
 	### Set compression and quality
-	cam.cam.options["quality"] = exp.attribs["quality"]
+	cam.cam.options["quality"] = quality
 	cam.cam.options["compress_level"] = exp.attribs["compress_level"]
 
 
@@ -105,11 +110,8 @@ lightmap = {"r": [exp.attribs["voltage"], 0, 0],
 			"b": [0, 0, exp.attribs["voltage"]], 
 			"w": [exp.attribs["voltage"], exp.attribs["voltage"], exp.attribs["voltage"]]
 		   }
-print("Registering lit controller!")
-if "lit" not in scope:
-	lit = RPiPicoDevice.Emit("lit", pico)
-	scope.add_device("lit", lit)
-	scope.draw_tree()
+
+lit = scope.picoprox.lit
 
 
 
@@ -117,7 +119,7 @@ if "lit" not in scope:
 
 ### Begin experiment ---------------------------------------------------------------------------------
 cam.close()  ## Close camera
-scope.lit.setVs(1,1,1)
+lit.setVs(expa["voltage"],expa["voltage"],expa["voltage"])
 
 
 from picamera2.encoders import Encoder, H264Encoder, JpegEncoder, MJPEGEncoder
@@ -125,27 +127,28 @@ encoder_map = {"raw_encoder" : Encoder, "jpegencoder": JpegEncoder, "mjpegencode
 extension_map = {"h264encoder": "h264", "jpegencoder": "mjpeg", "mjpegencoder": "mjpeg", "raw_encoder" : "yuv420"}
 
 ms = exp.new_measurementstream("default", monitors=["encoder", "res", "fps", "duration_s", "acq"])
-for encoder in encoder_map:
+for encoder in list(encoder_map["mjpegencoder"]):
 	for res in exp.attribs["res_set"]:
 		for fps in exp.attribs["fps_set"]:
 			
-			configure_picamera(res, fps)
+			for quality in exp.attribs["quality_set"]
+				configure_picamera(res, fps, quality)
 
-			for i in range(exp.attribs["itr"]):
-				name = f"res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
-				
-				try:
-					cam.cam.start_recording(encoder_map[encoder](), f'{name}.{extension_map[encoder]}')
-				except Exception as e:
-					print("Failed!")
-					print(e)
-					cam.close()
-				exp.delay("Recording delay", 30)
-				cam.cam.stop_recording()
-				#test = exp.testfn(test)
-				#measurement = ms(encoder=encoder, res=res, fps=fps, duration_s=5, acq=name, success=test)
+				for i in range(exp.attribs["itr"]):
+					name = f"quality_{quality}_res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
+					
+					try:
+						cam.cam.start_recording(encoder_map[encoder](), f'{name}.{extension_map[encoder]}')
+					except Exception as e:
+						print("Failed!")
+						print(e)
+						cam.close()
+					exp.delay("Recording delay", 30)
+					cam.cam.stop_recording()
+					#test = exp.testfn(test)
+					measurement = ms(encoder=encoder, res=res, fps=fps, duration_s=5, acq=name, success=test)
 
-				exp.delay("Iteration delay", 5)
+					exp.delay("Iteration delay", 5)
 exp.conclude()
 cam.close()
 exp.close()
