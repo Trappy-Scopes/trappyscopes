@@ -121,7 +121,7 @@ lit = scope.picoprox.lit
 
 ### Begin experiment ---------------------------------------------------------------------------------
 cam.close()  ## Close camera
-lit.setVs(expa["voltage"],expa["voltage"],expa["voltage"])
+lit.setVs(expa["voltage"],0,0)
 
 
 from picamera2.encoders import Encoder, H264Encoder, JpegEncoder, MJPEGEncoder
