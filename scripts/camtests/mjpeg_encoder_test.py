@@ -29,7 +29,7 @@ print(Panel(Markdown(description), title="description"))
 unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
-exp = Test(f"{scopeid}_mjpeg_encoder_tests_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
+exp = Test(f"{scopeid}_jpegsoftware_encoder_tests_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
 test = exp
 
 
@@ -123,8 +123,8 @@ lit.setVs(expa["voltage"],expa["voltage"],expa["voltage"])
 
 
 from picamera2.encoders import Encoder, H264Encoder, JpegEncoder, MJPEGEncoder
-encoder_map = {"mjpegencoder": MJPEGEncoder}
-extension_map = {"mjpegencoder": "mjpeg"}
+encoder_map = {"jpegencoder": JpegEncoder}
+extension_map = {"jpegencoder": JpegEncoder}
 
 ms = exp.new_measurementstream("default", monitors=["encoder", "res", "fps", "duration_s", "acq", "quality"], measurements=["filesize_mb"])
 tab = ms.tabulate("measureidx", "acq", "quality", "filesize_mb")
@@ -140,7 +140,7 @@ for encoder in encoder_map:
 					name = f"quality_{quality}_res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
 					acq=f'{name}.{extension_map[encoder]}'
 					try:
-						cam.cam.start_recording(encoder_map[encoder](), acq)
+						cam.cam.start_recording(encoder_map[encoder](q=quality), acq)
 					except Exception as e:
 						print("Failed!")
 						print(e)
