@@ -148,6 +148,7 @@ for encoder in encoder_map:
 					exp.delay("Recording delay", 30)
 					cam.cam.stop_recording()
 					#test = exp.testfn(test)
+					exp.delay("File write delay", 5)
 					
 					measurement = ms(quality=quality, encoder=encoder, res=res, fps=fps, duration_s=30, acq=acq, 
 									 success=None, filesize_mb=round(os.path.getsize(acq)/(pow(1024,2)), 2))
