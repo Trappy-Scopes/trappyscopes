@@ -385,11 +385,11 @@ class Experiment:
 		filename = self.__sanatize__(filename)
 
 		## Combine
-		filename = f"{self.eid}_{filename}"
+		filename = os.path.join(self.expdir, f"{self.eid}_{filename}")
 
 		if self.__node_validator__(filename):
 			### Log
-			self.log("file_emitted", attribs=attribs)
+			self.log("filename_created", attribs=attribs)
 			return filename
 		else:
 			log.critical(f"File name invalid: {filename}")

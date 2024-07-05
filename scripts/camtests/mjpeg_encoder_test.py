@@ -15,8 +15,8 @@ description= \
 
 ## Test Description
 
-Test the efficacy of the MJPEG encoder (hardware) by perturbing the quality open in picamera2 at [2028, 1520], fps=20 resolution.
-
+Test the efficacy of the JPEG encoder (software) by perturbing the quality open in picamera2 at [2028, 1520], fps=20 resolution.
+num_threads=4 (default), and explicitly set.
 Steps:
 	
 >>	close-->open-->configure-->start-->close
@@ -140,7 +140,7 @@ for encoder in encoder_map:
 					name = f"quality_{quality}_res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
 					acq=f'{name}.{extension_map[encoder]}'
 					try:
-						cam.cam.start_recording(encoder_map[encoder](q=quality), acq)
+						cam.cam.start_recording(encoder_map[encoder](q=quality, num_threads=4), acq)
 					except Exception as e:
 						print("Failed!")
 						print(e)
@@ -156,6 +156,7 @@ for encoder in encoder_map:
 
 					exp.delay("Iteration delay", 5)
 ms.plot("quality", "filesize_mb")
+ms.plot.savefig(exp.newfile("result_plot.txt"))
 exp.conclude()
 cam.close()
 exp.close()
