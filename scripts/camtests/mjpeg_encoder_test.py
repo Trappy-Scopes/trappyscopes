@@ -15,8 +15,8 @@ description= \
 
 ## Test Description
 
-Test the efficacy of the JPEG encoder (software) by perturbing the quality open in picamera2 at [2028, 1520], fps=20 resolution.
-num_threads=4 (default), and explicitly set.
+Test the efficacy of the MJPEG encoder (hardware) by perturbing the quality open in picamera2 at [2028, 1520], fps=20 resolution.
+By changing the bitrate factor from 1M to 10M.
 Steps:
 	
 >>	close-->open-->configure-->start-->close
@@ -29,7 +29,7 @@ print(Panel(Markdown(description), title="description"))
 unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
-exp = Test(f"{scopeid}_jpegsoftware_encoder_tests_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
+exp = Test(f"{scopeid}_mjpeg_bitrate_encoder_tests_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
 test = exp
 
 
@@ -62,6 +62,8 @@ exp.attribs.update({"setup" : ["encoder_tests", "mjpegencoder", "uhd_resolution"
 					"res_set":[[2028,1520]],
 					"fps_set" : [20],
 					"quality_set" : [0, 5, 10, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 75, 80, 90, 95]
+					"bitrate_set" : [int(10**6), 2*int(10**6), 3*int(10**6), 4*int(10**6), 5*int(10**6), 6*int(10**6), 7*int(10**6), 8*int(10**6), 9*int(10**6), 10*int(10**6)]
+
 				   })
 
 expa = exp.attribs
@@ -133,14 +135,18 @@ for encoder in encoder_map:
 	for res in exp.attribs["res_set"]:
 		for fps in exp.attribs["fps_set"]:
 			
-			for quality in exp.attribs["quality_set"]:
-				configure_picamera(res, fps, quality)
+			#for quality in exp.attribs["quality_set"]:
+			for bitrate in exp.attribs["bitrate_set"]:
+				quality=bitrate
+				configure_picamera(res, fps, 95)
 
 				for i in range(exp.attribs["itr"]):
 					name = f"quality_{quality}_res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
 					acq=f'{name}.{extension_map[encoder]}'
 					try:
-						cam.cam.start_recording(encoder_map[encoder](q=quality, num_threads=4), acq)
+						#cam.cam.start_recording(encoder_map[encoder](q=quality, num_threads=4), acq)
+						cam.cam.start_recording(encoder_map[encoder](bitrate=bitrate), acq)
+
 					except Exception as e:
 						print("Failed!")
 						print(e)
@@ -157,7 +163,7 @@ for encoder in encoder_map:
 
 					exp.delay("Iteration delay", 5)
 ms.plot("quality", "filesize_mb")
-ms.plot.savefig(exp.newfile("result_plot.txt"))
+plt.savefig(exp.newfile("result_plot.txt"))
 exp.conclude()
 cam.close()
 exp.close()
