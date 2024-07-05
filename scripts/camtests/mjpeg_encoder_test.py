@@ -15,8 +15,8 @@ description= \
 
 ## Test Description
 
-Test the efficacy of the MJPEG encoder (hardware) by perturbing the quality open in picamera2 at [2028, 1520], fps=20 resolution.
-By changing the bitrate factor from 1M to 10M.
+Test the efficacy of the MJPEG encoder (software) by perturbing the quality open in picamera2 at [2028, 1520], fps=20 resolution.
+With cells.
 Steps:
 	
 >>	close-->open-->configure-->start-->close
@@ -29,7 +29,7 @@ print(Panel(Markdown(description), title="description"))
 unique_check = False
 dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
-exp = Test(f"{scopeid}_mjpeg_bitrate_encoder_tests_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
+exp = Test(f"{scopeid}_jmjpeg__software_encoder_withcells_tests_{dt}_{t.tm_hour}_{t.tm_min}", append_eid=True)
 test = exp
 
 
@@ -39,7 +39,7 @@ exp.scriptid = "mjpeg_encoder_tests"
 ### Configure experiment
 exp.attribs.update({"setup" : ["encoder_tests", "mjpegencoder", "uhd_resolution", "video"],
 					"description" : description,
-					"voltage": 1.0, "itr": 3,  "channels": ["w"], 
+					"voltage": 2.0, "itr": 3,  "channels": ["r"], 
 				    "magnification": 2,
 				    "awb_enable" :  False,
 				    "ae_enable" :  False,
@@ -125,8 +125,8 @@ lit.setVs(expa["voltage"],expa["voltage"],expa["voltage"])
 
 
 from picamera2.encoders import Encoder, H264Encoder, JpegEncoder, MJPEGEncoder
-encoder_map = {"mjpegencoder": MJPEGEncoder}
-extension_map = {"mjpegencoder": "mjpeg"}
+encoder_map = {"jpegencoder": JpegEncoder}
+extension_map = {"jpegencoder": "mjpeg"}
 
 ms = exp.new_measurementstream("default", monitors=["encoder", "res", "fps", "duration_s", "acq", "quality"], measurements=["filesize_mb"])
 tab = ms.tabulate("measureidx", "acq", "quality", "filesize_mb")
@@ -135,17 +135,17 @@ for encoder in encoder_map:
 	for res in exp.attribs["res_set"]:
 		for fps in exp.attribs["fps_set"]:
 			
-			#for quality in exp.attribs["quality_set"]:
-			for bitrate in exp.attribs["bitrate_set"]:
-				quality=bitrate
-				configure_picamera(res, fps, 95)
+			for quality in exp.attribs["quality_set"]:
+			#for bitrate in exp.attribs["bitrate_set"]:
+			#	quality=bitrate
+				configure_picamera(res, fps, quality)
 
 				for i in range(exp.attribs["itr"]):
 					name = f"quality_{quality}_res_{res[0]}_{res[1]}_fps_{fps}_{encoder}_itr_{i}".replace(".", "pt")
 					acq=f'{name}.{extension_map[encoder]}'
 					try:
-						#cam.cam.start_recording(encoder_map[encoder](q=quality, num_threads=4), acq)
-						cam.cam.start_recording(encoder_map[encoder](bitrate=bitrate), acq)
+						cam.cam.start_recording(encoder_map[encoder](q=quality, num_threads=4), acq)
+						#cam.cam.start_recording(encoder_map[encoder](bitrate=bitrate), acq)
 
 					except Exception as e:
 						print("Failed!")
