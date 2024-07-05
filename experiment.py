@@ -385,7 +385,7 @@ class Experiment:
 		filename = self.__sanatize__(filename)
 
 		## Combine
-		filename = os.path.join(self.expdir, f"{self.eid}_{filename}")
+		filename = os.path.join(self.exp_dir, f"{self.eid}_{filename}")
 
 		if self.__node_validator__(filename):
 			### Log
