@@ -70,9 +70,10 @@ def acclimatise():
 	exp.delay(name("acclamatise"), accl_time_min*60)
 	accl_cntr = accl_cntr+1
 
+	cam.close()
 	cam.open()
 	#configure("red")
-	cam.acquire(vid_noprev, name("acclamatise"), tsec=30)
+	cam.capture(vid_noprev, name("acclamatise"), tsec=30)
 	cam.close()
 
 
@@ -81,8 +82,9 @@ def acclimatise():
 def adhere():
 	scope.lit.setVs(3,3,3)
 
+	cam.close()
 	cam.open()
-	cam.acquire(vid_noprev, name("adhere"), tsec=30) ##TODO : Check if you can see the cells and then change it to addh_time_min.
+	cam.capture(vid_noprev, name("adhere"), tsec=30) ##TODO : Check if you can see the cells and then change it to addh_time_min.
 	cam.close()
 
 ## 4
