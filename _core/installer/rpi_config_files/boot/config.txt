@@ -51,6 +51,7 @@ enable_uart=0
 [all]
 dtoverlay=gpio-fan,gpiopin=4,temp=60000
 
+# --------  Extra Trappy-Scopes configurations -------------
 
 ## Force HDMI mode -> assume that HDMI is always connected.
 hdmi_force_hotplug=1
