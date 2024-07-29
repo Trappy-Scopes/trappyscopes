@@ -89,8 +89,8 @@ class Installer:
 		#with open("_core/installer/rpi_config_files/boot/config.txt", "r") as fnew:
 		#	with open("/boot/config.txt", "w") as fold:
 		#		fold.write(fnew.read())
-		os.system("cat _core/installer/rpi_config_files/boot/config.txt")
-		os.system("sudo cp -f _core/installer/rpi_config_files/boot/config.txt /boot/config.py")
+		#os.system("cat _core/installer/rpi_config_files/boot/config.txt")
+		os.system("sudo cp _core/installer/rpi_config_files/boot/config.txt /boot/config.py")
 
 
 	def install_bin_libs(required_libs):
