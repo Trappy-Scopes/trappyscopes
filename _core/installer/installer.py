@@ -86,7 +86,7 @@ class Installer:
 	def install_rpi_config_files():
 
 		## Copy the system config file
-		with open("/_core/installer/rpi_config_files/boot/config.txt", "r") as fnew:
+		with open("_core/installer/rpi_config_files/boot/config.txt", "r") as fnew:
 			with open("/boot/config.txt", "w") as fold:
 				fold.write(fnew.read())
 		#os.system("sudo cp -if . /boot/config.py")
