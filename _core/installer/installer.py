@@ -20,7 +20,7 @@ class Installer:
 		Make a fresh install including initalising the fammod structure.
 		"""
 		Installer.install_py_libs(["pyyaml"])  ## Becaue fammods requires yaml
-		Fammods.new("ts", "/Users/byatharth/code/Trappy-Scopes/")
+		Fammods.new("ts", "/home/trappyscope/")
 
 		## Add each one of them
 		for git in Installer.gitclones:
@@ -91,6 +91,8 @@ class Installer:
 		#		fold.write(fnew.read())
 		#os.system("cat _core/installer/rpi_config_files/boot/config.txt")
 		print("Please run: sudo cp _core/installer/rpi_config_files/boot/config.txt /boot/config.py")
+
+		## sudo is being ignored.
 		os.system("sudo cp _core/installer/rpi_config_files/boot/config.txt /boot/config.py")
 
 
