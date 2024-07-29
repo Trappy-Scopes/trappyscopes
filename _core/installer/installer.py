@@ -16,6 +16,9 @@ class Installer:
 				"https://github.com/Trappy-Scopes/secrets.git"]
 	
 	def fresh():
+		"""
+		Make a fresh install including initalising the fammod structure.
+		"""
 		Installer.install_py_libs(["pyyaml"])  ## Becaue fammods requires yaml
 		Fammods.new("ts", "/Users/byatharth/code/Trappy-Scopes/")
 
@@ -25,7 +28,9 @@ class Installer:
 
 
 	def do_all():
-
+		"""
+		Update all.
+		"""
 		platform = sys.platform.startswith('linux')*"linux" + \
 		           sys.platform.startswith('darwin')*"darwin"
 		if not platform:
@@ -76,6 +81,13 @@ class Installer:
 				#pip.main(['install', lib, "--break-system-packages"])
 				os.system(f"sudo pip install {lib} --break-system-packages")
 				print(f"{i}. {lib} : was installed!")
+
+
+	def install_rpi_config_files():
+
+		## Copy the system config file
+		os.system("sudo cp -i /_core/installer/rpi_config_files/boot/config.txt /boot/config.py")
+
 
 	def install_bin_libs(required_libs):
 		pass
