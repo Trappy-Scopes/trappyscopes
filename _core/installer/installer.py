@@ -16,7 +16,7 @@ class Installer:
 				"https://github.com/Trappy-Scopes/secrets.git"]
 	
 	def fresh():
-		Installer.install_py_libs(["pyyaml"])
+		Installer.install_py_libs(["pyyaml"])  ## Becaue fammods requires yaml
 		Fammods.new("ts", "/Users/byatharth/code/Trappy-Scopes/")
 
 		## Add each one of them
