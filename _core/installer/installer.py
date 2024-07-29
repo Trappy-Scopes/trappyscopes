@@ -90,6 +90,7 @@ class Installer:
 		#	with open("/boot/config.txt", "w") as fold:
 		#		fold.write(fnew.read())
 		#os.system("cat _core/installer/rpi_config_files/boot/config.txt")
+		print("Please run: sudo cp _core/installer/rpi_config_files/boot/config.txt /boot/config.py")
 		os.system("sudo cp _core/installer/rpi_config_files/boot/config.txt /boot/config.py")
 
 
