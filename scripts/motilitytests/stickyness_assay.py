@@ -47,7 +47,7 @@ dt = str(datetime.date.today()).replace("-", "_")
 t = time.localtime(time.time())
 time_str = f"{t.tm_hour}hh_{t.tm_min}mm"
 exp = Experiment(f"{scopeid}_{dt}_{time_str}_cell_stickyness_assay", append_eid=True)
-exp.description = description
+exp.attribs["description"] = description
 
 
 ## Measurement stream
