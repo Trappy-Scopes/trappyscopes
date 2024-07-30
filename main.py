@@ -29,6 +29,7 @@ from sharing import Share
 
 ### Pretty printing
 import readline
+exec(open("utilities/autocompleter.py", "r").read())
 from rich.markdown import Markdown
 from rich import print
 
@@ -67,11 +68,15 @@ error_collector.setFormatter(formatter)
 
 # Get the root logger
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)  # or any level you need
+logger.setLevel(logging.INFO)  # or any level you need
 logger.addHandler(error_collector)
 
+#--------------------------------------------------------------
+# from utilities import autocompleter ## TODO - sets completer upon 
 
 
+
+#-------------------------------------------------------------
 
 ## Define exp object - for Crash safety
 global exp
@@ -122,7 +127,6 @@ from picodevice import RPiPicoDevice
 
 
 # Trappy-Scopes  Resources
-from utilities import autocompleter ## TODO - sets completer upon 
 import abcs
 from experiment import Experiment
 from utilities.fluff import pageheader, intro
@@ -140,6 +144,7 @@ from loadscripts import ScriptEngine
 ## Gitupdate repositories
 import socket
 
+## transfered
 def is_internet_available():
     try:
         # Attempt to resolve Google's DNS server
@@ -235,6 +240,7 @@ print(pico)
 if not pico.connected:
 	log.error("Could not get a pico device!")
 else:
+	log.info("Executing main.py on MICROPYTHON device.")
 	pico.exec_main()
 	log.info(pico)
 
@@ -349,11 +355,17 @@ from transmit.hivemqtt import HiveMQTT
 HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})
 
 
+if os.path.isdir("/home/trappyscope"):
+	from gpiozero import OutputDevice
+	auxfan = OutputDevice(4)
+	scope.add_device("auxfan", auxfan)
+
+
 
 
 ### Run all scripts
 ScriptEngine.run_all(globals())
-
+from protocol import Protocol
 
 
 Share.updateps1()

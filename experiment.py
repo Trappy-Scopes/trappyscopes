@@ -112,6 +112,7 @@ class Experiment:
 
 	## File structure
 	<Experiment_name>
+		|- .git                     (optional - git repository of the experiment)
 		|- .experiment 			    (identifier)
 		|- .sync                    (Experiment has been setup for synchronisation)
 		|- .analysis                (Information about use in specific analyses)
@@ -600,10 +601,12 @@ class Experiment:
 	@is_event
 	@autosave
 	def user_prompt(self, prompt, label=None):
+		start = time.time_ns()
+
 		prompt_ = prompt
 		if prompt == None:
 			prompt_ = "!!Any key!!"
-		prompt_string = f"==> Waiting for prompt : ```{prompt_}```  >>> "
+		prompt_string = Rule(title=f"Waiting for prompt : <<<{prompt_}>>> ", style="red")
 		
 		def conditional(inp):
 			print(inp)
@@ -624,14 +627,18 @@ class Experiment:
 		attribs["prompt_requested"] = datetime.datetime.now()
 		
 		inp = "no_inp"
-		inp = input(f"{Fore.RED}{prompt_string}{Fore.RESET}")
+		print(prompt_string)
+		inp = Prompt.ask("Response >>")
 		while not conditional(inp):
-			inp = input(f"{Fore.RED}{prompt_string}{Fore.RESET}")
+			print(prompt_string)
+			inp = Prompt.ask("Response >>")
+
 		
-		print(f"[green]--- prompt accepted : {prompt_} --- [default]")
+		print(Rule(title=f"prompt accepted : {prompt_}", style="green"))
 		
 		attribs["prompt_received"] = datetime.datetime.now()
 		event = self.log("user_prompt", attribs=attribs)
+		print("Time elapsed: ", f"{(self.logs['events'][-1]['machinetime']-start)/10**9:.3f}", "s")
 
 	def follow_protocol(self, *args):
 		pass
