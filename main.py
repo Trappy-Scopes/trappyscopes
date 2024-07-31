@@ -121,7 +121,7 @@ from yamlprotocol import YamlProtocol
 
 # Hardware - Depreciate
 from cameras.selector import CameraSelector
-from lights.selector import LightSelector
+#from lights.selector import LightSelector ##Obsolete
 from picodevice import RPiPicoDevice
 
 
