@@ -4,10 +4,8 @@ import logging as log
 from dataclasses import dataclass
 
 
-
-
 @dataclass
-class XXBaseDevice:
+class BaseDevice:
 
 	def __init__(self):
 		"""
@@ -29,19 +27,12 @@ class DeviceTree(BaseDevice):
 
 	1. PyVISA resource manager
 	2. RPI GPIO (make into a seperate library).
-	3.
 
 	"""
 	
 	def __init__():
 		self.pyvisa_rm = pyvisa.ResourceManager()
 
-
-class ProcessorGroup(BaseDevice):
-	"""
-	A processor group is a collection of processors.
-	"""
-	...
 
 class BaseDevice:
 	"""

@@ -32,7 +32,7 @@ class Fammods:
 			git_url = git_url.replace("https://", f"https://{Fammods.auth['username']}:{Fammods.auth['password']}")
 
 		os.mkdir(fullpath)
-		errno = os.system(f"git clone {git_url} {git_url}")
+		errno = os.system(f"git clone {git_url} {fullpath}")
 		print("fammods clone procedure returned exist code: ", errno)
 		return errno == 0
 
