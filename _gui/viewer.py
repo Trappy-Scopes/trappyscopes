@@ -207,6 +207,7 @@ class JupyterConsoleWidget(inprocess.QtInProcessRichJupyterWidget):
 if __name__ == '__main__':
     print("Launching Trappy-Scopes Viewer")
     view = Viewer()
+    view.console_exec("%load_ext rich")
     view.console_exec("execfile('main.py')")
     view.monitor_updater()
     pg.exec()

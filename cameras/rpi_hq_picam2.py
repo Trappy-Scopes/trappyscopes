@@ -1,4 +1,4 @@
-from abcs.camera import AbstractCamera
+#from abcs.camera import AbstractCamera
 
 from pprint import pprint, pformat
 from copy import deepcopy
@@ -21,7 +21,7 @@ from utilities.mp4box import MP4Box
 
 
 
-class Camera(AbstractCamera):
+class Camera():
 	"""
 	Camera object framework specialised for Raspberry Pi HQ Camera.
 	Implementation used Picamera v2 python library.

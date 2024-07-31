@@ -1,7 +1,7 @@
-from abcs.camera import AbstractCamera
+#from abcs.camera import AbstractCamera
 from pprint import pprint
 
-class Camera(AbstractCamera):
+class Camera():
 
 	# 1
 	def __init__(self, *args, **kwargs):
