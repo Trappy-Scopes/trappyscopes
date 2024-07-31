@@ -3,6 +3,20 @@ Control Layer Interface for the Microscopes that sit on the Raspberry Pi.
 
 
 
+
+
+
+### TODO
+
+14. Change file_server to sync_server
+15. Add `--dry-run`confirmation during file sync operations. Two modes: "off", "on", "ask user".
+16. Add flags to the main.py file with option to skip the mandatory exp check.
+TODO:
+1. Setup the LifetimeMachine configuration:
+	a. Camera-configuration, Chunk-size, duration.
+	b. 
+
+
 ## Installation
 
 ```bash
@@ -203,25 +217,5 @@ The default mode for parsing a device ID structure is to first cast each field t
 
 
 
-### TODO
 
-+ DONE: `pyboard` seems to be corrupt. Replace it. Or check if the error only persists if no device is connected.
-+ DONE: Fix Camera selector
-2. Clean scope-cli folder.
-+ DONE: Fix experiment class
-4. Review each function of PiCamera 2 control layer.
-+ DONE: Add null pico-device implementation.
-+ CANCELLED : Add null-led device option. 
-+ CANCELLED: Device declaration before the fluff.header() should dump formatted yaml instead of a python dict.
-+ DONE:  Add Living Physics, IGC to the fluff.header().
-9. Interpretor ascelation from `python3` to `python`.
-+ DONE: Fix abcs import issues.
-11. Camera Abstract class add `is_open()` method. `configure()` change of kwargs.
-+ DONE: Check if `Experiment` class changes current wd of the python kernal.
-12. What is the ideal ExposureTime?
-13. Should a monolithic configuration structure be used for all 3 modes in picamera2?
-14. Change file_server to sync_server
-15. Add `--dry-run`confirmation during file sync operations. Two modes: "off", "on", "ask user".
-16. Add flags to the main.py file with option to skip the mandatory exp check.
-17. 
 
