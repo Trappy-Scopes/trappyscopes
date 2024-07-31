@@ -48,6 +48,7 @@ class FormApp(App):
             self.exit()
 
 if __name__ == "__main__":
+    FormApp().run()
 
     f = FormApp()
     f.run()
