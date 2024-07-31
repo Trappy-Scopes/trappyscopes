@@ -86,8 +86,8 @@ class PicoProxyObject:
 		return f"< PicoProxyObject on {self.pico} >"
 
 
-from abcs.basedevice import BaseDevice
-class MicropythonDevice(BaseDevice):
+#from abcs.basedevice import BaseDevice
+class MicropythonDevice():
 	"""
 
 	Interface to communicate with micropython devices.
