@@ -18,6 +18,8 @@ class Alarm(AbstractAlarm):
 	def on(self):
 		"""
 		Turn on the alarm indefinately.
+		Produces 5secs ON and 0.1sec OFF. Can't be fixed (I think).
+		Maximum limit of 100 seconds.
 		"""
 		self.state = 1
 		def alarm_on_100sec():
@@ -45,6 +47,7 @@ class Alarm(AbstractAlarm):
 	def blink(self):
 		"""
 		Blink/pulse the alarm indefinately.
+		Maximum limit of 100 seconds: 1Hz.
 		"""
 		self.state = 1
 		def alarm_on_100sec_beep():

@@ -11,3 +11,6 @@ class TS_InvalidNameException(Exception):
 
 class TSDeviceNotRegistered(Exception):
 	...
+
+class TSDeciceCreationFailed(Exception):
+	..

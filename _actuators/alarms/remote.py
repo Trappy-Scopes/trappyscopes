@@ -1,4 +1,8 @@
+from _hive.machine imort ScopeAssembly
+from _hive.cluster import Cluster
+from _hive.
 
+from _core.exceptions import TSDeciceCreationFailed
 
 class Alarm:
 	"""
@@ -9,8 +13,21 @@ class Alarm:
 	def __init__(self):
 		
 		self.proxy = None
-		if "buzzer" ScopeAssembly.current:
+
+		## Search the current scope assembly
+		if "buzzer" in ScopeAssembly.current:
 			self.proxy =  ScopeAssembly.current.buzzer
+		
+		## Search the current cluster
+		elif "buzzers" in Cluster.current.alldevices:
+			self.proxy =  Cluster.current.alldevices["buzzers"][0]
+		
+		## Search the lab
+		elif "buzzers" in Lab.current.alldevices:
+			self.proxy =  Lab.current.alldevices["buzzers"][0]
+		else:
+			raise TSDeciceCreationFailed("Could not find a suitable alarm")
+		log.info(f"Alarm registerd. Using {self.proxy}".)
 
 
 	def on(self):
