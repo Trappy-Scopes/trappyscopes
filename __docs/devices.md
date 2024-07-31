@@ -1,10 +1,18 @@
 # All the Devices in the Trap-Scopes System (Trappy-System)
 
+
+
 Design and implementation document.
 
 ---
 
-A `BaseDevice` is a group of processors which can be accessed by a single  `shell` (`device.exec()` method) instance and have their own independent operating system/firmware. 
+A `BaseDevice` is a group of processors which can be accessed by a single  `shell` (`device.exec()` method) instance and have their own independent operating system/firmware.
+
+## 
+
+
+
+
 
 ## Hierarchy and connections
 
