@@ -129,6 +129,7 @@ from picodevice import RPiPicoDevice
 # Trappy-Scopes  Resources
 import abcs
 from experiment import Experiment
+from _expframework.protocol import Protocol
 from utilities.fluff import pageheader, intro
 from sync import SyncEngine
 from devicetree import ScopeAssembly
@@ -351,8 +352,8 @@ from useractions import *
 
 
 
-from transmit.hivemqtt import HiveMQTT
-HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})
+#from _hive.network.transmit.hivemqtt import HiveMQTT
+#HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})
 
 
 if os.path.isdir("/home/trappyscope"):
@@ -365,7 +366,6 @@ if os.path.isdir("/home/trappyscope"):
 
 ### Run all scripts
 ScriptEngine.run_all(globals())
-from protocol import Protocol
 
 
 Share.updateps1()
