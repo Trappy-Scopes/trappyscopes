@@ -231,17 +231,19 @@ class ScopeAssembly():
 				self.add_mp_device(name, device)
 
 
-	def changestatus(func, s1, s2):
-		def wrapper(*args, **kwargs):
-			if ScopeAssembly.current.__contains__("beacon"):
-				ScopeAssembly.current.beacon.devicestatus(s1)
-			
-			ret = func(*args, **kwargs)
-			
-			if ScopeAssembly.current.__contains__("beacon"):
-				ScopeAssembly.current.beacon.devicestatus(s2)
-			return ret
-		return wrapper
+	def changestatus(s1, s2):
+		def decorator(func):
+			def wrapper(*args, **kwargs):
+				if ScopeAssembly.current.__contains__("beacon"):
+					ScopeAssembly.current.beacon.devicestatus(s1)
+				
+				ret = func(*args, **kwargs)
+				
+				if ScopeAssembly.current.__contains__("beacon"):
+					ScopeAssembly.current.beacon.devicestatus(s2)
+				return ret
+			return wrapper
+		return decorator
 
 	def reconnections(self, device="cam", check_fn="is_open", reconnect_fn="reinit"):
 		pass
