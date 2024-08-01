@@ -231,7 +231,7 @@ class ScopeAssembly():
 				self.add_mp_device(name, device)
 
 
-	def changestatus(self, s1, s2, *args, **kwargs):
+	def changestatus(self, func, s1, s2, *args, **kwargs):
 		def wrapper( *args, **kwargs):
 			if self.__contains__("beacon"):
 				self.beacon.devicestatus(s1)
