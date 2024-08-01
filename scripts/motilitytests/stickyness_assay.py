@@ -127,7 +127,7 @@ def acclimatise():
 	for i in range(int(addh_time_min/sampling_duration_min)+1):
 		## Create measurements
 		m = ms(accl_clock_s=((accl_cntr*accl_time_min) + i*sampling_duration_min)*60, adh_clock_s=0, 
-			   accl_cntr=accl_cntr, phase="acclimatise", acq=name("acclamatise"), lit=[3,0,0], Ns=0)
+			   accl_cntr=accl_cntr, phase="acclimatise", acq=name("acclamatise"), lit=[2,0,0], Ns=0)
 	
 	## Advance counter
 	accl_cntr = accl_cntr+1
@@ -140,7 +140,7 @@ def adhere():
 	Adherence function: no camera configuration for red. lights: (3,3,3)
 	"""
 	global cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min, ms
-	scope.lit.setVs(3,3,3)
+	scope.lit.setVs(2,2,2)
 
 	cam.close()
 	cam.open()
@@ -152,7 +152,7 @@ def adhere():
 	for i in range(int(addh_time_min/sampling_duration_min)+1):
 		## Create measurements
 		m = ms(accl_clock_s=accl_cntr*accl_time_min*60, adh_clock_s=sampling_duration_min*i*60, 
-			   accl_cntr=accl_cntr, phase="adhere", acq=name("adhere"), lit=[3,3,3], Ns=0)
+			   accl_cntr=accl_cntr, phase="adhere", acq=name("adhere"), lit=[2,2,2], Ns=0)
 
 	## Adherance does not advance - advance cet itr
 	setitr = setitr + 1
