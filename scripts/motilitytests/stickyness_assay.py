@@ -174,7 +174,7 @@ def flush():
 	"""
 	Indicate that the past number of cells were flushed.
 	"""
-	gglobal cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min
+	global cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min
 	exp.log("Cells flushed", attribs={"type": "user_action_flush", "cellset": cellset})
 	accl_cntr = 0
 	exp.__save__()
