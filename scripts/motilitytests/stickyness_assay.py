@@ -88,6 +88,7 @@ def name(mode):
 	"""
 	Valid modes = acclamtise, adhere.
 	"""
+	global cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min
 	name_ = f"cellset{cellset}_trial{setitr}_acclmtime_{accl_cntr*accl_time_min}mins_{mode}.h264"
 	return exp.newfile(name_)
 
@@ -111,6 +112,7 @@ def acclimatise():
 	"""
 	Acclamatisation functions: camera configured for red. lights: (3,0,0)
 	"""
+	global cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min
 	scope.lit.setVs(3, 0, 0)
 	#exp.delay(name("acclamatise"), accl_time_min*60)
 
@@ -137,6 +139,7 @@ def adhere():
 	"""
 	Adherence function: no camera configuration for red. lights: (3,3,3)
 	"""
+	global cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min
 	scope.lit.setVs(3,3,3)
 
 	cam.close()
@@ -158,7 +161,7 @@ def trapcellset():
 	"""
 	Indicate that a cell is trapped by emitting an event.
 	"""
-	global cellset
+	global cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min
 	exp.log("Cells trapped", attribs={"type": "user_action_trap", "cellset": cellset})
 	cellset = cellset + 1
 
@@ -171,7 +174,7 @@ def flush():
 	"""
 	Indicate that the past number of cells were flushed.
 	"""
-	global accl_cntr
+	gglobal cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min
 	exp.log("Cells flushed", attribs={"type": "user_action_flush", "cellset": cellset})
 	accl_cntr = 0
 	exp.__save__()
