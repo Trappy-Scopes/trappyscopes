@@ -92,11 +92,11 @@ class ScopeAssembly():
 		ScopeAssembly.current = self
 
 	
-	#def __getattr__(self, device):
-	#	if device in self.tree:
-	#		return self.tree[device]
-	#	else:
-	#		#raise TSDeviceNotRegistered(f"Device not found: {device}")
+	def __getattr__(self, device):
+		if device in self.tree:
+			return self.tree[device]
+		else:
+			raise TSDeviceNotRegistered(f"Device not found: {device}")
 	# 		raise Exception("what device")
 
 	# transfered
