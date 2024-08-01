@@ -329,8 +329,8 @@ class Experiment:
 		## Start logging events
 		self.log("session", attribs={"sessionid": Session.current.__getstate__()["name"]})
 
-		from transmit.hivemqtt import HiveMQTT
-		HiveMQTT.send(f"{Share.scopeid}/experiment", {"state": "init", "session": Session.current.name, "eid":self.eid})
+		#from transmit.hivemqtt import HiveMQTT
+		#HiveMQTT.send(f"{Share.scopeid}/experiment", {"state": "init", "session": Session.current.name, "eid":self.eid})
 
 
 	

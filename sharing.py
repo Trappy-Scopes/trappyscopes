@@ -43,7 +43,7 @@ class Share:
 
 		def template():
 			from colorama import Fore
-			return f"{Fore.BLUE}user:{Share.user}{Fore.RESET} || {Fore.YELLOW}‹‹{Share.scopeid}››{Fore.RESET} {f'Experiment: {Fore.RED}{Share.expname}{Fore.RESET}'*(Share.expname != None)} >>> "
+			return f"{Fore.BLUE}user:{Share.user}{Fore.RESET} || {Fore.YELLOW}‹‹{Share.scopeid}››{Fore.RESET} {f'Experiment: {Fore.RED}{Share.expname}{Fore.RESET}'*(Share.expname != None)} \n>>> "
 		sys.ps1 = template()
 
 Share.updateps1()
