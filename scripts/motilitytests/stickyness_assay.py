@@ -120,7 +120,7 @@ def acclimatise():
 	cam.open()
 	__configure_red__()
 
-	cam.capture(vid_noprev, name("acclamatise"), tsec=30)
+	cam.capture(vid_noprev, name("acclamatise"), tsec=accl_time_min)
 	cam.close()
 
 	## Emit all measuremnts
@@ -144,7 +144,7 @@ def adhere():
 
 	cam.close()
 	cam.open()
-	cam.capture(vid_noprev, name("adhere"), tsec=30) ##TODO : Check if you can see the cells and then change it to addh_time_min.
+	cam.capture(vid_noprev, name("adhere"), tsec=addh_time_min) ##TODO : Check if you can see the cells and then change it to addh_time_min.
 	cam.close()
 
 
