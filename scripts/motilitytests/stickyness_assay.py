@@ -55,7 +55,7 @@ global ms
 ms = None
 
 ## Vars
-global cellset, setitr, accl_cntr, sampling_duration_min, 
+global cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min
 cellset = 0
 setitr = 0
 accl_cntr = 0
