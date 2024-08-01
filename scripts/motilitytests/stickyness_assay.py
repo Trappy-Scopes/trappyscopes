@@ -113,7 +113,7 @@ def acclimatise():
 	Acclamatisation functions: camera configured for red. lights: (3,0,0)
 	"""
 	global cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min, ms
-	scope.lit.setVs(3.0, 0, 0)
+	scope.lit.setVs(2.0, 0, 0)
 	#exp.delay(name("acclamatise"), accl_time_min*60)
 
 	cam.close()
