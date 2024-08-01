@@ -9,11 +9,30 @@ from yamlprotocol import YamlProtocol
 
 import abcs #Abstract Base Classses
 
+import threading
+import rpyc
 
 class TSDeviceNotRegistered(Exception):
 	pass
 
-class ScopeAssembly:
+#class MyService(rpyc.Service):
+	
+
+class RPYCServer:
+	def __start_server__(self):
+		from rpyc.utils.server import ThreadedServer
+		#self.server = ThreadedServer(ScopeAssembly, port=18812, protocol_config={"allow_public_attrs": True})
+		from rpyc.cli.rpyc_classic import ClassicServer
+		self.server = ClassicServer.run()
+		#self.server.start()
+
+	def start_rpyc_server(self):
+		server_thread = threading.Thread(target=self.__start_server__)
+		server_thread.daemon = True  # Daemonize thread
+		server_thread.start()
+
+class ScopeAssembly():
+	current = None
 	"""
 	Its the collection of devices or
 	independent peripherals with operational access.
@@ -37,12 +56,23 @@ class ScopeAssembly:
 
 	"""
 
+	def on_connect(self, conn):
+		print("Client connected")
+
+	def on_disconnect(self, conn):
+		print("Client disconnected")
+
+	def exposed_echo(self, text):
+		print(text)
+		return text
+
 	def __init__(self):
 		self.tree = {}
 		self.descs = {}
 		self.actuators = {}
 		self.sensors = {}
 		self.basedevices = {}
+
 		self.network = None
 		net = YamlProtocol.load(Share.networkinfo_path)
 		if net != None:
@@ -52,24 +82,36 @@ class ScopeAssembly:
 		#self.add_device("rpi", RPi("localhost", ip="localhost"))
 		#self.draw_tree()
 		#pprint({"assembly": self.tree}, indent=4)
-		log.debug("Constructing scope assembly.")
-	
-	def __getattr__(self, device):
-		if device in self.tree:
-			return self.tree[device]
-		else:
-			raise TSDeviceNotRegistered(f"Device not found: {device}")
 
+
+		self.exec = exec
+
+
+
+		log.debug("Constructing scope assembly.")
+		ScopeAssembly.current = self
+
+	
+	#def __getattr__(self, device):
+	#	if device in self.tree:
+	#		return self.tree[device]
+	#	else:
+	#		#raise TSDeviceNotRegistered(f"Device not found: {device}")
+	# 		raise Exception("what device")
+
+	# transfered
 	def __getitem__(self, device):
 		if device in self.tree:
 			return self.tree[device]
 		else:
 			raise KeyError(device)
 
+	# transfered
 	def __contains__(self, device):
 		return device in self.tree
+		
 
-	# Ok
+	# Ok -> transfered
 	def add_device(self, name, deviceobj, description=None):
 		#type_ = self.device_type(deviceobj)
 		
@@ -95,7 +137,7 @@ class ScopeAssembly:
 				log.error(f"{device}: handshake failed!")
 
 
-	# NOK
+	# NOK -> transfered
 	def net_connect(self, devicename):
 		"""
 		Connect to a devicename over network
@@ -110,7 +152,7 @@ class ScopeAssembly:
 			self.tree[devicename] = MicropythonDevice(ip=ip)
 
 
-	# Check
+	# Check --> transfered
 	def device_type(self, device):
 		"""
 		Autoscans and appends the device type to its respectie list.
@@ -121,7 +163,7 @@ class ScopeAssembly:
 
 		for id_, devtype in devmap.items():
 			if isinstance(device, devtype) or ("proxy" in device.__repr__().lower() 
-											    and
+												and
 												id_     in device.__repr__().lower()):
 				desmap[id_][device.name] = device
 				log.info(f"{device.name} : is identified as a(n) {id_}.")
@@ -143,7 +185,7 @@ class ScopeAssembly:
 			# Run ping command and capture the output
 			print("pinging -> ", ip_address, end=" : ")
 			result = subprocess.run(['ping', '-c', '1', ip_address], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-			    
+				
 			reachable = result.returncode == 0
 			if not reachable: 
 				print(f"The device at {ip_address} is [red]not reachable.[default]")
@@ -151,12 +193,12 @@ class ScopeAssembly:
 				print(f"The device at {ip_address} is [green]reachable.[default]")
 			return reachable
 			
-			    
+				
 		for device in self.network:
 			device["reachable"] = ping(device["ip"])
 	
 
-	# Ok
+	# Ok -> transfered
 	def draw_tree(self):
 		print({"assembly": self.tree})
 		return
@@ -187,6 +229,17 @@ class ScopeAssembly:
 				if name == None:
 					name = port
 				self.add_mp_device(name, device)
+
+
+	def changestatus(self, s1, s2, *args, **kwargs):
+		def wrapper( *args, **kwargs):
+			if self.__contains__("beacon"):
+				self.beacon.device_status(s1)
+			ret = func( *args, **kwargs)
+			if self.__contains__("beacon"):
+				self.beacon.device_status(s2)
+			return ret
+		return wrapper
 
 	def reconnections(self, device="cam", check_fn="is_open", reconnect_fn="reinit"):
 		pass

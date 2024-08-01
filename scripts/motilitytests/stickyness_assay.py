@@ -73,6 +73,7 @@ def name(mode):
 	return exp.newfile(name_)
 
 ## 1
+@ScopeAssembly.current.changestatus("busy", "standby")
 def preview(tsec=30):
 	"""
 	Preview: no camera configuration: lights: (1, 0.2, 0)
@@ -86,6 +87,7 @@ def preview(tsec=30):
 	cam.close()
 
 ## 2
+@ScopeAssembly.current.changestatus("busy", "standby")
 def acclimatise():
 	"""
 	Acclamatisation functions: camera configured for red. lights: (3,0,0)
@@ -110,6 +112,7 @@ def acclimatise():
 
 
 ## 3
+@ScopeAssembly.current.changestatus("busy", "standby")
 def adhere():
 	"""
 	Adherence function: no camera configuration for red. lights: (3,3,3)

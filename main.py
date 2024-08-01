@@ -130,6 +130,8 @@ from picodevice import RPiPicoDevice
 import abcs
 from experiment import Experiment
 from _expframework.protocol import Protocol
+from _expframework.report import Report
+
 from utilities.fluff import pageheader, intro
 from sync import SyncEngine
 from devicetree import ScopeAssembly
@@ -361,7 +363,7 @@ if os.path.isdir("/home/trappyscope"):
 	auxfan = OutputDevice(4)
 	scope.add_device("auxfan", auxfan)
 
-
+report = Report()
 
 
 ### Run all scripts
