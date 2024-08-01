@@ -33,6 +33,7 @@ class Protocol:
 		print(Markdown(self.premble))
 
 	def execute(self):
+		Experiment.current.log("protocol_executed", attribs={"name": self.name})
 		print(Markdown("## Procedure"))
 
 		#lists = self.soup.find_all(['ul', 'ol'])

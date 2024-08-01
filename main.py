@@ -358,10 +358,10 @@ from useractions import *
 #HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})
 
 
-if os.path.isdir("/home/trappyscope"):
-	from gpiozero import OutputDevice
-	auxfan = OutputDevice(4)
-	scope.add_device("auxfan", auxfan)
+#if os.path.isdir("/home/trappyscope"):
+#	from gpiozero import OutputDevice
+#	auxfan = OutputDevice(4)
+#	scope.add_device("auxfan", auxfan)
 
 report = Report()
 
