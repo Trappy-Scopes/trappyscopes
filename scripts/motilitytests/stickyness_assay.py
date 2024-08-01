@@ -52,8 +52,8 @@ exp.attribs.update({"setup" : ["adherence_test", "cells"],
 				    "res":[1920, 1080],
 				    "fps": 20,
 				    "magnification": 1.75,
-				    "again":3,
-				    "exposure_time_us":50000,				    
+				    "again":2,
+				    "exposure_time_us":40000,				    
 				    "awb_enable" :  False,
 				    "ae_enable" :  False,
 				    "brightness" :  0.3,
@@ -113,14 +113,14 @@ def acclimatise():
 	Acclamatisation functions: camera configured for red. lights: (3,0,0)
 	"""
 	global cellset, setitr, accl_cntr, sampling_duration_min, accl_time_min, addh_time_min, ms
-	scope.lit.setVs(2.0, 0, 0)
+	scope.lit.setVs(3.0, 0, 0)
 	#exp.delay(name("acclamatise"), accl_time_min*60)
 
 	cam.close()
 	cam.open()
 	__configure_red__()
 
-	cam.capture(vid_noprev, name("acclamatise"), tsec=accl_time_min)
+	cam.capture(vid_noprev, name("acclamatise"), tsec=accl_time_min*60)
 	cam.close()
 
 	## Emit all measuremnts
@@ -144,7 +144,7 @@ def adhere():
 
 	cam.close()
 	cam.open()
-	cam.capture(vid_noprev, name("adhere"), tsec=addh_time_min) ##TODO : Check if you can see the cells and then change it to addh_time_min.
+	cam.capture(vid_noprev, name("adhere"), tsec=addh_time_min*60) ##TODO : Check if you can see the cells and then change it to addh_time_min.
 	cam.close()
 
 
