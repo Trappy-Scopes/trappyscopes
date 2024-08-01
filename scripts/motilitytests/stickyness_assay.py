@@ -154,7 +154,8 @@ def adhere():
 		m = ms(accl_clock_s=accl_cntr*accl_time_min*60, adh_clock_s=sampling_duration_min*i*60, 
 			   accl_cntr=accl_cntr, phase="adhere", acq=name("adhere"), lit=[3,3,3], Ns=0)
 
-	## Adherance does not advance
+	## Adherance does not advance - advance cet itr
+	setitr = setitr + 1
 
 ## 4
 def trapcellset():
