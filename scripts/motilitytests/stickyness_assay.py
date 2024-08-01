@@ -198,7 +198,7 @@ def __configure_red__():
 
 		cam.cam.video_configuration.size  = (res[0], res[1])
 		cam.cam.video_configuration.queue  = exp.attribs["queue"]
-		cam.cam.video_configuration.buffer_count  = 6
+		#cam.cam.video_configuration.buffer_count  = 6
 
 
 		### Set compression and quality
