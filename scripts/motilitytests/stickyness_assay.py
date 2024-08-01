@@ -34,12 +34,12 @@ Trap(emit new MeasurementStream) :---: CellSeti -@-> t=(0+∆t)      : Ns=x1
 
 ## List of functions
 
-0. name()  --> defines the video filenames.
-1. preview() -> operations(i)
-2. acclimatise() -> operations(2)
-3. adhere()  --> operations(3)
-4. trap()    --> Indicates that its a different group of cells. It changes the name() function closure.
-5. flush()   --> Creates an `ExpEvent.type = user_action` to indicate that the device was successfully flushed. Resets the `accl_cntr` variable.
+0. name()-------------> defines the video filenames.
+1. preview()----------> operations(i)
+2. acclimatise()------> operations(2)
+3. adhere()-----------> operations(3)
+4. trapcellset()------> Indicates that its a different group of cells. It changes the name() function closure.
+5. flush()------------> Creates an `ExpEvent.type = user_action` to indicate that the device was successfully flushed. Resets the `accl_cntr` variable.
 """								
 
 
@@ -48,6 +48,25 @@ t = time.localtime(time.time())
 time_str = f"{t.tm_hour}hh_{t.tm_min}mm"
 exp = Experiment(f"{scopeid}_{dt}_{time_str}_cell_stickyness_assay", append_eid=True)
 exp.attribs["description"] = description
+exp.attribs.update({"setup" : ["adherence_test", "cells"],
+				    "res":[1920, 1080],
+				    "fps": 20,
+				    "magnification": 1.75,
+				    "again":3,
+				    "exposure_time_us":50000,				    
+				    "awb_enable" :  False,
+				    "ae_enable" :  False,
+				    "brightness" :  0.3,
+				    "digital_gain":1,
+				    "contrast" :  2.5,
+				    "colour_gains" :  (0.,0.),
+				    "sharpness" :  1.,
+				    "saturation" :  .5,
+				    "queue"      : False,
+
+				    "quality" : 95,
+				    "compress_level": 0,
+				   })
 
 
 ## Measurement stream
@@ -97,7 +116,8 @@ def acclimatise():
 
 	cam.close()
 	cam.open()
-	#configure("red")
+	__configure_red__()
+
 	cam.capture(vid_noprev, name("acclamatise"), tsec=30)
 	cam.close()
 
@@ -134,7 +154,7 @@ def adhere():
 	## Adherance does not advance
 
 ## 4
-def trap():
+def trapcellset():
 	"""
 	Indicate that a cell is trapped by emitting an event.
 	"""
@@ -157,4 +177,31 @@ def flush():
 	exp.__save__()
 
 
+def __configure_red__():
+	def configure_camera():
+		## Set Camera settings:
 
+		cam.cam.create_video_configuration({"size":exp.attribs["res"]})
+		cam.cam.video_configuration.controls.ExposureTime = exp.attribs["exposure_time_us"]
+		cam.cam.video_configuration.controls.AwbEnable    = exp.attribs["awb_enable"]
+		cam.cam.video_configuration.controls.AeEnable     = exp.attribs["ae_enable"]
+		cam.cam.video_configuration.controls.AnalogueGain = exp.attribs["again"]
+		cam.cam.video_configuration.controls.Brightness   = exp.attribs["brightness"]
+		cam.cam.video_configuration.controls.Contrast     = exp.attribs["contrast"]
+		cam.cam.video_configuration.controls.ColourGains  = exp.attribs["colour_gains"]
+		cam.cam.video_configuration.controls.Sharpness    = exp.attribs["sharpness"]
+		cam.cam.video_configuration.controls.Saturation   = exp.attribs["saturation"]
+
+		cam.cam.video_configuration.size  = (res[0], res[1])
+		cam.cam.video_configuration.queue  = exp.attribs["queue"]
+		cam.cam.video_configuration.buffer_count  = 6
+
+
+		### Set compression and quality
+		cam.cam.options["quality"] = exp.attribs["quality"]
+		cam.cam.options["compress_level"] = exp.attribs["compress_level"]
+
+
+		## Print -> set configuration
+		read_config =  safepicam2_config(cam.cam.video_configuration)
+		print(read_config)
