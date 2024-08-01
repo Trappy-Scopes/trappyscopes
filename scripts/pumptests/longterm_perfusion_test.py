@@ -112,6 +112,8 @@ def acquire():
 	m = Experiment.current.streams["captures"]() ## Generate measurement
 
 	## Capture
+	cam.close()
+	cam.open()
 	cam.cam.create_video_configuration({"size":exp.attribs["res"]})
 	#configure_camera()
 	exp.delay("Camera sync wait", 10)
