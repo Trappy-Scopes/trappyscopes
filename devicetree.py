@@ -234,10 +234,10 @@ class ScopeAssembly():
 	def changestatus(self, s1, s2, *args, **kwargs):
 		def wrapper( *args, **kwargs):
 			if self.__contains__("beacon"):
-				self.beacon.device_status(s1)
+				self.beacon.devicestatus(s1)
 			ret = func( *args, **kwargs)
 			if self.__contains__("beacon"):
-				self.beacon.device_status(s2)
+				self.beacon.devicestatus(s2)
 			return ret
 		return wrapper
 
