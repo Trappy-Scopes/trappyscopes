@@ -351,6 +351,7 @@ if exp_name:
 #print(sys.path)
 
 from useractions import *
+from _core.installer.installer import Installer
 
 
 
@@ -364,7 +365,6 @@ from useractions import *
 #	scope.add_device("auxfan", auxfan)
 
 report = Report()
-
 
 ### Run all scripts
 ScriptEngine.run_all(globals())
