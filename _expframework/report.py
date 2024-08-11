@@ -3,15 +3,15 @@ import pypandoc
 import yaml
 
 from rich.pretty import Pretty
-
+from rich import print
 
 
 class Report:
 
 	def __init__(self):
 		self.report_str = ""
-		self.df = pd.DataFrame(exp.logs["events"])
-		self.dt["elapsed"] = df["dt"] - df.loc[0]["dt"]
+		#self.df = pd.DataFrame(exp.logs["events"])
+		#self.df["elapsed"] = self.df["dt"] - self.df.loc[0]["dt"]
 
 		self.premble = ""
 
@@ -24,33 +24,35 @@ class Report:
 
 
 	def add_note(self):
+		pass
 
-
-	def __summary__(exp):
+	def __summary__(self, exp):
 		self.summary += "## Summary\n\n"
 		
 
-		summarydict = {"measuement streams": exp.streams,
-					   "sessions": self.df[self.df.type == "session"][["name", "user", "dt", "elapsed"]],
-					   "notes"    : self.df[self.df.type == "user_note"][["note", " user"]]
+		summarydict = {"measuement streams": self.df[self.df.type == "measurement_stream"][["name",  "dt", "elapsed"]]
+					   #"sessions": self.df[self.df.type == "session"][["name",  "dt", "elapsed"]],
+					   #"notes"    : self.df[self.df.type == "user_note"][["note"]]
 					   #"peripherals": Scope.current.tree
 					   }
-		for key, value in summarydict:
-			self.summary += f"Number of {key}: {len(value)}\n\n."
+
+		for key, value in summarydict.items():
+			self.summary += f"Number of {key}: {len(value)}.\n\n"
 
 			string = ""
-			for i in range(1, len(value)+1):
-				ms = yaml.dump(dict(value), Dumper=yaml.SafeDumper, sort_keys=False, default_flow_style=False)
-				string += f"{i}. {ms}"
+			valued = list(value)
+			for i in range(len(value)):
+				#ms = yaml.dump(value, Dumper=yaml.SafeDumper, sort_keys=False, default_flow_style=False)
+				string += f"{i+1}. {value}"
 			self.summary += string
+		return self.summary
 
 	def __events__(self, exp):
 		df = pd.DataFrame(exp.logs["events"], columns=["type", "dt", "elapsed"])
-		df["dt"] = df["dt"] - df.loc[0]["dt"]
-		return df.to_string()
+		return df.to_markdown(index=False)
 
 	def __premble__(self, exp):
-		keys = ["name", "eid", "exp_duration_s", "user"]
+		keys = ["name", "eid"]#, "exp_duration_s"
 		dct = {key: exp.logs[key] for key in keys}
 		return yaml.dump(dct, Dumper=yaml.SafeDumper, sort_keys=False,
 						 default_flow_style=False).replace("\n", "\n\n")
@@ -58,19 +60,22 @@ class Report:
 
 
 	def generate(self, exp):
-		
+		self.df = pd.DataFrame(exp.logs["events"])
+		self.df["elapsed"] = self.df["dt"] - self.df.loc[0]["dt"]
+		self.df["elapsed"] = self.df["elapsed"].apply(lambda x: str(x))
+
 		self.report_str += f"# Experiment Report\n\n"
 		#self.report_str += f"## {exp.name} :: {exp.eid}\n\n"
 
 		self.report_str += self.__premble__(exp)
 		self.report_str += "\n\n\n"
 
-		self.__summary__(exp)
+		self.report_str += self.__summary__(exp)
 		self.report_str += "\n\n\n"
 
 
 		self.report_str += "## All events\n\n"
-		self.report_str += self.__events__(exp).replace("\n", "\n\n")
+		self.report_str += self.__events__(exp)
 		
 		output = pypandoc.convert_text(self.report_str, 'pdf', \
-									   format='md', outputfile='expreport.pdf')
+									   format='md', outputfile=exp.newfile('expreport.pdf'))
