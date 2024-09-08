@@ -1,20 +1,17 @@
 # scope-cli
-Control Layer Interface for the Microscopes that sit on the Raspberry Pi.
+
+Control Layer Interface for parallel microscopy system.
+
+![](https://github.com/username/repo_name/workflows/docs/badge.svg)
 
 
 
 
 
+## Introduction
 
-### TODO
+TODO
 
-14. Change file_server to sync_server
-15. Add `--dry-run`confirmation during file sync operations. Two modes: "off", "on", "ask user".
-16. Add flags to the main.py file with option to skip the mandatory exp check.
-TODO:
-1. Setup the LifetimeMachine configuration:
-	a. Camera-configuration, Chunk-size, duration.
-	b. 
 
 
 ## Installation
@@ -22,31 +19,64 @@ TODO:
 ```bash
 git clone -r <repo_link>
 cd <scope-cli>
-python install_py_libs.py
+python main.py --install
 ```
 
+## Trappy-Scope Tool
 
+```bash
+python main.py -h
+```
 
+```
+usage: Trappy-Scopes scope-cli [-h] [-itr N <script>] [-su <user-initials>] [--login <user-initials>] [-exp <exp-name>] [-noep] [-noff] [--intro]
+                               [-mp4 <exp-name>] [-fps <fps>] [-install] [-loc] [-uid]
+                               [<script>]
 
+Trappy-Scopes Control Layer
 
+positional arguments:
+  <script>              List of scripts to execute in sequence
 
+optional arguments:
+  -h, --help            show this help message and exit
+  -itr N <script>, --iterate N <script>
+                        Specify the number of iterations to perform for a given script.
+  -su <user-initials>, --setuser <user-initials>
+                        Login/Set user for the microscope.
+  --login <user-initials>
+                        Login/Set user for the microscope.
+  -exp <exp-name>, --experiment <exp-name>
+                        Set the experiment.
+  -noep, --noep         Skip prompt to select experiment
+  -noff, --nofluff      Supress all the fluff during startup.
+  --intro               Print the scope CLI introduction document.
+  -mp4 <exp-name>, --mp4 <exp-name>
+                        Convert all the .h264 videos in the experiment folder to .mp4 videos.
+  -fps <fps>, --fps <fps>
+                        Specify the fps for conversion to mp4.
+  -install, --install   Do installation of all required python and Unix libraries required for trappyscopes.
+  -loc, --loc           Count lines of code for this project.
+  -uid, --uid           Generate a trappy-scopes (systems) unique identifier.
+```
 
 ## Start-up and usage
 
-+ Start control layer utility with `python -i main.py`. 
++ Start control layer utility with `python -i main.py` in the interactive mode. 
 + On Raspian (Linux machine), and during experiments, use `trappyscope` utility, that sets real-time priority on the thread. It only works for Linux.
 + When using script files, the `-i` flag, which enables the python interactive mode may be ommited.
 + Usage:
 ```bash
 python main.py <script1> <script2> <script3>
 trappyscope <script1> <script2> <script3>
+python main.py --iterate 3 <script1> ## Run Script1 three times
 ```
 + The scripts are executed in sequence and can be used to load pre-defined experimental protocols.
 
 + Alternatively, to load a script/execute a script, use on REPL:
 
 ```python
-LoadScript("scriptfile.py")
+ScriptEngine.now(globals(), "scriptfile.py")
 ```
 
 + All data-collection should be done within the context of an `Experiment`:
@@ -57,16 +87,27 @@ LoadScript("scriptfile.py")
 	You should get the following output:
 
 	```bash
-	Experiment so far: 
-	['.experiment', 'experiment.yaml']
+	────────────────────────────── Experiment open ─────────────────────────────────────────
+	[17:21:08] INFO     Loading Experiment: test                                                                                                experiment.py:267
 	Working directory changed to: /Users/byatharth/experiments/test
-	|| ‹‹MDev›› Experiment: test >>> 
+	.
+	├── .experiment
+	├── analysis
+	├── converted
+	├── experiment.yaml
+	├── postprocess
+	└── sessions.yaml
+	
+	3 directories, 3 files
+	
+	user:ghost || ‹‹M1›› Experiment: test 
+	>>> 
 	```
-
+	
 + You should also login as a user:
 
 	```python
-	set_user("YB")
+	User.login("YB")
 	```
 
 	The python terminal prompt should change to:
@@ -74,6 +115,60 @@ LoadScript("scriptfile.py")
 	```bash
 	user:YB || ‹‹MDev›› Experiment: test >>> 
 	```
+
+
+
+## Describing one scope
+
+A `scope` is described as a tree of devices. It is a combination of Processors (`ProcessorGroup`), `Sensors` , and `Actuators`. A scope configuration is defined in the `deviceid.yaml` configuration file. An example is given below:
+
+```yaml
+name: MDev
+uuid: null
+type: microscope
+frame:
+- pico
+- topplate
+- lit
+- diffuser
+- lenses.asphere
+- sample
+- samplestage
+- midplate
+- zoomlens
+- zoomlensholdplate
+- camera
+- baseplate
+optics:
+  lenses:
+  - 120deg plastic asphere
+  - ACL2520U
+  - zoomlens
+hardware:
+  pico:
+  - nullpico
+  - pico1
+  - nullpico
+  camera: nullcamera
+  illumination: CA_PWM_RGB_LED_5mm
+git_sync: false
+write_server: ssd1
+file_server: smb://files1.igc.gulbenkian.pt/igc/folders/LP/yatharth
+auto_fsync: false
+auto_pico_fsync: true
+```
+
+## Describing N-scopes
+
+Multiple scopes are defined by defining each of the configuration files on each of the scopes. After this is done, the network layer allows the scopes to be connected to the laboratory hive, where all scopes can be accessed on the fly.
+
+
+
+
+
+
+
+## How to do Science on the scopes?
 
 ## An `Experiment`
 
@@ -190,17 +285,10 @@ graph TD
 Examplar Device ID file:
 
 ```yaml
-# Do Not change ----------------
-name      : M1
-uuid      : "uuid"
-type      : microscope
-# ------------------------------
 
-hardware:
-  pico         : [pico1, "uuid"]
-  camera       : [rpi_hq_picam2, "hardware_camera_id"]
-  illumination : CA_PWM_RGB_LED_5mm
 ```
+
+
 
 The default mode for parsing a device ID structure is to first cast each field to a container/collection type and enforce the first value as the unique name and the 2nd value, if present, as a **Universal** unique identifier.
 
@@ -213,7 +301,6 @@ The default mode for parsing a device ID structure is to first cast each field t
 1. The `Experiment` class manages the saving of data in  specific folders and logs experiement events.
 2. A folder qualifies as an Experiemnt if it contains the `.experiment` file with the UUID of the experiment.
 3. The file `<Experiment_name>.yaml` contains the event logs of the experiments.
-
 
 
 
