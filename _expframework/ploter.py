@@ -1,24 +1,33 @@
 import asciichartpy as acp
 import plotext as pltx
+pltx.theme("dark")
 
-plt.theme("dark")
-
-class Plotter():
+class Plotter:
 	
 	def matplotlib(fig):
+        """
+        Export to matplotlib API.
+        """
 		pltx.from_matplotlib(fig)
 		pltx.show()
 
 
     def for_report(width=60, height=15):
         """
-        Export 
+        Export for report, lets you define the 3D size.
         """
         pltx.plotsize(width, height)
         string = pltx.build()
-        pltx.plotsize(*pltx.terminal_size())
         return string
-	
+
+    def for_terminal():
+        """
+        Export to the current size of the terminal. 
+        """
+        pltx.plotsize(*pltx.terminal_size())
+        string = pltx.build()
+        return string
+    
 
 
 """

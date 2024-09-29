@@ -10,27 +10,23 @@ class Report:
 
 	def __init__(self):
 		self.report_str = ""
-		#self.df = pd.DataFrame(exp.logs["events"])
-		#self.df["elapsed"] = self.df["dt"] - self.df.loc[0]["dt"]
 
 		self.premble = ""
-
-
 		self.summary = ""
 		self.notes = ""
 
 		self.appendix = ""
 		self.events = ""
 
+		#self.df = pd.DataFrame(exp.logs["events"])
+		#self.df["elapsed"] = self.df["dt"] - self.df.loc[0]["dt"]
 
-	def add_note(self):
-		pass
 
 	def __summary__(self, exp):
 		self.summary += "## Summary\n\n"
 		
 
-		summarydict = {"measuement streams": self.df[self.df.type == "measurement_stream"][["name",  "dt", "elapsed"]]
+		summarydict = {"measurement streams": self.df[self.df.type == "measurement_stream"][["name",  "dt", "elapsed"]]
 					   #"sessions": self.df[self.df.type == "session"][["name",  "dt", "elapsed"]],
 					   #"notes"    : self.df[self.df.type == "user_note"][["note"]]
 					   #"peripherals": Scope.current.tree
