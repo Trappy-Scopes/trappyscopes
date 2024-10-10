@@ -351,7 +351,7 @@ if exp_name:
 #print(sys.path)
 
 from useractions import *
-from _core.installer.installer import Installer
+from core.installer.installer import Installer
 
 
 
