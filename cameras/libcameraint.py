@@ -21,7 +21,7 @@ class Camera:
 		self.status  = "standby"
 		self.modes = {"preview": self.__preview__, "vid": self.__video__, 
 					  "img": self.__image__,
-					  "vid_mjpeg_prev": self:__vid_mjpeg_prev__}
+					  "vid_mjpeg_prev": self.__vid_mjpeg_prev__}
 
 	def capture(self, action, filename, tsec=1,
 				it=1, it_delay_s=0, init_delay_s=0, **kwargs):
