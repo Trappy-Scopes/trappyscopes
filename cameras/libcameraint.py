@@ -20,7 +20,8 @@ class Camera:
 		self.process = None
 		self.status  = "standby"
 		self.modes = {"preview": self.__preview__, "vid": self.__video__, 
-					  "img": self.__image__}
+					  "img": self.__image__,
+					  "vid_mjpeg_prev": self:__vid_mjpeg_prev__}
 
 	def capture(self, action, filename, tsec=1,
 				it=1, it_delay_s=0, init_delay_s=0, **kwargs):
@@ -97,6 +98,13 @@ class Camera:
 		tsec = kwargs["tsec"]
 
 		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename}"
+		return self.__process__(cmd_list)
+
+	def __vid_mjpeg_prev__(self, filename, *args, **kwargs):
+		tsec = kwargs["tsec"]
+
+		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename} --codec {mjpeg} --width 2028 --height 2028 --denoise off --awbgains 0,0 \
+					 --analoggain 1 --framerate {kwargs["fps"]} --shutter {kwargs["exposure_ms"]}"
 		return self.__process__(cmd_list)
 
 	def is_open(self):
