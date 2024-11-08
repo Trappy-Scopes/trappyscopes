@@ -109,6 +109,11 @@ class Camera:
 	def is_open(self):
 		return False
 
+	def open(self):
+		pass
+	def close(self):
+		pass
+
 
 
 
