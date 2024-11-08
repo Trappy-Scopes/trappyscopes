@@ -10,7 +10,8 @@ from rich.panel import Panel
 from utilities import pyboard
 
 from utilities.resolvetypes import resolve_type
-
+from copy import deepcopy
+import os
 """
 TODO: 
 
@@ -91,12 +92,12 @@ class MicropythonDevice():
 	"""
 
 	Interface to communicate with micropython devices.
-	|- BaseDevice	
-	:	|- Micropython device
-	:	:	|- NetworkMPDevice
-	:	:	|- SerialMPDevice
-	:	:	|- NullMPDevice
-	:	*
+	|- BaseDevice   
+	:   |- Micropython device
+	:   :   |- NetworkMPDevice
+	:   :   |- SerialMPDevice
+	:   :   |- NullMPDevice
+	:   *
 	*
 
 	"""
@@ -130,9 +131,32 @@ class MicropythonDevice():
 		"""
 		Scan the filesystem on the pico device
 		"""
-		self.fs = {key:None for key in self.device.fs_listdir(".")}
-		return self.fs
+		fs = {key:None for key in self.device.fs_listdir(".")}
+		return fs
 	
+	def sync_files2(self, local_folder, target_folder):
+		try:
+			# Traverse through local directory
+			for root, dirs, files in os.walk(source):
+				# Create equivalent folder structure on MicroPython device
+				remote_root = os.path.join(target_folder, os.path.relpath(root, local_folder)).replace("\\", "/")
+				pyboard.exec(f"import os; os.makedirs('{remote_root}', exist_ok=True)")
+				
+				# Send each file in the directory
+				for file_name in files:
+					local_path = os.path.join(root, file_name)
+					remote_path = f"{remote_root}/{file_name}"
+
+					#send_file_to_micropython(pyboard, local_path, remote_path)
+					with open(local_path, 'rb') as file:
+						file_data = file.read()
+						pyboard.fs_put(file_data, remote_path)
+						print(f"Transferred file: {local_path} -> {remote_path}")
+		
+		finally:
+			pass
+		print(f"Sync completed: {local_folder} to {target_folder} on MicroPython device.")
+
 	
 	def sync_files(self, files, root=False):
 		"""
@@ -507,6 +531,30 @@ class RPiPicoDevice:
 		self.fs = {key:None for key in self.pico.fs_listdir(".")}
 		return self.fs
 	
+	def sync_files2(self, local_folder, target_folder):
+		try:
+			# Traverse through local directory
+			for root, dirs, files in os.walk(local_folder):
+				# Create equivalent folder structure on MicroPython device
+				remote_root = os.path.join(target_folder, os.path.relpath(root, local_folder)).replace("\\", "/")
+				remote_root = remote_root.replace("/.", "")
+				self.__call__(f"import os\ntry:\n\tos.mkdir('{remote_root}')\nexcept OSError:\n\tpass")
+				
+				# Send each file in the directory
+				for file_name in files:
+					local_path = os.path.join(root, file_name)
+					remote_path = f"{remote_root}/{file_name}"
+
+					#send_file_to_micropython(pyboard, local_path, remote_path)
+					#with open(local_path, 'rb') as file:
+					#file_data = file.read()
+					self.pico.fs_put(local_path, remote_path)
+					print(f"Transferred file: {local_path} -> {remote_path}")
+		
+		finally:
+			pass
+		print(f"Sync completed: {local_folder} to {target_folder} on MicroPython device.")
+
 	
 	def sync_files(self, files, root=False):
 		"""
@@ -611,9 +659,9 @@ if __name__ == "__main__":
 		#print(dir(pico.pico.serial))
 		#from time import sleep
 		#while True:
-		#	print(".")
-		#	r = pico.pico.serial.readline().decode('utf-8').strip()
-		#	print(r)
-		#	sleep(0.5)
+		#   print(".")
+		#   r = pico.pico.serial.readline().decode('utf-8').strip()
+		#   print(r)
+		#   sleep(0.5)
 		
 		#pico.pico.follow()

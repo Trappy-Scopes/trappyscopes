@@ -1,33 +1,40 @@
 name: MDev
-uuid: null
 type: microscope
-frame:
+assembly:
 - pico
+- (0mm)
 - topplate
-- lit
-- diffuser
-- lenses.asphere
+- (0mm)
+- led
+- (0mm)
+- diffuser1
+- (0mm)
+- asphere
+- (0mm)
 - sample
+- (0mm)
 - samplestage
+- (0mm)
 - midplate
+- (0mm)
+- zoomlens_upper_plate
+- (0mm)
 - zoomlens
-- zoomlensholdplate
+- (0mm)
+- zoomlens_lower_plate
+- (0mm)
 - camera
+- (0mm)
 - baseplate
 optics:
-  lenses:
-  - 120deg plastic asphere
-  - ACL2520U
-  - zoomlens
-hardware:
-  pico:
-  - pico
-  - pico1
-  - nullpico
-  camera: nullcamera
-  illumination: CA_PWM_RGB_LED_5mm
+- diffuser: lens120deg plastic asphere
+- asphere: ThorLabs ACL2520U
+- zoomlens
+pico: processorgroup.micropython
+camera: nullcamera
+led: CA_PWM_RGB_LED_5mm
+frame:
+- packages:
+  - https://github.com/Trappy-Scopes/trappyframe/tree/main/frame
+- baseplate: Base Plate 6.3mm (FSSBTv3) v2.stl
 git_sync: false
-write_server: ssd1
-file_server: smb://files1.igc.gulbenkian.pt/igc/folders/LP/yatharth
-auto_fsync: false
-auto_pico_fsync: true

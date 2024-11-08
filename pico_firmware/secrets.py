@@ -1,0 +1,2 @@
+ssid = "IGC"
+password = "chemokine"

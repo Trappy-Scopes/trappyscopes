@@ -24,4 +24,8 @@ def CameraSelector(device, *args, **kwargs):
 		from libcameraint import Camera
 		return Camera(*args, **kwargs)
 
+	if device == "macos":
+		from macos import Camera
+		return Camera(*args, **kwargs)
+
 	log.error(f"Invalid camera mode: {device}")

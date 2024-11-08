@@ -1,27 +1,30 @@
 from time
 
-from _hive.physical import PhysicalObject
-from _core.sharing.vault import Vault
-from _hive.assembly import ScopeAssembly
+from hive.physical import PhysicalObject
+from core.sharing.vault import Vault
+from hive.assembly import ScopeAssembly
 
 class Fluidics(PhysicalObject):
 	"""
 	Describes utility functions for detecting and measuring chambers.
 	"""
 
-	def __init__(self, name, dia_mm=None, frames=None, **kwargs):
-		super().__init__(name)
+	def __init__(self, name, **kwargs):
+		super().__init__(name, **kwargs)
 		self.type = "fluidics_device"
 		self.attribs = kwargs
 
+		objpath = os.path.join(os.path.expanduser(""), ".fluidics")
+		if os.path.exists(objpath):
+			with shelve.open(objpath) as dict_:
+				self.attribs = dict_
 
 	def record():
 		"""
 		Records the current chamer into the Vault.
 		"""
-		ScopeAssembly.current.cam.capture("img", Vault.now(self.fludics))
-
-		
+		#ScopeAssembly.current.cam.capture("img", Vault.now(self.fludics))
+		pass
 
 	def detect_ring(frames, magnification=1, resolution=[1920, 1080]):
 		"""

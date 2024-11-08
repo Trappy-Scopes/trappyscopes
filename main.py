@@ -20,7 +20,9 @@ Goal of this script:
 
 ## ------------------------------––------------------------------- Goal 1 -----------------------------------------------------------------------
 ## Configurations
-import argparser
+import os
+print(os.getcwd())
+exec(open("argparser.py", "r").read())
 from config.common import Common
 from sharing import Share
 
@@ -130,7 +132,7 @@ from picodevice import RPiPicoDevice
 import abcs
 from experiment import Experiment
 from _expframework.protocol import Protocol
-from _expframework.report import Report
+
 
 from utilities.fluff import pageheader, intro
 from sync import SyncEngine
@@ -227,21 +229,24 @@ print(pageheader())
 
 ## TODO concise
 print(Markdown("# LIGHTS"))
-picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
-           "normal" * (device_metadata["hardware"]["pico"][0] == "pico")
+#picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
+#           "normal" * (device_metadata["hardware"]["pico"][0] == "pico")
 global pico
-Share.ScopeVars.pico = RPiPicoDevice.Select(picomode, name=device_metadata["hardware"]["pico"][1], \
+Share.ScopeVars.pico = RPiPicoDevice.Select("normal", name="pico", \
 	   connect=False)
-pico = Share.ScopeVars.pico
+pico = Share.ScopeVars.pico 
 pico.auto_connect()
 #pico.connect("/dev/ttyACM1")
 
 
 print(pico)
-
+scope = ScopeAssembly()
 
 if not pico.connected:
 	log.error("Could not get a pico device!")
+	pico = RPiPicoDevice.Select("null", name="nullpico")
+	lit = RPiPicoDevice.Emit("lit", pico)
+	scope.add_device("lit", lit)
 else:
 	log.info("Executing main.py on MICROPYTHON device.")
 	pico.exec_main()
@@ -254,8 +259,9 @@ print("\n\n")
 print(Markdown("# CAMERA"))
 global cam
 
-Share.ScopeVars.cam = CameraSelector(device_metadata["hardware"]["camera"])
+Share.ScopeVars.cam = CameraSelector(device_metadata["camera"])
 cam = Share.ScopeVars.cam
+cam.close()
 #cam.open() # Camera should be already open upon creation.
 
 if not cam.is_open():
@@ -266,7 +272,9 @@ else:
 
 #----
 print(Markdown("# SCOPE READY"))
-scope = ScopeAssembly()
+
+
+
 scope.add_device("cam", cam, description="Main camera.")
 if pico.connected:
 	scope.add_device("pico", pico, description="Main microcontroller on Serial.")
@@ -284,7 +292,13 @@ unique_check = True   # Only asserted during experiment mode.
 
 
 
-
+from hive.assembly import ScopeAssembly as ScopeAssembly_
+newscope = ScopeAssembly_("MDev")
+newscope.mount_all(scopeid)
+newscope.add_device("cam", cam, description="Main camera.")
+if pico.connected:
+	scope.add_device("pico", pico, description="Main microcontroller on Serial.")
+newscope.draw_tree()
 
 
 ## 4. Set Experiment
@@ -364,7 +378,10 @@ from core.installer.installer import Installer
 #	auxfan = OutputDevice(4)
 #	scope.add_device("auxfan", auxfan)
 
-report = Report()
+#from _expframework.report import Report
+#report = Report()
+
+
 
 ### Run all scripts
 ScriptEngine.run_all(globals())
