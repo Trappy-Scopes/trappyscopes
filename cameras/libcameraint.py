@@ -1,4 +1,4 @@
-from abcs.camera import AbstractCamera
+#from abcs.camera import AbstractCamera
 
 import logging as log
 import time
