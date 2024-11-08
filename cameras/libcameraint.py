@@ -104,7 +104,7 @@ class Camera:
 		tsec = kwargs["tsec"]
 
 		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename} --codec {mjpeg} --width 2028 --height 2028 --denoise off --awbgains 0,0 \
-					 --analoggain 1 --framerate {kwargs["fps"]} --shutter {kwargs["exposure_ms"]}"
+					 --analoggain 1 --framerate {kwargs["fps"]} --shutter {kwargs["exposure_ms"]} -q 95"
 		return self.__process__(cmd_list)
 
 	def is_open(self):
