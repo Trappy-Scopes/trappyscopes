@@ -26,7 +26,7 @@ def start_acq():
 
 	## Read tandh
 	tandh = exp.streams["tandh"]
-	record_sensor = lambda: tandh(**scope.tandh.read())
+	record_sensor = lambda: tandh(**pico("tandh.read()"))
 	record_sensor()
 	exp.schedule.every(5).minutes.until(timedelta(hours=24)).do(record_sensor)
 	exp.note("Tandh sensors set to record every 5 mins for the next 24 hours, starting now.")
