@@ -2,6 +2,7 @@ from datetime import timedelta
 import datetime
 import time
 from rich import print
+import ast
 
 def create_exp():
 	global exp
@@ -26,7 +27,7 @@ def start_acq():
 
 	## Read tandh
 	tandh = exp.streams["tandh"]
-	record_sensor = lambda: tandh(**pico("tandh.read()"))
+	record_sensor = lambda: tandh(**ast.literal_eval(pico("tandh.read()").strip("\r\n")))
 	record_sensor()
 	exp.schedule.every(5).minutes.until(timedelta(hours=24)).do(record_sensor)
 	exp.note("Tandh sensors set to record every 5 mins for the next 24 hours, starting now.")
