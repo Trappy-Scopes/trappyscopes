@@ -103,7 +103,7 @@ class Camera:
 	def __vid_mjpeg_prev__(self, filename, *args, **kwargs):
 		tsec = kwargs["tsec"]
 
-		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename} --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs["quality"]}"
+		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename} --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']}"
 		return self.__process__(cmd_list)
 
 	def is_open(self):
