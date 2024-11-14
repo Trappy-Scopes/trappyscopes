@@ -19,7 +19,7 @@ print("Use start_acq() to start acquiring.")
 
 
 
-capture = lambda: scope.cam.capture("vid_mjpeg_prev", f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}',  tsec=30, fps=30, exposure_ms=(1/30)*1000*0.5, quality=70)
+capture = lambda: scope.cam.capture("vid_mjpeg_prev", f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}.mjpeg',  tsec=30, fps=30, exposure_ms=(1/30)*1000*0.5, quality=70)
 def start_acq():
 
 	global exp, scope, capture
