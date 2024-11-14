@@ -311,7 +311,7 @@ class SerialMPDevice(MicropythonDevice):
 
 	def __call__(self, command):
 		MicropythonDevice.print_(f"{self.name} << {command}")
-		ret = self.device.exec(f"print('{str(command).replace("\'", "\"")}')")
+		ret = self.device.exec(f"print('{str(command).replace('\'', '\"')}')")
 		MicropythonDevice.print_(f"{self.name} >> {ret.decode()}")
 		return resolve_type(ret.decode().strip("\r\n"))
 
