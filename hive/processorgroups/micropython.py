@@ -4,8 +4,10 @@ import logging as log
 from utilities.resolvetypes import resolve_type
 from core.external import pyboard
 
+from .abstractprocessorgroup import ProcessorGroup as AbstractProcessorGroup
 
-class MicropythonDevice:
+
+class MicropythonDevice(AbstractProcessorGroup):
 
 	def __init__(self, name=None, connect=True, port=None):
 		self.name = name
@@ -38,7 +40,7 @@ class MicropythonDevice:
 
 	def exec_cleanup(self, command):
 		result = self.__call__(command)
-		return resolve_type(result.strip("\r\n"))
+		return result
 	
 
 

@@ -172,6 +172,7 @@ class ExpSync:
 			]
 			result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			log.info(f"Rsync completed for {file}")
+			print(f"Rsync completed for {file}")
 			if remove_source:
 				with open(".sync", "a") as f:
 					f.write(f"{file}, {datetime.datetime.now()}\n")

@@ -129,7 +129,7 @@ class ScopeAssembly(RpycServer):
 			self.add_device("pico", pico, description="Main microcontroller on Serial.")
 
 			try:
-				all_pico_devs = pico.exec_cleanup("print(Handshake.obj_list(globals_=globals()))")
+				all_pico_devs = pico.exec_cleanup("Handshake.obj_list(globals_=globals())")
 				for d in all_pico_devs:
 					self.add_device(d, pico.emit_proxy(d, pico), description="Pico peripheral.")
 			except:

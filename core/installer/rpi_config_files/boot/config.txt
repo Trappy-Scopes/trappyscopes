@@ -60,4 +60,6 @@ hdmi_drive=1 # Only send video and no audi: #2 sends both.
 hdmi_group=1 # CEA group
 hdmi_mode=16 # 1080p, 60Hz
 config_hdmi_boost=7 # Boost signal to improve SNR
+hdmi_ignore_hotplug:0=1
+hdmi_ignore_hotplug:1=1
 # hdmi_blanking is not set
