@@ -8,12 +8,8 @@ TODO:
 
 """
 
-class Sensor:
-    pass
 
-
-
-class DataStream:
+class Monitor:
     """
     Creates an instance for data aggregation and processing.
     """

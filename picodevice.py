@@ -23,7 +23,7 @@ TODO:
 
 
 
-
+# Reject
 class PicoProxyObject:
 
 	def __init__(self, object_, pico):
@@ -101,10 +101,11 @@ class MicropythonDevice():
 	*
 
 	"""
-
+	# Reject
 	def emit_proxy(self, object_):
 		return BaseDevice.Proxy(object_, self.device)
 
+	# Transfered
 	def __init__(self, name=None, connect=True, port=None):
 		self.name = name
 		self.connect_ = connect
@@ -117,16 +118,19 @@ class MicropythonDevice():
 
 		self.verbose = True
 
+	# Rejected
 	def print_(*args, **kwargs):
 		if self.verbose:
 			print(*args, **kwargs)
 
+	# Transfered
 	def exec_main(self):
 		"""
 		Execute main function on the Pico device.
 		"""
 		self.__call__('exec(open("main.py").read())')
 
+	# Transfered
 	def scan_root(self):
 		"""
 		Scan the filesystem on the pico device
@@ -134,6 +138,7 @@ class MicropythonDevice():
 		fs = {key:None for key in self.device.fs_listdir(".")}
 		return fs
 	
+	# Transfered
 	def sync_files2(self, local_folder, target_folder):
 		try:
 			# Traverse through local directory
@@ -157,7 +162,7 @@ class MicropythonDevice():
 			pass
 		print(f"Sync completed: {local_folder} to {target_folder} on MicroPython device.")
 
-	
+	# Reject
 	def sync_files(self, files, root=False):
 		"""
 		## Redo
@@ -232,12 +237,13 @@ class SerialMPDevice(MicropythonDevice):
 	Specialised device communication protocol for hardwire serial connection
 	using pySerial and pyboard library.
 	"""
-	
+	# Transfered
 	def all_ports():
 		import serial.tools.list_ports as list_ports
 		all_ports = list(list_ports.comports())
 		return [str(port) for port in all_ports]
 
+	# Transfered
 	def print_all_ports():
 		print("All availbale ports:")
 		all_ports = RPiPicoDevice.all_ports()
@@ -245,6 +251,7 @@ class SerialMPDevice(MicropythonDevice):
 			print(port)
 		print("-"*10)
 
+	# Transfered
 	def potential_ports(): #TODO
 		#print("All availbale ports:")
 		import serial.tools.list_ports as list_ports
@@ -255,6 +262,7 @@ class SerialMPDevice(MicropythonDevice):
 						   or str(port).__contains__("/dev/ttyACM")]
 		return(potential_ports)
 
+	# Transfered
 	def __init__(self, name=None, connect=True, port=None):
 		
 		super().__init__(name=name, connect=connect, port=port)
@@ -262,9 +270,11 @@ class SerialMPDevice(MicropythonDevice):
 		if self.connect_:
 			self.connect()
 
+	# Transfered
 	def __del__(self):
 		self.device.exit_raw_repl()
 
+	# Transfered
 	def connect(self, port):
 		try:
 			port = port.strip()
@@ -276,9 +286,11 @@ class SerialMPDevice(MicropythonDevice):
 		except:
 			print(f"Connection failed - {port}!")
 
+	# Transfered
 	def disconnect(self):
 		self.device.exit_raw_repl()
 
+	# Transfered
 	def auto_connect(self, port=None):
 		"""
 		Function tries and connects to the first valid SerialMPDevice it finds.
@@ -421,14 +433,13 @@ class RPiPicoDevice:
 	def connect(self, port):
 		try:
 			port = port.strip()
-			print(f"Attempting connection to — {port}")
+			log.debug(f"Attempting connection to — {port}")
 			self.pico = pyboard.Pyboard(port, 115200)
 			self.port = port
 			self.connected = True
-			print(f"Connected to port: {self.port}")
+			log.debug(f"Connected to port: {self.port}")
 		except:
-			print("Connection failed!")
-			pass
+			log.debug(f"Connection failed to port: {self.port}")
 
 	def auto_connect(self, port=None):
 		"""
@@ -594,7 +605,7 @@ class RPiPicoDevice:
 			log.info(f"Wrote file to pico fs: {file}")
 
 
-
+# Rejected
 class NullRPiPicoDevice(RPiPicoDevice):
 
 	def __init__(self, port=None, name="pico", verbose=True, connect=True):

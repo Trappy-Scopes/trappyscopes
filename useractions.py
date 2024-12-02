@@ -101,6 +101,7 @@ def findexp():
 	Share.ScopeVars.exp = None
 	if exp_name:
 		Share.ScopeVars.exp = Experiment(exp_name)
+	return Experiment.current
 
 
 def delexp():

@@ -11,6 +11,8 @@ import time
 from collections import OrderedDict
 import schedule
 from threading import Thread
+import pickle
+import atexit
 
 from rich import print
 from rich.progress import track
@@ -29,6 +31,10 @@ from yamlprotocol import YamlProtocol
 from devicestate import sys_perma_state
 from tsexceptions import TS_InvalidNameException
 from tsevents import TSEvent
+from core.idioms.clock import Clock
+
+
+from expframework.expsync import ExpSync
 
 class ExpEvent(TSEvent):
 	def __init__(self, kind="expevent", attribs={}):
@@ -38,7 +44,7 @@ class ExpEvent(TSEvent):
 					"type"       : kind, ## Can be overrided here.
 			 		"eid"        : Experiment.current.eid,
 					"scriptid"   : Experiment.current.scriptid,
-			  		"exptime"    : Experiment.current.timer_elapsed()
+			  		"exptime"    : Experiment.current.expclock.time_elapsed()
 		   			})
 		self.update(attribs)
 		
@@ -71,7 +77,7 @@ class ExpScheduler(schedule.Scheduler):
 	#def do(self, job_func, *args, **kwargs):
 	#	obj = super().do(job_func=job_func, *args, **kwargs)
 
-class Experiment:
+class Experiment(ExpSync):
 	"""
 
 	ExperimentEvents emiited into the <experiemtn_name>.yaml file, and are broadly
@@ -272,8 +278,34 @@ class Experiment:
 		if not self.logs:
 			log.error("Experiment logs missing!")
 			self.logs = OrderedDict()
-	
-		
+
+		### ------ Create the state of the experiment  --------
+		self.attribs = {}   ## Persistent experiment parameters.
+		self.mstreams = {}  ## Measuremnt streams that are conserved over sessions.
+
+		## Different experiment clocks
+		self.expclock = Clock()
+		self.timers = {}  ## Set of different timers.
+
+		self.schedule = ExpScheduler() ## TODO: Scheduler would not automatically restart.
+		### ---------------------------------------------------
+
+
+		## Load experiment state
+		pickle_file = os.path.join(self.exp_dir, "expstate.pickle")
+		if os.path.exists(pickle_file):
+			try:
+				with open(pickle_file, "rb") as file:
+					state = pickle.load(file)
+					self.__setstate__(state)
+					log.info("Experiment state found and loaded!")
+			except Exception as e:
+				print(f"[red] Exception raised: {e}")
+				log.error("Failed to load experiment state.")
+		else:
+			log.warning("Experiment state not found.")
+
+
 		# Changing Working Directory to Experiment Directory		
 		Share.updateps1(exp=self.name)
 		self.lastwd = os.getcwd()
@@ -303,25 +335,20 @@ class Experiment:
 								 {"eid": self.eid,
 					  			  **Session.current.__getstate__()}
 					  			)
+		
+
 		self.sessions = YamlProtocol.load("sessions.yaml")
 		
 		self.unsaved = False # Flag that indicates unsaved changes
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
-		
-
-		
 		self.eventid = 0
-		self.init_time = time.perf_counter()  ## Experiment init time
-		self.exp_timer = 0 ### Populated by time.perf_counter() values.
-		self.expclock = 0
-		if "expclock" in self.logs:
-			self.expclock = float(self.logs["expclock"])
 
-		self.attribs = {}
-		self.streams = {} ## Measuremnt modalities
+		## ExpSync
+		super().__init__(Share.scopeid, self.name)
+
+		
 		#TODO self.metadata = Metadata()
-
-		self.schedule = ExpScheduler()
+		
 		
 		### Set the current pointer
 		Experiment.current = self
@@ -336,7 +363,20 @@ class Experiment:
 	
 	def __repr__(self):
 		end_time = time.perf_counter()
-		return f"< Experiment: {self.name} :::: duration: {end_time-self.init_time:.3f} s >"
+		return f"< Experiment: {self.name} :::: duration: {self.expclock.time_elapsed():.3f} s >"
+
+	def __getstate__(self):
+		## Attributes and streams are non-fungable and should be pickled.
+		return {"mstreams": self.mstreams, "attribs": self.attribs, 
+				"expclock": self.expclock, 
+				"timers": self.timers}
+
+	def __setstate__(self, state):
+		## Attributes and streams are non-fungable and should be pickled.
+		self.mstreams = state["mstreams"]
+		self.attribs = state["attribs"]
+		self.expclock = state["expclock"]
+		self.timers = state["timers"]
 
 	
 	def __save__(self):
@@ -351,26 +391,33 @@ class Experiment:
 	def endthreads(self):
 		self.schedule.end_thread = True
 
+	@atexit.register
+	def close():
+		if Experiment.current:
+			Experiment.current.close()
 	def close(self):
 		self.schedule.end_thread = True
 
 		###
 		self.logs["attribs"] = self.attribs
+		with open("expstate.pickle", "wb") as file:
+			pickle.dump(self.__getstate__(), file)
 
 		#if self.unsaved:
 		end_time = time.perf_counter()
-		print(f"Experiment duration: {end_time-self.init_time:.3f} seconds.")
-		self.logs["exp_duration_s"] = end_time-self.init_time
+		print(f"Experiment duration: {self.expclock.time_elapsed():.3f} seconds.")
+		#self.logs["exp_duration_s"] = self.expclock.time_elapsed()
 		with open(self.log_file, "w") as f:
 			f.write(yaml.dump(self.logs))
 		print(f"Experiment logs updated: {self.log_file}")
+		Experiment.current = None
 		if self.active:
 			self.active = False
 
 			if isinstance(self.schedule.thread, Thread):
 				self.schedule.thread.join()
 
-			os.chdir(self.lastwd)
+			os.chdir(self.lastwd)	
 			print(f"Working directory changed to: {os.getcwd()}")
 			Share.updateps1(exp="")
 
@@ -411,6 +458,7 @@ class Experiment:
 
 	def set_sync_flag(self):
 		"""
+		:depreciated
 		Mark the experiment for synchronisation.
 		"""
 		syncid = uid()
@@ -527,13 +575,13 @@ class Experiment:
 		ms.auto_update_explogs = True
 		ms.auto_update_df = True
 
-		self.streams[name] = ms
+		self.mstreams[name] = ms
 		log.info(f"Added measurment stream: {name}")
 		self.log("measurement_stream", attribs={"name":name,
 				 "detections":ms.detections, "measurements":ms.measurements,
 				 "monitors":ms.monitors})
-		print(self.streams[name])
-		return self.streams[name]
+		print(self.mstreams[name])
+		return self.mstreams[name]
 
 	@autosave
 	def new_measurement(self, **kwargs):
@@ -684,13 +732,6 @@ class Experiment:
 		"""
 		self.log("exp_interrupted")
 
-
-	### ───────────────────────────── Timers ──────────────────────────────
-	def start_timer(self):
-		self.exp_timer = time.perf_counter()
-		return self.exp_timer
-	def timer_elapsed(self):
-		return time.perf_counter() - self.exp_timer
 
 class Calibration(Experiment):
 	

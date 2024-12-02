@@ -94,6 +94,21 @@ parser.add_argument('-uid', '--uid', dest='uid',
                     help='Generate a trappy-scopes (systems) unique identifier.')
 ### -------------------------------------------
 
+### --- Create a registry entry for the uid and  ----------
+parser.add_argument('-k', '--kind', dest='kind', 
+                    action='store', type=str, default=None,
+                    help='Additionally adds the uid to the registry. Also specify the --tag \
+                    parameter to add comments.')
+
+parser.add_argument('-t', '--tag', dest='tag', 
+                    action='store',
+                    help='Additional comment for the uid registry.')
+
+parser.add_argument('-reg', '--registry', dest='registry', 
+                    action='store_true',
+                    help='Show the current Trappy-Scopes objects registry.')
+### -------------------------------------------
+
 
 ### Parse !!!!!!!!!!!!!!!
 print("Passed arguements:", sys.argv)
@@ -151,6 +166,18 @@ if args.loc:
 if args.uid:
     from uid import uid
     from rich import print
-    print(f"Unique identifier: {uid()}")
+    uid_ = uid()
+    print(f"Unique identifier: {uid_}")
+    
+    if args.kind:
+        from core.bookkeeping.registry import Registry
+        Registry(uid_, args.kind, tag=args.tag)
     exit()
+
+if args.registry:
+    from core.bookkeeping.registry import ShowRegistry
+    ShowRegistry()
+    exit(0)
+
+
 

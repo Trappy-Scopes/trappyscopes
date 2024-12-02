@@ -7,7 +7,7 @@ import logging as log
 from sharing import Share
 from yamlprotocol import YamlProtocol
 
-import abcs #Abstract Base Classses
+#import abcs #Abstract Base Classses
 
 import threading
 import rpyc
@@ -91,7 +91,7 @@ class ScopeAssembly():
 		log.debug("Constructing scope assembly.")
 		ScopeAssembly.current = self
 
-	
+	## transfered
 	def __getattr__(self, device):
 		if device in self.tree:
 			return self.tree[device]

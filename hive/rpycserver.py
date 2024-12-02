@@ -2,9 +2,9 @@ import rpyc
 import threading
 from rpyc.utils.server import ThreadedServer
 from rpyc.cli.rpyc_classic import ClassicServer
+import time
 
-
-class RpycServer:
+class RpycServer():
 	"""
 	Interface to launch and manage RPyC Server within the assembly scope.
 
@@ -25,3 +25,8 @@ class RpycServer:
 
 	def close_rpycserver(self):
 		pass
+
+
+	#def _rpyc_getattr(self, name):
+	#	# allow all other attributes
+	#	return getattr(self, name)

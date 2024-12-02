@@ -29,7 +29,7 @@ class Measurement(ExpEvent):
 
 	A measurment is a type of dictionary that is compatible with the
 	dataframe (pandas) data-structure and gives all the necessary in-
-	-formation necessary for every entry. This allows the user to com-
+	-formation necessary for every entry. T								s allows the user to com-
 	-bine arbitrary number of experiments for analysis, **without any
 	data filtering**.
 
@@ -177,7 +177,7 @@ class MeasurementStream:
 
 	def advance(self, **kwargs):
 		self.datapoint["sessiontime"] = Session.current.timer_elapsed()
-		self.datapoint["exptime"]     = Experiment_.current.timer_elapsed()
+		self.datapoint["exptime"]     = Experiment_.current.expclock.time_elapsed()
 		self.datapoint["machinetime"] = time.time_ns()
 		self.datapoint["measureidx"] = self.datapoint["measureidx"] + 1
 		return self.datapoint

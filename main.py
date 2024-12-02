@@ -31,7 +31,7 @@ from sharing import Share
 
 ### Pretty printing
 import readline
-exec(open("utilities/autocompleter.py", "r").read())
+#xec(open("utilities/autocompleter.py", "r").read())
 from rich.markdown import Markdown
 from rich import print
 
@@ -44,7 +44,7 @@ tracebackinstall(show_locals=False)
 
 
 ## Set Logging
-import logsettings ## Why is this required ?
+from core.permaconfig import logsettings ## Why is this required ?
 import logging
 log = logging.getLogger("main")
 import logging
@@ -70,7 +70,7 @@ error_collector.setFormatter(formatter)
 
 # Get the root logger
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)  # or any level you need
+logger.setLevel(logging.DEBUG)  # or any level you need
 logger.addHandler(error_collector)
 
 #--------------------------------------------------------------
@@ -83,20 +83,7 @@ logger.addHandler(error_collector)
 ## Define exp object - for Crash safety
 global exp
 exp = Share.ScopeVars.exp
-def exit():
-	"""
-	Custom overloaded exit function.
-	"""
-	if exp != None:
-		if exp.active:
-			exp.close()
-	#if device_metadata["auto_fsync"]:
-	#	SyncEngine.fsync(device_metadata)
-	
-	if cam:
-		if cam.is_open():
-			cam.close()
-	sys.exit()
+
 
 ## Login
 from user import User
@@ -122,20 +109,20 @@ from yamlprotocol import YamlProtocol
 
 
 # Hardware - Depreciate
-from cameras.selector import CameraSelector
+#from cameras.selector import CameraSelector
 #from lights.selector import LightSelector ##Obsolete
-from picodevice import RPiPicoDevice
+#from picodevice import RPiPicoDevice
 
 
 
 # Trappy-Scopes  Resources
-import abcs
+#	import abcs
 from experiment import Experiment
-from _expframework.protocol import Protocol
+from expframework.protocol import Protocol
 
 
 from utilities.fluff import pageheader, intro
-from sync import SyncEngine
+#from sync import SyncEngine
 from devicetree import ScopeAssembly
 from terminalplot import *
 from sharing import Share
@@ -164,7 +151,7 @@ if is_internet_available():
 else:
     print("No internet access.")
 
-## 
+
 
 #### ---------- Library Level processing ----------------------
 
@@ -185,20 +172,16 @@ generate_wallpaper(device_metadata)
 os.system(f"pcmanfm --wallpaper-mode=fit --set-wallpaper {def_wallpaper_path}")
 
 ## -------- Synchronize ------------
-SyncEngine.git_sync(device_metadata)
+#SyncEngine.git_sync(device_metadata)
 ## ---------------------------------
-#print("-"*100)
-#print("\nDevice: ")
-#print("-------")
+
+
 from rich.pretty import Pretty
 from rich.panel import Panel
 devicepanel = Panel(Pretty(device_metadata), title="Device")
 print(devicepanel)
-#from rich.layout import Layout
-#devicelayout = Layout(name="Device", size=15)
-#devicelayout.update(str(device_metadata))
-#print(device_metadata)
-#log.critical(pprint.pformat(device_metadata))
+
+
 global scopeid, scope_user
 scopeid = device_metadata["name"]
 Share.scopeid = scopeid
@@ -208,105 +191,29 @@ from optics import Optics
 Optics.populate(device_metadata["optics"])
 #optics = Optics()
 
-from scopeframe import ScopeFrame
-ScopeFrame.populate(device_metadata)
+#from scopeframe import ScopeFrame
+#ScopeFrame.populate(device_metadata)
 
-from fluidicsdevice import FluidicsDevice
-trap = FluidicsDevice("unknown microfluidics device", type="unknown")
-
-
-
-RPiPicoDevice.print_all_ports()
+from hive.processorgroups.micropython import SerialMPDevice
+SerialMPDevice.print_all_ports()
 
 ##3. Print Header
-#from colorama import init
-#init()
 print(pageheader())
 
 
 
-## 4. Set hardware resources
-
-## TODO concise
-print(Markdown("# LIGHTS"))
-#picomode = "null" * (device_metadata["hardware"]["pico"][0] == "nullpico") + \
-#           "normal" * (device_metadata["hardware"]["pico"][0] == "pico")
-global pico
-Share.ScopeVars.pico = RPiPicoDevice.Select("normal", name="pico", \
-	   connect=False)
-pico = Share.ScopeVars.pico 
-pico.auto_connect()
-#pico.connect("/dev/ttyACM1")
 
 
-print(pico)
-scope = ScopeAssembly()
-
-if not pico.connected:
-	log.error("Could not get a pico device!")
-	pico = RPiPicoDevice.Select("null", name="nullpico")
-	lit = RPiPicoDevice.Emit("lit", pico)
-	scope.add_device("lit", lit)
-else:
-	log.info("Executing main.py on MICROPYTHON device.")
-	pico.exec_main()
-	log.info(pico)
-
-print("[red]Light object l1 is no longer recognised.[default]")
-#lit = RPiPicoDevice.Emit("l1", pico)
-print("\n\n")
-
-print(Markdown("# CAMERA"))
-global cam
-
-Share.ScopeVars.cam = CameraSelector(device_metadata["camera"])
-cam = Share.ScopeVars.cam
-cam.close()
-#cam.open() # Camera should be already open upon creation.
-
-if not cam.is_open():
-	log.error("Could not get a camera device!")
-else:
-	#cam.configure()
-	log.info(cam)
-
-#----
-print(Markdown("# SCOPE READY"))
-
-
-
-scope.add_device("cam", cam, description="Main camera.")
-if pico.connected:
-	scope.add_device("pico", pico, description="Main microcontroller on Serial.")
-	scope.add_device("picoprox", RPiPicoDevice.Emit("", pico))
-	try:
-		all_pico_devs = pico.exec_cleanup("print(Handshake.obj_list(globals_=globals()))")
-		for d in all_pico_devs:
-			scope.add_device(d, RPiPicoDevice.Emit(d, pico), description="Pico peripheral.")
-	except:
-		print("pico: handshake failed!")			
+from hive.assembly import ScopeAssembly
+scope = ScopeAssembly(scopeid)
+scope.open(device_metadata, abstraction="microscope")
 scope.draw_tree()
-
-# Defining variables for common modes
-unique_check = True   # Only asserted during experiment mode.
-
-
-
-from hive.assembly import ScopeAssembly as ScopeAssembly_
-newscope = ScopeAssembly_("MDev")
-newscope.mount_all(scopeid)
-newscope.add_device("cam", cam, description="Main camera.")
-if pico.connected:
-	scope.add_device("pico", pico, description="Main microcontroller on Serial.")
-newscope.draw_tree()
 
 
 ## 4. Set Experiment
 print("\n\n")
 print(Markdown("# ACTION"))
 
-#exppanel = Panel(Pretty(Experiment.list_all()), title="Experiments so far")
-#print(exppanel)
 
 from rich.table import Table
 exppanel = Table("#.", "EID", "Experiment", box=None, show_lines=True)
@@ -331,40 +238,16 @@ print("Summary of errors:")
 print(error_collector.summarize_errors())
 print(Rule(style="red"))
 
-if not Share.argparse["noep"]:
-	
-	print("\n\n")
-	
-	print("Press Ctrl+Z to exit or enter to ignore.")
-	from prompt_toolkit import prompt
-	from prompt_toolkit.completion import WordCompleter
 
-	expcompleter = WordCompleter([os.path.basename(exp_) for exp_ in Experiment.list_all()])
-	exp_name = prompt('Input the session/experiment name -> ', completer=expcompleter)
-	#autocompleter.directory("/Users/byatharth/experiments")
-	#exp_name = input("Input the session/experiment name -> ")
-	exp_name.strip()
+from expframework.expsync import ExpSync
+ExpSync.configure(device_metadata)
 
-exp = None
-if exp_name:
-	exp = Experiment(exp_name)
-
-
-
-## Run Scriot file
-#if len(sys.argv) > 1:
-	#Experiment.run(sys.argv[1])
-	#__import__(sys.argv[1], globals(), locals())
-#	for exefile in scriptfiles:
-#		LoadScript(exefile)
-##------
-
-
-## Test
-#pico("l1.setVs(2,2,0)")
-#print(sys.path)
 
 from useractions import *
+if not Share.argparse["noep"]:
+	exp = findexp()
+
+
 from core.installer.installer import Installer
 
 
@@ -372,13 +255,7 @@ from core.installer.installer import Installer
 #from _hive.network.transmit.hivemqtt import HiveMQTT
 #HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})
 
-
-#if os.path.isdir("/home/trappyscope"):
-#	from gpiozero import OutputDevice
-#	auxfan = OutputDevice(4)
-#	scope.add_device("auxfan", auxfan)
-
-#from _expframework.report import Report
+#from expframework.report import Report
 #report = Report()
 
 

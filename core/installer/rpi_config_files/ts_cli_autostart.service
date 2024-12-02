@@ -1,0 +1,18 @@
+[Unit]
+Description=Trappy-Scopes cli - autostart.
+After=multi-user.target
+
+[Service]
+ExecStart=/usr/bin/python3 /scope-cli/autostart.py
+WorkingDirectory=/scope-cli
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+
+# sudo nano /etc/systemd/system/myscript.service
+# sudo systemctl enable myscript.service
+#sudo systemctl start myscript.service

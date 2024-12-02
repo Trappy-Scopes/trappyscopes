@@ -54,6 +54,10 @@ dtoverlay=gpio-fan,gpiopin=4,temp=60000
 # --------  Extra Trappy-Scopes configurations -------------
 
 ## Force HDMI mode -> assume that HDMI is always connected.
-hdmi_force_hotplug=1
 
-## Blanking not set
+hdmi_force_hotplug=1 # Force HDMI signal, even without a monitor.
+hdmi_drive=1 # Only send video and no audi: #2 sends both.
+hdmi_group=1 # CEA group
+hdmi_mode=16 # 1080p, 60Hz
+config_hdmi_boost=7 # Boost signal to improve SNR
+# hdmi_blanking is not set

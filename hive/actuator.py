@@ -1,5 +1,5 @@
 from rich import print
-from basedevice import BaseDevice
+from .basedevice import BaseDevice
 
 
 class Actuator(BaseDevice):

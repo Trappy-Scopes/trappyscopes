@@ -2,15 +2,18 @@
 
 
 
-Design and implementation document.
+Design and implementation document. This document outlines the vision of the `hive` module.
 
 ---
 
+A `SimpleDevice` is a device that is atomic and does not have any other devices/abstractions attached to it. A `ComplexDevice` is a multi-layered device, whcih can functionally emit/resolve proxies to the sub-devices that are attached to it.
+
+Types:
+
+1. `SimpleDevice` : stores basic attributes and has no functional significance.
+2. `ComplexDevice`: Can emit proxies.
+
 A `BaseDevice` is a group of processors which can be accessed by a single  `shell` (`device.exec()` method) instance and have their own independent operating system/firmware.
-
-## 
-
-
 
 
 
@@ -20,7 +23,7 @@ A `BaseDevice` is a group of processors which can be accessed by a single  `shel
 
 ```mermaid
 graph TD
-	abcs.BaseDevice --> LinuxDevice
+	ProcessorGroup --> LinuxDevice
 	abcs.BaseDevice --> MicropythonDevice
 		
 	LinuxDevice --> RPiLinuxDevice
