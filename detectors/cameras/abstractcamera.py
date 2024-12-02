@@ -83,6 +83,7 @@ class Camera:
 		kwargs.pop("self")
 		kwargs.pop("kwargs")
 		kwargs.pop("filename")
+		print(kwargs)
 
 		## ----- Sanity checks ------------
 		action = action.lower().strip()
