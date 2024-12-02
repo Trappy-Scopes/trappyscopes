@@ -40,7 +40,8 @@ class ExpSync:
 			log.debug("Plateform is Darwin (MacOS).")
 			self.mount_addr = f"/Volumes/{ExpSync.share}/"
 
-		if not os.path.exists(self.mount_addr):
+		#if not os.path.exists(self.mount_addr):
+		if ExpSync.active:
 			self.mount(ExpSync.server, ExpSync.share, 
 					   ExpSync.username, ExpSync.password)
 
