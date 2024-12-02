@@ -5,6 +5,7 @@ class Camera(AbstractCamera):
 
 	# 1
 	def __init__(self, *args, **kwargs):
+		super().__init__()
 		self.cam = None
 		self.actions = {"img": self.__img__}
 
