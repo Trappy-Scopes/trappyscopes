@@ -1,7 +1,8 @@
 #from abcs.camera import AbstractCamera
 from subprocess import Popen, PIPE
 from rich import print
-
+import sys
+impost os
 from detectors.cameras.abstractcamera import Camera as AbstractCamera
 
 class Camera(AbstractCamera):
