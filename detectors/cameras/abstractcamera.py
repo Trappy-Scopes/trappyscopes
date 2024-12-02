@@ -79,6 +79,8 @@ class Camera:
 		"""
 		
 		## Pack all passed arguments
+		if not kwargs:
+			kwargs = {}
 		locals_ = {**locals()}
 		locals_.pop("self")
 		locals_.pop("kwargs")
