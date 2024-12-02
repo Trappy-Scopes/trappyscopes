@@ -144,7 +144,7 @@ class ExpSync:
 		try:
 			# Running rsync command
 			command = [
-				'rsync', '-avz', '--progress', '--inplace', *source_removal,
+				'sudo', 'rsync', '-avz', '--progress', '--inplace', *source_removal,
 				os.path.join(os.getcwd(), file),
 				os.path.join(self.destination_dir, file)
 			]
