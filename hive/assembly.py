@@ -178,9 +178,9 @@ class ScopeAssembly(RpycServer):
 	def get_config(self):
 
 		def read_config(device):
-			if hasattr(device, "__getstate__"):
+			if hasattr(device, "config"):
 				return device.__getstate__()
-			elif hasattr(device, "config"):
+			elif hasattr(device, "__getstate__"):
 				return device.config
 			else:
 				log.warning(f"Device does not contain any configuration: {device}")
