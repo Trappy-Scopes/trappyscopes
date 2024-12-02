@@ -1,5 +1,28 @@
 name: MDev
 type: microscope
+config:
+  autostart_cli_after_reboot: true
+  git_sync: false
+  set_wallpaper: true
+  log_level: 20
+  file_server:
+    active: true
+    server: 172.22.32.222
+    share: eyespot
+    username: TS
+    password: Chlamy_123
+devices:
+  pico: processorgroup.micropython
+  lit:
+  - pico
+  - CA_PWM_RGB_LED_5mm
+  cam: opencv_webcam
+abstraction:
+  microscope:
+    cam: detector
+    lit: actuator
+    trap: physical-persistent
+    sample: physical
 assembly:
 - pico
 - (0mm)
@@ -30,11 +53,7 @@ optics:
 - diffuser: lens120deg plastic asphere
 - asphere: ThorLabs ACL2520U
 - zoomlens
-pico: processorgroup.micropython
-camera: nullcamera
-led: CA_PWM_RGB_LED_5mm
 frame:
 - packages:
   - https://github.com/Trappy-Scopes/trappyframe/tree/main/frame
 - baseplate: Base Plate 6.3mm (FSSBTv3) v2.stl
-git_sync: false
