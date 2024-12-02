@@ -52,6 +52,17 @@ class ExpSync:
 				self.set_sync_file()
 		
 		self.destination_dir = os.path.join(self.mount_addr, scopeid, experiment)
+
+		## Background executor
+		self.executor = ThreadPoolExecutor(max_workers=max_threads)
+		self.futures = []
+
+
+	def __exit__(self):
+		log.info("Waiting for transfers...")
+		self.executor.shutdown(wait=True)
+		log.info("Transfers complete...")
+
 	
 	def mkexpdir(self, scopeid, experiment):
 		try:
@@ -134,6 +145,11 @@ class ExpSync:
 		for result in results:
 			if result is not None:
 				log.debug(result)
+
+
+	def sync_file_bg(self, file, remove_source=False, delay_sec=0):
+		self.executor.submit(self.sync_file, file, remove_source=remove_source, \
+							 delay_sec=delay_sec)
 
 	def sync_file(self, file, remove_source=False, delay_sec=0):
 		"""
