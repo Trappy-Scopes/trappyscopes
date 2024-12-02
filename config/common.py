@@ -21,23 +21,23 @@ if deviceid["name"] == "MDev": #Development
 		yaml.dump(skeleton, f, sort_keys=False)
 ## --
 
+## Todo: PAtching is disabled
 ## Patch deviceid file from skeleton ----
-with open("config/skeleton_deviceid.yaml", "r") as f:
-	skeleton = yaml.load(f, Loader=yaml.SafeLoader)
-for key in skeleton:
-		if isinstance(skeleton[key], dict):
-			for nested_key in skeleton[key]:
-				if nested_key not in deviceid[key]:
-					deviceid[key][nested_key] = None
-					print(f"Added config in deviceid: {key}-{nested_key}")
-		else:
-			if key not in deviceid:
-				deviceid[key] = None
-				print(f"Added config in deviceid: {key}")
+#with open("config/skeleton_deviceid.yaml", "r") as f:
+#	skeleton = yaml.load(f, Loader=yaml.SafeLoader)
+#for key in skeleton:
+#		if isinstance(skeleton[key], dict):
+#			for nested_key in skeleton[key]:
+#				if nested_key not in deviceid[key]:
+#					deviceid[key][nested_key] = None
+#					print(f"Added config in deviceid: {key}-{nested_key}")
+#		else:
+#			if key not in deviceid:
+#				deviceid[key] = None
+#
 
-
-with open("config/deviceid.yaml", "w") as f:
-	yaml.dump(deviceid, f,  sort_keys=False)
+#with open("config/deviceid.yaml", "w") as f:
+#	yaml.dump(deviceid, f,  sort_keys=False)
 ###
 
 
