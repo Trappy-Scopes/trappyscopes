@@ -176,11 +176,21 @@ class ScopeAssembly(RpycServer):
 		return device in self.devices
 
 	def get_config(self):
+
+		def read_config(device):
+			if hasattr(device, "__getstate__"):
+				return device.__getstate__()
+			elif hasattr(device, "config"):
+				return device.config
+			else:
+				log.warning(f"Device does not contain any configuration: {device}")
+				return {}
 		return {"processors": list(self.processors), 
 				"actuators" : list(self.actuators),
 				"detectors" : list(self.detectors),
-				"devices": {key: device.config for key, device 
+				"devices": {key: read_config(device) for key, device 
 							   in self.devices.items()}}
+
 
 	#def __getattr__(self, device):
 	#	if device in self.tree:
