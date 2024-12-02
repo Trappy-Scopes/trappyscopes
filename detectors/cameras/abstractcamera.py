@@ -79,7 +79,7 @@ class Camera:
 		"""
 		
 		## Pack all passed arguments
-		kwargs = {**locals()}
+		kwargs = kwargs.update({**locals()})
 		kwargs.pop("self")
 		kwargs.pop("kwargs")
 		kwargs.pop("filename")
