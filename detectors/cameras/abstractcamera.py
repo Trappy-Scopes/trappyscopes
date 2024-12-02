@@ -85,7 +85,7 @@ class Camera:
 		locals_.pop("self")
 		locals_.pop("kwargs")
 		locals_.pop("filename")
-		kwargs = kwargs.update(locals_)
+		kwargs.update(locals_)
 
 		## ----- Sanity checks ------------
 		action = action.lower().strip()
