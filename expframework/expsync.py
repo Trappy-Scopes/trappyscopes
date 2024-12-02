@@ -91,7 +91,7 @@ class ExpSync:
 				subprocess.run(mount_cmd, check=True)
 				print(f"Mounted //{server}/{share} at {mount_point}/{share}.")
 				time.sleep(5)
-			except Exception:
+			except Exception as e:
 				print(e)
 				if "error(16)" in str(e):
 					log.info("file_server is already mounted!")
