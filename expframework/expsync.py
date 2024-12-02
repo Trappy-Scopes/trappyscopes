@@ -87,9 +87,14 @@ class ExpSync:
 			mount_cmd = ["sudo", "mount", "-t", "cifs", f"//{server}/{share}", \
 						f"{mount_point}/{share}", "-m", "-o", \
 						f"username={username},password={password},rw,file_mode=0777,dir_mode=0777,uid=1000,gid=1000"]
-			subprocess.run(mount_cmd, check=True)
-			print(f"Mounted //{server}/{share} at {mount_point}/{share}.")
-			time.sleep(5)
+			try:
+				subprocess.run(mount_cmd, check=True)
+				print(f"Mounted //{server}/{share} at {mount_point}/{share}.")
+				time.sleep(5)
+			except Exception:
+				print(e)
+				if "error(16)" in str(e):
+					log.info("file_server is already mounted!")
 			print(f"{mount_point} dir for reference: ", os.listdir(mount_point))
 			self.server = f"{mount_point}/{share}/"
 		elif platform.system() == "Darwin":
