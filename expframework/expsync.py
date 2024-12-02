@@ -81,14 +81,11 @@ class ExpSync:
 			log.debug("Plateform is Linux.")
 			mount_point = "/mnt"
 			mount_cmd = ["sudo", "mount", "-t", "cifs", f"//{server}/{share}", f"{mount_point}/{share}", "-m", "-o", f"username={username},password={password}"]
-				subprocess.run(mount_cmd, check=True)
-				print(f"Mounted //{server}/{share} at {mount_point}/{share}.")
-				time.sleep(5)
-				print("/Volumes dir for reference: ", os.listdir("/mnt"))
-				self.server = f"{mount_point}/{share}/"
-			sudo mount -t cifs  -o credentials=/etc/smb_credentials
-
-
+			subprocess.run(mount_cmd, check=True)
+			print(f"Mounted //{server}/{share} at {mount_point}/{share}.")
+			time.sleep(5)
+			print("/Volumes dir for reference: ", os.listdir("/mnt"))
+			self.server = f"{mount_point}/{share}/"
 		elif platform.system() == "Darwin":
 			log.debug("Plateform is Darwin (MacOS).")
 			try:
