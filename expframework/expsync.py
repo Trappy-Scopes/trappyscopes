@@ -53,7 +53,10 @@ class ExpSync:
 		self.destination_dir = os.path.join(self.mount_addr, scopeid, experiment)
 	
 	def mkexpdir(self, scopeid, experiment):
-		os.makedirs(os.path.join(self.mount_addr, scopeid, experiment), mode=0o777, exist_ok=True)
+		try:
+			os.makedirs(os.path.join(self.mount_addr, scopeid, experiment), mode=0o777, exist_ok=True)
+		except:
+			os.system(f"sudo mkdir {os.path.join(self.mount_addr, scopeid, experiment)}")
 		log.info("Created / confirmed remote Experiment directory.")
 
 	def set_sync_file(self):
