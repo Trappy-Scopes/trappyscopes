@@ -427,13 +427,16 @@ class Experiment(ExpSync):
 		print(Rule(title="Experiment closed", align="center", style="red"))
 
 
-	def newfile(self, filename, attribs={}):
+	def newfile(self, filename, attribs={}, abspath=True):
 
 		## Clean
 		filename = self.__sanatize__(filename)
 
 		## Combine
-		filename = os.path.join(self.exp_dir, f"{self.eid}_{filename}")
+		if abspath:
+			filename = os.path.join(self.exp_dir, f"{self.eid}_{filename}")
+		else:
+			filename = f"{self.eid}_{filename}"
 
 		if self.__node_validator__(filename):
 			### Log

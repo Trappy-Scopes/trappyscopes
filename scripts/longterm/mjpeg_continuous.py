@@ -27,7 +27,15 @@ def start_acq():
 
 	## Read tandh
 	tandh = exp.mstreams["tandh"]
-	record_sensor = lambda: tandh(temp=scope.pico("print(tandh.read())"))
+	def record_sensor():
+		try:
+			value = scope.tandh.read()
+		except:
+			print("TandH reading failed!")
+			value =  {"temp": 0, "humidity":0}
+		r = tandh(**value)
+		r.panel()	
+	
 	record_sensor()
 	exp.schedule.every(5).minutes.until(timedelta(hours=24)).do(record_sensor)
 	exp.note("Tandh sensors set to record every 5 mins for the next 24 hours, starting now.")
@@ -39,9 +47,12 @@ def start_acq():
 	scope.lit.setVs(3,3,3)
 	
 	for i in range(24*2):
-		filename = exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.mjpeg')
-		scope.cam.read("vid_mjpeg_prev", filename,tsec=30*60, fps=20, exposure_ms=(1/20)*1000*0.5, quality=70)
-		exp.sync_file(filename)
+	#for i in range(10):
+		#filename = exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.avi', abspath=False)
+		filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.mjpeg', abspath=False)
+		scope.cam.read("vid_mjpeg", filename, tsec=30*60, fps=20, exposure_ms=(1/20)*1000*0.5, quality=70)
+		#scope.cam.read("video", filename, tsec=60)
+		exp.sync_file_bg(filename, remove_source=True)
 
 
 	## Experiment is finishing - therefore sync the whole directory

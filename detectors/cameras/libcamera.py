@@ -53,7 +53,14 @@ class Camera(AbstractCamera):
 		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename} --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']}"
 		return self.__process__(cmd_list)
 
-
+	def __vid_mjpeg__(self, filename, *args, **kwargs):
+		tsec = kwargs["tsec"]
+		print(kwargs)
+		self.config["res"] = (2028, 2028)
+		self.config["fps"] = 20
+		self.config["exposure_ms"] = kwargs["exposure_ms"]
+		cmd_list = f"libcamera-vid -t {tsec*1000} --nopreview -o {filename} --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']}"
+		return self.__process__(cmd_list)
 
 
 
