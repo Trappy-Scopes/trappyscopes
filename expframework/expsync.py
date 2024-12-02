@@ -82,7 +82,7 @@ class ExpSync:
 			mount_point = "/mnt"
 			mount_cmd = ["sudo", "mount", "-t", "cifs", f"//{server}/{share}", \
 						f"{mount_point}/{share}", "-m", "-o", \
-						f"username={username},password={password},rw,file_mode=0777,dir_mode=0777"]
+						f"username={username},password={password},rw,file_mode=0777,dir_mode=0777,uid=1000,gid=1000"]
 			subprocess.run(mount_cmd, check=True)
 			print(f"Mounted //{server}/{share} at {mount_point}/{share}.")
 			time.sleep(5)
