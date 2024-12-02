@@ -84,7 +84,7 @@ class ExpSync:
 			subprocess.run(mount_cmd, check=True)
 			print(f"Mounted //{server}/{share} at {mount_point}/{share}.")
 			time.sleep(5)
-			print("/Volumes dir for reference: ", os.listdir("/mnt"))
+			print(f"{mount_point} dir for reference: ", os.listdir(mount_point))
 			self.server = f"{mount_point}/{share}/"
 		elif platform.system() == "Darwin":
 			log.debug("Plateform is Darwin (MacOS).")
