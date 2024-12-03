@@ -46,7 +46,7 @@ def start_acq():
 
 	scope.lit.setVs(3,3,3)
 	
-	for i in range(24*2):
+	for i in range(24):
 	#for i in range(10):
 		#filename = exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.avi', abspath=False)
 		filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.mjpeg', abspath=False)
