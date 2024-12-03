@@ -13,7 +13,8 @@ class Camera(AbstractCamera):
 		self.actions = {"preview": self.__preview__, 
 					    "vid": self.__video__, 
 					    "img": self.__image__,
-					    "vid_mjpeg_prev": self.__vid_mjpeg_prev__}
+					    "vid_mjpeg_prev": self.__vid_mjpeg_prev__,
+					    "vid_mjpeg": self.__vid_mjpeg__}
 		self.config={"kind":"camera-libcamera"}
 
 	def __process__(self, cmd):
