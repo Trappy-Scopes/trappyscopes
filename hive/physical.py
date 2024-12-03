@@ -7,10 +7,9 @@ class PhysicalObject(object):
 	"""
 
 
-	def __init__(self, name, kind=None, persistent=False, **kwargs):		
+	def __init__(self, name, persistent=False, **kwargs):		
 		self.attribs = kwargs
 		self.attribs["name"] =  name
-		self.attribs["kind"] =  kind
 		self.persistent = persistent
 
 
@@ -22,6 +21,9 @@ class PhysicalObject(object):
 				state[key] = value
 			
 			self.attribs = state
+
+		if not "kind" in self.attribs:
+			self.attribs["kind"] = None
 
 
 	def __getstate__(self):
