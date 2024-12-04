@@ -66,7 +66,7 @@ class Camera(AbstractCamera):
 
 	def __vid_mjpeg_tpts__(self, filename, *args, **kwargs):
 		tsec = kwargs["tsec"]
-		ptsfname = filename.repalce(".mjpeg", ".tpts")
+		ptsfname = filename.replace(".mjpeg", ".tpts")
 		print(kwargs)
 		self.config["res"] = (2028, 2028)
 		self.config["fps"] = 20
