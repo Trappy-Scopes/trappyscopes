@@ -46,11 +46,11 @@ def start_acq():
 
 	scope.lit.setVs(3,3,3)
 	
-	for i in range(24):
+	for i in range(24*2):
 	#for i in range(10):
 		#filename = exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.avi', abspath=False)
 		filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.mjpeg', abspath=False)
-		scope.cam.read("vid_mjpeg", filename, tsec=30*60, fps=20, exposure_ms=(1/20)*1000*0.5, quality=70)
+		scope.cam.read("vid_mjpeg_tpts", filename, tsec=30*60, fps=20, exposure_ms=(1/20)*1000*0.5, quality=70)
 		#scope.cam.read("video", filename, tsec=60)
 		exp.sync_file_bg(filename, remove_source=True)
 

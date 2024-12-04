@@ -14,7 +14,8 @@ class Camera(AbstractCamera):
 					    "vid": self.__video__, 
 					    "img": self.__image__,
 					    "vid_mjpeg_prev": self.__vid_mjpeg_prev__,
-					    "vid_mjpeg": self.__vid_mjpeg__}
+					    "vid_mjpeg": self.__vid_mjpeg__,
+					    "vid_mjpeg_tpts": self.__vid_mjpeg_tpts__}
 		self.config={"kind":"camera-libcamera"}
 
 	def __process__(self, cmd):
@@ -61,6 +62,16 @@ class Camera(AbstractCamera):
 		self.config["fps"] = 20
 		self.config["exposure_ms"] = kwargs["exposure_ms"]
 		cmd_list = f"libcamera-vid -t {tsec*1000} -o {filename} --nopreview --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']}"
+		return self.__process__(cmd_list)
+
+	def __vid_mjpeg_tpts__(self, filename, *args, **kwargs):
+		tsec = kwargs["tsec"]
+		ptsfname = filename.repalce(".mjpeg", ".tpts")
+		print(kwargs)
+		self.config["res"] = (2028, 2028)
+		self.config["fps"] = 20
+		self.config["exposure_ms"] = kwargs["exposure_ms"]
+		cmd_list = f"libcamera-vid -t {tsec*1000} -o {filename} --nopreview --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']} --save-pts {ptsfname}"
 		return self.__process__(cmd_list)
 
 
