@@ -66,7 +66,6 @@ class Viewer(QtWidgets.QMainWindow):
         self.wintitle = "Trappy-Scopes Viewer"
         if 'title' in kwargs:
             self.wintitle = kwargs['title']
-
         self.window = QtWidgets.QMainWindow()
         self.dock_area = DockArea()
         self.window.setCentralWidget(self.dock_area)
@@ -128,7 +127,9 @@ class Viewer(QtWidgets.QMainWindow):
         ## Dock 4 - Ipythion Console
         self.widgets["console"] = JupyterConsoleWidget()
         self.docks["console"].addWidget(self.widgets["console"])
-
+        # Set Dark bg color via this relatively roundabout method
+        self.widgets["console"].set_default_style("linux")
+        
         #app = QtWidgets.QApplication.instance()
         # Add proper Kernal Shutdown
         self.app.aboutToQuit.connect(self.abort)
@@ -181,7 +182,7 @@ class Viewer(QtWidgets.QMainWindow):
             for mon in ["mon1", "mon2"]:
                 for data in self.data[mon]:
                     data.update_curve()
-            print(f"Update : {self.update}", end='\r')
+            #print(f"Update : {self.update}", end='\r')
 
         self.timer = pg.QtCore.QTimer()
         self.timer.timeout.connect(all_curve_updates)
@@ -215,3 +216,4 @@ if __name__ == '__main__':
     view.console_exec("execfile('main.py')")
     view.monitor_updater()
     pg.exec()
+

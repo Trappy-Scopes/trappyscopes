@@ -10,6 +10,10 @@ class ProcessorGroup:
 		pass
 
 	@abstractmethod
+	def close(self):
+		pass
+
+	@abstractmethod
 	def shell(self, command):
 		pass
 
@@ -27,8 +31,12 @@ class ProcessorGroup:
 		def __init__(self, object_, device):
 			self.obj = object_
 			self.device = device
+			self.config = {}
 
 			log.debug(f"Created ProcessorGroup.Proxy: {self.obj}")
+
+		def close(self):
+			log.debug(f"Closed proxy object: {self.obj}")
 
 		def __getattr__(self, fn, *args, **kwargs):
 			if fn != "print":

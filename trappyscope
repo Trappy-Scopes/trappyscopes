@@ -5,8 +5,35 @@
 
 hanme=hostname
 
-sudo chrt -r 98 tmux -T 256 new-session -s $hname
+#sudo chrt -r 98 tmux -T 256 new-session -s $hname
 
-tmux send-keys -t $hanme "python -i main.py" #"${@:2:99}"'
+#tmux send-keys -t $hanme "python -i main.py" #"${@:2:99}"'
 
 #python -i main.py "${@:2:99}"
+
+## ------------------------------------------
+## TRAPPY-SCOPES launch script
+## 
+##
+## ------------------------------------------
+
+#python startup.py
+#echo "UI mode" $?
+
+value="$(python startup.py)"
+echo "${value}"
+ui_mode=$(echo ${value} | grep "ui_mode=" | cut -d'=' -f2)
+
+
+if [ "$ui_mode" == "interactive" ]; then
+	python -i main.py "${@:1:99}"
+elif [ "$ui_mode" == "gui" ]; then
+	python viewer.py --noep "${@:1:99}"
+else
+	echo "3"
+fi
+
+
+#{ python startup.py; result=$?; } || true
+# the result of a.py is in $result
+#
