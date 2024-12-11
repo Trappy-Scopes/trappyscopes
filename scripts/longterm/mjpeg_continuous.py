@@ -14,12 +14,39 @@ def create_exp():
 	exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
 	exp.new_measurementstream("acq", monitors=["acq"])
 
+	exp.attribs["chunk_size_sec"] = 10*60
+	exp.attribs["fps"] = 20
+	exp.attribs["exposure_ms"] = (1/20)*1000*0.5
+	exp.attribs["quality"] = 70
+	exp.attribs["no_chunks"] = 24*6
+
 print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
 print("Use start_acq() to start acquiring.")
+print("Use stop_cam() to kill the capture thread.")
 
 
 
-capture = lambda: scope.cam.capture("vid_mjpeg_prev", f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}.mjpeg',  tsec=30, fps=30, exposure_ms=(1/30)*1000*0.5, quality=70)
+global process
+process = None
+
+def stop_cam():
+	global process
+	process.kill()
+
+def capture():
+	for i in range(exp.attribs["no_chunks"]):
+		#filename = exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.avi', abspath=False)
+		filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.mjpeg', abspath=False)
+		scope.cam.read("vid_mjpeg_tpts", filename, tsec=exp.attribs["chunk_size_sec"], fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
+		#scope.cam.read("video", filename, tsec=10)
+		exp.sync_file_bg(filename, remove_source=True)
+	
+	## Experiment is finishing - therefore sync the whole directory
+	exp.sync_dir()
+	exp.logs.update(scope.get_config())
+	exp.__save__()
+	exp.close()
+
 def start_acq():
 
 	global exp, scope, capture
@@ -46,17 +73,11 @@ def start_acq():
 
 	scope.lit.setVs(3,3,3)
 	
-	for i in range(24*2):
-	#for i in range(10):
-		#filename = exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.avi', abspath=False)
-		filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.mjpeg', abspath=False)
-		scope.cam.read("vid_mjpeg_tpts", filename, tsec=30*60, fps=20, exposure_ms=(1/20)*1000*0.5, quality=70)
-		#scope.cam.read("video", filename, tsec=60)
-		exp.sync_file_bg(filename, remove_source=True)
+
+	from multiprocessing import Process
+	global process
+	process = Process(target=capture)
+	process.start()
+	#capture()
 
 
-	## Experiment is finishing - therefore sync the whole directory
-	exp.sync_dir()
-	exp.logs.update(scope.get_config())
-	exp.__save__()
-	exp.close()

@@ -4,6 +4,7 @@ class ProcessorGroup:
 
 	def __init__(self, name):
 		self.name = name
+		self.config = {}
 
 	@abstractmethod
 	def exec(self, command):

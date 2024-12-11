@@ -10,7 +10,7 @@ from .abstractprocessorgroup import ProcessorGroup as AbstractProcessorGroup
 class MicropythonDevice(AbstractProcessorGroup):
 
 	def __init__(self, name=None, connect=True, port=None):
-		self.name = name
+		super().__init__(name)
 		self.connect_ = connect
 
 		self.device = None
