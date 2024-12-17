@@ -27,6 +27,7 @@ def create_exp():
 print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
 print("Use start_acq() to start acquiring.")
 print("Use stop_cam() to kill the capture thread.")
+scope.beacon.blink()
 
 
 
@@ -50,12 +51,17 @@ def capture():
 	exp.sync_dir()
 	exp.logs.update(scope.get_config())
 	exp.__save__()
+	scope.beacon.blink()
 	exp.close()
 
 def start_acq():
 
 	global exp, scope, capture
 	
+
+	scope.beacon.on()
+
+
 	## Read tandh
 	tandh = exp.mstreams["tandh"]
 	def record_sensor():
