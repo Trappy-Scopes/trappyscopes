@@ -84,7 +84,7 @@ class Camera(AbstractCamera):
 		self.config["res"] = (2028, 2028)
 		self.config["fps"] = 20
 		self.config["exposure_ms"] = kwargs["exposure_ms"]
-		cmd_list = f"libcamera-vid -t {tsec*1000} -o {filename} --nopreview --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']} --save-pts {ptsfname}"
+		cmd_list = f"libcamera-vid -t {tsec*1000} -o {filename} --nopreview --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']} --save-pts {ptsfname} --contrast 2 --sharpness 1"
 		return self.__process__(cmd_list)
 
 

@@ -3,6 +3,8 @@ import datetime
 import time
 from rich import print
 import ast
+from rich.panel import Panel
+from rich.pretty import Pretty
 
 def create_exp():
 	global exp
@@ -16,13 +18,16 @@ def create_exp():
 
 	exp.attribs["chunk_size_sec"] = 10*60
 	exp.attribs["fps"] = 20
-	exp.attribs["exposure_ms"] = (1/20)*1000*0.5
+	exp.attribs["exposure_ms"] = 18
 	exp.attribs["quality"] = 70
-	exp.attribs["no_chunks"] = 24*6
+	exp.attribs["no_chunks"] = 20*6
+	exp.attribs["light"] = (2,0,0)
+	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
 print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
 print("Use start_acq() to start acquiring.")
 print("Use stop_cam() to kill the capture thread.")
+
 
 
 
@@ -57,7 +62,7 @@ def start_acq():
 		try:
 			value = scope.tandh.read()
 		except:
-			print("TandH reading failed!")
+			print("[red]TandH reading failed![default]")
 			value =  {"temp": 0, "humidity":0}
 		r = tandh(**value)
 		r.panel()	
@@ -70,7 +75,7 @@ def start_acq():
 
 	## Set lights and capture
 
-	scope.lit.setVs(3,3,3)
+	scope.lit.setVs(*exp.attribs["light"])
 	
 
 	from multiprocessing import Process
@@ -79,4 +84,6 @@ def start_acq():
 	process.start()
 	#capture()
 
+def test_fov():
+	scope.cam.read("prev_formatted", None, tsec=30, fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
 
