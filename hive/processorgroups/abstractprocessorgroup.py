@@ -39,6 +39,14 @@ class ProcessorGroup:
 		def close(self):
 			log.debug(f"Closed proxy object: {self.obj}")
 
+
+		def __getitem__(self, key):
+			if isinstance(key, str):
+				return self.__getattr__(f"__getitem__('{key}')")
+			else:
+				return self.__getattr__(f"__getitem__({key})")
+
+
 		def __getattr__(self, fn, *args, **kwargs):
 			if fn != "print":
 				return ProcessorGroup.Proxy(f"{self.obj}{'.'*bool(self.obj)}{fn}", self.device)

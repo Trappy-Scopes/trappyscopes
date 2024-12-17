@@ -1,8 +1,10 @@
 import platform
 import logging as log
+import os
 
 from utilities.resolvetypes import resolve_type
 from core.external import pyboard
+from rich import print
 
 from .abstractprocessorgroup import ProcessorGroup as AbstractProcessorGroup
 
@@ -42,7 +44,10 @@ class MicropythonDevice(AbstractProcessorGroup):
 		result = self.__call__(command)
 		return result
 	
-
+	def readline(self, timeout=15):
+		output = self.device.read_until(1, b"\r\n", timeout=timeout)  # Read data with timeout
+		if output:
+			return output.decode('utf-8')
 
 
 class SerialMPDevice(MicropythonDevice):
@@ -143,10 +148,11 @@ class SerialMPDevice(MicropythonDevice):
 	def sync_files(self, local_folder, target_folder):
 		try:
 			# Traverse through local directory
-			for root, dirs, files in os.walk(source):
+			for root, dirs, files in os.walk(local_folder):
 				# Create equivalent folder structure on MicroPython device
 				remote_root = os.path.join(target_folder, os.path.relpath(root, local_folder)).replace("\\", "/")
-				pyboard.exec(f"import os; os.makedirs('{remote_root}', exist_ok=True)")
+				remote_root = remote_root.replace("/.", "")
+				#self.__call__(f"import os\ntry:\n\tos.mkdir('{remote_root}')\nexcept OSError:\n\tpass")
 				
 				# Send each file in the directory
 				for file_name in files:
@@ -154,11 +160,14 @@ class SerialMPDevice(MicropythonDevice):
 					remote_path = f"{remote_root}/{file_name}"
 
 					#send_file_to_micropython(pyboard, local_path, remote_path)
-					with open(local_path, 'rb') as file:
-						file_data = file.read()
-						pyboard.fs_put(file_data, remote_path)
-						print(f"Transferred file: {local_path} -> {remote_path}")
+					#with open(local_path, 'rb') as file:
+					#file_data = file.read()
+					self.device.fs_put(local_path, remote_path)
+					print(f"Transferred file: {local_path} -> {remote_path}")
 		
+		except Exception as e:
+			print("[red] Sync failed ----------> [default]")
+			print(e)
 		finally:
 			pass
 		print(f"Sync completed: {local_folder} to {target_folder} on MicroPython device.")

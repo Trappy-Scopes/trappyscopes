@@ -17,6 +17,7 @@ from .physical import PhysicalObject
 from .processorgroups.linux import ProcessorGroup as LinuxProcessorGroup
 from .actuator import Actuator
 from .detector import Detector
+from .exchange import CodeExchange
 
 class ScopeAssembly(RpycServer):
 	"""
@@ -50,6 +51,8 @@ class ScopeAssembly(RpycServer):
 		self.add_device("*", self.main_pg)
 		self.processors.append("*")
 
+
+		self.exchange = None
 
 		
 		## Rewired configuration of the current machine
@@ -127,7 +130,7 @@ class ScopeAssembly(RpycServer):
 				pico = None
 				log.info(pico)
 			self.add_device("pico", pico, description="Main microcontroller on Serial.")
-
+			self.exchange = CodeExchange(pico)
 			try:
 				all_pico_devs = pico.exec_cleanup("Handshake.obj_list(globals_=globals())")
 				for d in all_pico_devs:

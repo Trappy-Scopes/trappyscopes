@@ -69,8 +69,13 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 error_collector.setFormatter(formatter)
 
 # Get the root logger
+import yaml
+from yaml.loader import SafeLoader
+from yamlprotocol import YamlProtocol
+with open(os.path.join(os.path.expanduser("~"), "trappyconfig.yaml")) as deviceid:
+    device_metadata = yaml.load(deviceid, Loader=SafeLoader)
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)  # or any level you need
+logger.setLevel(device_metadata["config"]["log_level"])  # or any level you need
 logger.addHandler(error_collector)
 
 #--------------------------------------------------------------

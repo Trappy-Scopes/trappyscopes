@@ -51,7 +51,6 @@ def start_acq():
 
 	global exp, scope, capture
 	
-
 	## Read tandh
 	tandh = exp.mstreams["tandh"]
 	def record_sensor():

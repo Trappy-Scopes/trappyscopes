@@ -15,7 +15,8 @@ class Camera(AbstractCamera):
 					    "img": self.__image__,
 					    "vid_mjpeg_prev": self.__vid_mjpeg_prev__,
 					    "vid_mjpeg": self.__vid_mjpeg__,
-					    "vid_mjpeg_tpts": self.__vid_mjpeg_tpts__}
+					    "vid_mjpeg_tpts": self.__vid_mjpeg_tpts__,
+					    "prev_formatted": self.__preview_formatted__}
 		self.config={"kind":"camera-libcamera"}
 
 	def __process__(self, cmd):
@@ -32,6 +33,18 @@ class Camera(AbstractCamera):
 
 	def __preview__(self, tsec=10):
 		cmd_list = f"libcamera-vid -t {tsec*1000} -f"
+		return self.__process__(cmd_list)
+
+	def __preview_formatted__(self, filename, *args, **kwargs):
+		"""
+		Note that the filename arguement is ignored.
+		"""
+		tsec = kwargs["tsec"]
+		print(kwargs)
+		self.config["res"] = (2028, 2028)
+		self.config["fps"] = 20
+		self.config["exposure_ms"] = kwargs["exposure_ms"]
+		cmd_list = f"libcamera-vid -t {tsec*1000} -f --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} --contrast 2 --sharpness 1 -q {kwargs['quality']}"
 		return self.__process__(cmd_list)
 
 	def __image__(self, filename, *args, **kwargs):
