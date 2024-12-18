@@ -90,6 +90,6 @@ def start_acq():
 	process.start()
 	#capture()
 
-def test_fov():
-	scope.cam.read("prev_formatted", None, tsec=30, fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
+def test_fov(tsec):
+	scope.cam.read("prev_formatted", None, tsec=tsec, fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
 
