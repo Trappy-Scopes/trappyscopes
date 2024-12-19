@@ -74,7 +74,7 @@ def start_acq():
 		r.panel()	
 	
 	record_sensor()
-	exp.schedule.every(5).minutes.until(timedelta(hours=24)).do(record_sensor)
+	exp.schedule.every(5).minutes.until(timedelta(seconds=exp.attribs["chunk_size_sec"]*exp.attribs["no_chunks"])).do(record_sensor)
 	exp.note("Tandh sensors set to record every 5 mins for the next 24 hours, starting now.")
 	exp.logs.update(scope.get_config())
 	exp.__save__()
