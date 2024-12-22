@@ -51,6 +51,9 @@ class MicropythonDevice(AbstractProcessorGroup):
 
 
 class SerialMPDevice(MicropythonDevice):
+
+	#def __init__(self, name=None, connect=True, port=None):
+	#	super().__init__(self, name=name, connect=connect, port=port)
 	
 	# ---------- Serial utilities ------------------
 	def all_ports():

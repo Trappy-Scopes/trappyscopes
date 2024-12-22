@@ -116,19 +116,20 @@ class ScopeAssembly(RpycServer):
 				from .processorgroups.micropython import SerialMPDevice
 				pico = SerialMPDevice(name="pico", connect=False)
 				pico.auto_connect()
+				log.info(pico)
+
+			except Exception as e:
+				print(e)
+				log.error(f"Could not find a micropython device. Creating a null object.")
+				pico = None
+				log.info(pico)
+			if pico != None:
 				log.info("Executing main.py on MICROPYTHON device.")
 				try:
 					pico.exec_main()
 				except Exception as e:
 					log.error("Main execution on pico failed!")
 					print(e)
-				log.info(pico)
-
-			except Exception as e:
-				print(e)
-				log.error(f"Could not find a pico device. Creating a null object.")
-				pico = None
-				log.info(pico)
 			self.add_device("pico", pico, description="Main microcontroller on Serial.")
 			self.exchange = CodeExchange(pico)
 			try:
@@ -217,7 +218,8 @@ class ScopeAssembly(RpycServer):
 		"""
 		Draws the current tree.
 		"""
-		tree = Tree(f"{self.name} :: [blue bold]{self.abs_name}[default] running on [yellow]{self.main_pg.name}[default]")
+		from rich.panel import Panel
+		tree = Tree(Panel.fit(f"{self.name} :: [blue bold]{self.abs_name}[default] running on [yellow]{self.main_pg.name}[default]", style="yellow", border_style="bold"))
 		
 		def add_dict_to_tree(tree, dictionary):
 			for key, value in dictionary.items():
@@ -230,8 +232,8 @@ class ScopeAssembly(RpycServer):
 
 		## Start recursion
 		add_dict_to_tree(tree, self.tree)
-
-		print(tree)
+		from rich.align import Align
+		print(Align.center(Panel.fit(tree, style="yellow", title="ScopeAssembly")))
 
 	def add_device(self, name, deviceobj, description=None):
 		"""

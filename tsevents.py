@@ -3,7 +3,7 @@ import time
 from copy import deepcopy
 
 from sharing import Share
-from bookeeping.session import Session
+from core.bookkeeping.session import Session
 
 
 

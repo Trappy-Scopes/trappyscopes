@@ -7,7 +7,7 @@ from sharing import Share
 from experiment import ExpEvent
 from experiment import Experiment as Experiment_
 from config.common import Common
-from bookeeping.session import Session
+from core.bookkeeping.session import Session
 from uid import uid
 import logging as log
 from terminalplot import *
