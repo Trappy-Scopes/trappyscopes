@@ -21,3 +21,24 @@ logging.basicConfig(
                      handlers=[#logging.FileHandler('/test.log', mode='a'),
                                RichHandler(rich_tracebacks=True)]
 )
+
+
+## Set Logging
+class ErrorCollectingHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.errors = []
+
+    def emit(self, record):
+        if record.levelno >= logging.ERROR:
+            self.errors.append(self.format(record))
+
+    def summarize_errors(self):
+        if not self.errors:
+            return "No errors logged."
+        return "\n".join(self.errors)
+
+# Setup the custom handler
+error_collector = ErrorCollectingHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+error_collector.setFormatter(formatter)
