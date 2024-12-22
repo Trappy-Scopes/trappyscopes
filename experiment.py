@@ -22,10 +22,10 @@ from rich.rule import Rule
 from rich.align import Align
 
 import config.common
-from user import User
+from core.bookkeeping.user import User
 from sharing import Share
 from utilities.resolvetypes import resolve_type
-from bookeeping.session import Session
+from core.bookkeeping.session import Session
 from uid import uid
 from yamlprotocol import YamlProtocol
 from devicestate import sys_perma_state

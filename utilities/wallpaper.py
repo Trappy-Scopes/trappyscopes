@@ -13,7 +13,7 @@ import io
 #import matplotlib.pyplot as plt
 
 from .fluff import pageheader
-from bookeeping.session import Session
+from core.bookkeeping.session import Session
 
 def_wallpaper_path = os.path.join(os.path.expanduser('~'), "wallpaper.svg")
 
@@ -21,17 +21,19 @@ def_wallpaper_path = os.path.join(os.path.expanduser('~'), "wallpaper.svg")
 def generate_wallpaper(info):
 	stream = io.StringIO() ## Temporary dump
 	scopename=text2art(info["name"], font="tarty8")
-	console = Console(record=True, file=stream, width=int(1920/8), height=int(1080/8))
+	console = Console(record=True, file=stream, 
+	#				  width=int(1920/8), height=int(1080/8)
+					  )
 	
 	layout = Layout()
 	layout.split_row(
 		Layout(name="left"),
 		Layout(name="right"),
 	)
-	layout["left"].size = int(1920/8*(1/2))
-	lpanel = "\n"*10 + pageheader() + "\n"*3 + f'Control layer version: {Session.current.commitid()}{" "}{scopename}'
-	p1 = Panel(lpanel)
-	p2 = Panel(Pretty(info), title="Scope parameters")
+	layout["left"].size = int(console.size[0]*3/5)
+	lpanel = "\n"*2 + pageheader() + "\n"*3 + f'Control layer version: {Session.current.commitid()}{" "}{scopename}'
+	p1 = Panel(lpanel, style="yellow")
+	p2 = Panel(Pretty(info, max_length=5), title="Scope parameters", style="yellow")
 
 	layout["left"].update(p1)
 	layout["right"].update(p2)

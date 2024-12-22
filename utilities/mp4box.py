@@ -1,7 +1,6 @@
 import asyncio
 import os
 import subprocess
-import colorama
 from rich import print
 
 class MP4Box:
@@ -12,7 +11,7 @@ class MP4Box:
 		"""
 		output = subprocess.check_output(["MP4Box", "-version"])
 		output = output.decode()
-		print(f"{colorama.Fore.YELLOW}output{colorama.Fore.RESET}")
+		print(f"[yellow]{output}[default]")
 
 		if all(["MP4Box", "version", "release"]) in output:
 			print("MP4Box is installed!")
@@ -20,7 +19,7 @@ class MP4Box:
 			print("MP4Box not found! Installing!")
 			output = subprocess.check_output(["sudo", "apt-get", "install", "-y", "gpac"])
 			output = output.decode()
-			print(f"{colorama.Fore.YELLOW}output{colorama.Fore.RESET}")
+			print(f"[yellow]{output}[default]")
 
 		if not os.path.isdir("converted"):
 			os.mkdir("converted")
@@ -76,7 +75,7 @@ class MP4Box:
 		"""
 		all_exps = os.listdir(folder)
 		all_exps = [os.path.join(folder, dir_) for dir_ in all_exps if \
-			os.path.isfile(os.path.join(folder, dir_, ".experiment"))]
+			os.path.isfile(os.path.join(folder, dir_, "experiment.yaml"))]
 
 		print("All experiments to be converted: ", all_exps)
 		for exp in all_exps:
@@ -123,8 +122,8 @@ class MP4Box:
 			stdout, stderr = await process.communicate()
 			
 			print(f"[yellow]Conversion results: {infile} @{fps}fps[default]")
-			print(f"[yellow]{stdout}[default]")
-			print(f"[red]{stderr}[default]")
+			#print(f"[yellow]{stdout}[default]")
+			#print(f"[red]{stderr}[default]")
 
 
 

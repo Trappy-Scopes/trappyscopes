@@ -91,11 +91,11 @@ exp = Share.ScopeVars.exp
 
 
 ## Login
-from user import User
+from core.bookkeeping.user import User
 User.login(Share.argparse["user"])
 
 ## Create Session 
-from bookeeping.session import Session
+from core.bookkeeping.session import Session
 session = Session()
 
 ## Depreciate
@@ -169,8 +169,7 @@ User.exp_hook = exp
 
 
 ## 2. Load device ID an metadata
-with open("config/deviceid.yaml") as deviceid:
-	device_metadata = yaml.load(deviceid, Loader=SafeLoader)
+
 
 from utilities.wallpaper import generate_wallpaper, def_wallpaper_path
 generate_wallpaper(device_metadata)
@@ -180,31 +179,25 @@ os.system(f"pcmanfm --wallpaper-mode=fit --set-wallpaper {def_wallpaper_path}")
 #SyncEngine.git_sync(device_metadata)
 ## ---------------------------------
 
+global scopeid, scope_user
+scopeid = device_metadata["name"]
+Share.scopeid = scopeid
+Common.scopeid = scopeid
 
 from rich.pretty import Pretty
 from rich.panel import Panel
 devicepanel = Panel(Pretty(device_metadata), title="Device")
 print(devicepanel)
 
-
-global scopeid, scope_user
-scopeid = device_metadata["name"]
-Share.scopeid = scopeid
-Common.scopeid = scopeid
-
-from optics import Optics
-Optics.populate(device_metadata["optics"])
-#optics = Optics()
-
-#from scopeframe import ScopeFrame
-#ScopeFrame.populate(device_metadata)
-
 from hive.processorgroups.micropython import SerialMPDevice
 SerialMPDevice.print_all_ports()
 
 ##3. Print Header
-print(pageheader())
-
+from rich.align import Align
+from rich.rule import Rule
+print("\n\n", Rule(characters='═', style="cyan"))
+print(Align.center(pageheader()))
+print(Rule(characters='═', style="cyan"), "\n\n")
 
 
 
@@ -217,17 +210,16 @@ scope.draw_tree()
 
 ## 4. Set Experiment
 print("\n\n")
-print(Markdown("# ACTION"))
 
-
+import rich.box as box
 from rich.table import Table
-exppanel = Table("#.", "EID", "Experiment", box=None, show_lines=True)
+exppanel = Table("#.", "EID", "Experiment", box=False, show_lines=True, title_style="blink2")
 expmap = Experiment.list_all_eids()
 for i, key in enumerate(expmap):
 	exppanel.add_row(str(i), key, expmap[key])
 #exppanel = Panel(exppanel)
 
-print(Panel(exppanel, title="All current experiments on the Microscope"))
+print(Panel(exppanel, title="All current experiments on the Microscope", style="white"))
 
 
 

@@ -13,6 +13,7 @@ import datetime
 
 from uid import uid
 
+
 class ExpSync:
 	"""
 	Synchronises experiment files with a remote server.
@@ -22,6 +23,7 @@ class ExpSync:
 	share = None
 	username = None
 	password = None
+	destination_fmt = None
 
 	def configure(scopeconfig):
 		ExpSync.active = scopeconfig["config"]["file_server"]["active"]
@@ -29,6 +31,10 @@ class ExpSync:
 		ExpSync.share = scopeconfig["config"]["file_server"]["share"]
 		ExpSync.username = scopeconfig["config"]["file_server"]["username"]
 		ExpSync.password = scopeconfig["config"]["file_server"]["password"]
+
+		ExpSync.destination_fmt = scopeconfig["config"]["file_server"]["destination"]
+
+
 
 	def __init__(self, scopeid, experiment, max_threads=2):
 		self.max_workers = max_threads
@@ -46,12 +52,16 @@ class ExpSync:
 					   ExpSync.username, ExpSync.password)
 
 		if ExpSync.active:
-			self.mkexpdir(scopeid, experiment)
-
+			
 			if not os.path.exists(".sync"):
 				self.set_sync_file()
 		
-		self.destination_dir = os.path.join(self.mount_addr, scopeid, experiment)
+			from datetime import date as date_
+			date = str(date_.today()).replace("-", "_")
+			def effify(non_f_str: str, locals_):
+				return eval(f'f"""{non_f_str}"""', locals_)
+			self.mkexpdir(effify(ExpSync.destination_fmt, locals()), experiment)
+			self.destination_dir = os.path.join(self.mount_addr, effify(ExpSync.destination_fmt, locals()), experiment)
 
 		## Background executor
 		self.executor = ThreadPoolExecutor(max_workers=max_threads)
