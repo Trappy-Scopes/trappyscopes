@@ -20,8 +20,9 @@ def create_exp():
 	exp.attribs["fps"] = 20
 	exp.attribs["exposure_ms"] = 18
 	exp.attribs["quality"] = 70
-	exp.attribs["no_chunks"] = 20*6
+	exp.attribs["no_chunks"] = 24*6
 	exp.attribs["light"] = (2,0,0)
+	exp.attribs["group"] = "red_light"
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
 print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")

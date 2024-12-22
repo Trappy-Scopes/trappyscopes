@@ -149,7 +149,16 @@ from expframework.expsync import ExpSync
 ExpSync.configure(device_metadata)
 
 
-from useractions import *
+#from .useractions import *
+#import useractions
+try:
+	exec(open("core/startup/useractions.py").read())
+except:
+	exec(open("useractions.py").read())
+finally:
+	pass
+
+### Run all scripts
 if not Share.argparse["noep"]:
 	exp = findexp()
 
@@ -165,6 +174,5 @@ from core.installer.installer import Installer
 #report = Report()
 
 
-### Run all scripts
 ScriptEngine.run_all(globals())
 Share.updateps1()

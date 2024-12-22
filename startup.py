@@ -23,4 +23,7 @@ if scopeconfig["config"]["git_sync"]:
 #os.environ.putenv("TRAPPY_UI", "interactive")
 import sys
 print("Setting UI mode...")
-print(f"ui_mode={scopeconfig["config"]["ui_mode"]}")
+print(f'ui_mode={scopeconfig["config"]["ui_mode"]}')
+
+if scopeconfig["config"]["venv"]["active"]:
+	print(f'to_run={scopeconfig["config"]["venv"]["command"]} {scopeconfig["config"]["venv"]["name"]}')

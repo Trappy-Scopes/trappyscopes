@@ -2,7 +2,6 @@
 
 
 ## Only works on linux machines
-
 hanme=hostname
 
 #sudo chrt -r 98 tmux -T 256 new-session -s $hname
@@ -17,20 +16,33 @@ hanme=hostname
 ##
 ## ------------------------------------------
 
-#python startup.py
-#echo "UI mode" $?
-
+echo "------------------------------------------------"
 value="$(python startup.py)"
 echo "${value}"
-ui_mode=$(echo ${value} | grep "ui_mode=" | cut -d'=' -f2)
 
 
+# Set IFS to newline to process each line correctly
+IFS=$'\n'
+
+# Loop over each line and process only those that contain '='
+for line in $value; do
+    if [[ "$line" == *"="* ]]; then
+        eval "$line"
+    fi
+done
+#echo $ui_mode
+
+## ------------- Run what needs to be run -----------
+eval "$to_run"
+## ------------- Run what needs to be run -----------
+
+echo "------------------------------------------------"
 if [ "$ui_mode" == "interactive" ]; then
 	python -i main.py "${@:1:99}"
 elif [ "$ui_mode" == "gui" ]; then
 	python viewer.py --noep "${@:1:99}"
 else
-	echo "3"
+	echo "Invalid trappy-ui mode!"
 fi
 
 
