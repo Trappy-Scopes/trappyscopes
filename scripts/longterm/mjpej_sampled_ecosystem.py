@@ -32,7 +32,7 @@ def create_exp():
 
 	
 	exp.attribs["day_light"] = (2,3,2)
-	exp.attribs["night_light"] = (0.2, 0, 0)
+	exp.attribs["night_light"] = (0.5, 0, 0)
 	exp.attribs["light"] = exp.attribs["day_light"] ## Current camera light
 	
 	exp.attribs["phase"] = "day"
