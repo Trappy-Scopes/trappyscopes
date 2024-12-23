@@ -82,7 +82,7 @@ def stop_cam():
 
 global capture
 def capture():
-	"""Simple capture function""".
+	"""Simple capture function"""
 	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}_phase_{exp.attribs["phase"]}__split_{i}.mjpeg', abspath=False)
 	exp.mstreams["acq"](acq=filename)
 	scope.cam.read("vid_mjpeg_tpts", filename, tsec=exp.attribs["chunk_size_sec"], fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
@@ -107,7 +107,7 @@ def start_acq():
 	scope.beacon.on() ### Indicate that we have begun.
 	exp.sync_dir()
 	exp.logs.update(scope.get_config())
-	
+
 	## Set tandh stream.
 	tandh = exp.mstreams["tandh"]
 	def record_sensor():
