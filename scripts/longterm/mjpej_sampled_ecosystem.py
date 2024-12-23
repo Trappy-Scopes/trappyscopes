@@ -113,9 +113,10 @@ def start_acq():
 	def record_sensor():
 		try:
 			value = scope.tandh.read()
+			value.update({"success":True})
 		except:
 			print("[red]TandH reading failed![default]")
-			value =  {"temp": 0, "humidity":0}
+			value =  {"temp": 0, "humidity":0, "success":False}
 		r = tandh(**value)
 		r.panel()	
 	record_sensor()
@@ -124,8 +125,8 @@ def start_acq():
 	
 
 	### Schedule day and light changes ---------------------
-	exp.schedule.every().day.at("08:00").until(timedelta(days=5)).do(bomdia)
-	exp.schedule.every().day.at("20:00").until(timedelta(days=5)).do(bonnoite)
+	exp.schedule.every().days.at("08:00").until(timedelta(days=5)).do(bomdia)
+	exp.schedule.every().days.at("20:00").until(timedelta(days=5)).do(bonnoite)
 	exp.note("Set day and night circadian cycles.")
 	## Assume that its day now
 	bomdia()
@@ -139,7 +140,7 @@ def start_acq():
 
 
 	## exp.schedule a packup protocol
-	exp.schedule.every(5).day.do(packup)
+	exp.schedule.every(5).days.do(packup)
 	exp.note("Packup protocol set to execute at the fifth day.")
 
 	exp.note("Assumed that the motor has been set to perfuse at an appropriate rate.")
