@@ -14,7 +14,7 @@ def create_exp():
 	exp = Experiment(f"{scopeid}_{dt}_{time_str}_ecosystem_sampled_12hday_12hnight", append_eid=True)
 
 	exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
-	exp.new_measurementstream("acq", monitors=["acq"])
+	exp.new_measurementstream("acq", monitors=["acq", "phase"])
 
 	
 	exp.attribs["fps"] = 20
@@ -84,7 +84,7 @@ global capture
 def capture():
 	"""Simple capture function"""
 	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}_phase_{exp.attribs["phase"]}__split_{i}.mjpeg', abspath=False)
-	exp.mstreams["acq"](acq=filename)
+	exp.mstreams["acq"](acq=filename, phase=exp.attribs["phase"])
 	scope.cam.read("vid_mjpeg_tpts", filename, tsec=exp.attribs["chunk_size_sec"], fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
 	#scope.cam.read("video", filename, tsec=10)
 	exp.sync_file_bg(filename, remove_source=True)
