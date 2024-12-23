@@ -136,7 +136,7 @@ def start_acq():
 	## Set acquisitions
 	exp.schedule.every(1).hours.until(timedelta(days=5)).do(capture)
 	exp.note("Set to capture, every 1 hour for the next 5 days, starting now.")
-	
+	capture()
 
 
 	## exp.schedule a packup protocol
