@@ -4,11 +4,30 @@ import yaml
 
 from rich.pretty import Pretty
 from rich import print
+from utilities import fluff
 
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
+from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.colors import Color
+from reportlab.pdfgen import canvas
 
-class Report:
-
-	def __init__(self):
+#from preppy import SafeString
+#from rlextra.radxml.xhtml2rml import xhtml2rml
+#from rlextra.radxml.html_cleaner import cleanPlain
+ 
+class ExpReport:
+	"""
+	Generates a pdf report / documentation of the experiment on the fly.
+	"""
+	pdf_color = Color(15 / 255, 20 / 255, 25 / 255)
+	header_height_pts = 75
+	footer_height_pts = 15
+	font = "Helvetica"
+	
+	def __init__(self, eid):
+		self.eid__ = eid
 		self.report_str = ""
 
 		self.premble = ""
@@ -20,13 +39,81 @@ class Report:
 
 		#self.df = pd.DataFrame(exp.logs["events"])
 		#self.df["elapsed"] = self.df["dt"] - self.df.loc[0]["dt"]
+		self.report_path = self.newfile("report.pdf", abspath=True)
+		self.pdf = canvas.Canvas(self.report_path, pagesize=A4)
+		self.pdf_width, self.pdf_height = A4
+	
+	
+	def __header__(self, canvas, doc):
+		# Header dimensions
+		header_height = 75  # Height of the header strip
+		motif_width = 150    # Width of the small image (motif)
+		motif_height = 75   # Height of the small image (motif)
+	
+		# Draw a black header strip at the top
+		header_color = ExpReport.pdf_color
+		canvas.setFillColor(header_color)
+		canvas.rect(0, self.pdf_height - header_height, self.pdf_width, header_height, fill=True)
+	
+		 # Add the image as a small motif on the left of the header
+		canvas.drawImage(
+			 "/Users/byatharth/code/Trappy-Scopes/scope-cli/utilities/trappyscopes.png",
+			 x=self.pdf_width-10-motif_width,  # 10 points padding from the right edge
+			 y=self.pdf_height - header_height + (header_height - motif_height) / 2,  # Center vertically in the header
+			 width=motif_width,
+			 height=motif_height,
+			 preserveAspectRatio=True
+		)
+	
 
+	def __footer__(self, canvas, doc):
+		# Footer parameters
+		footer_color = ExpReport.pdf_color  # Same as header color
+
+		# Draw footer background
+		canvas.setFillColor(footer_color)
+		canvas.rect(0, 0, self.pdf_width, self.footer_height_pts, fill=True)
+		canvas.setFillColor(Color(255, 255, 255)) #White
+		canvas.setFont(self.font, 8)
+		canvas.drawCentredString(self.pdf_width / 2, self.footer_height_pts / 2, f"Page {self.doc.page}")
+		canvas.drawRightString(self.pdf_width -30, self.footer_height_pts / 2, f"eid: {self.eid__}")
+
+	def __header_footer__(self, canvas, doc):
+		self.__header__(canvas, doc)
+		self.__footer__(canvas, doc)
+
+	def generate_report(self):
+	
+		# Styles for content
+		styles = getSampleStyleSheet()
+		style_normal = styles["BodyText"]
+
+		# Create the document template
+		self.doc = BaseDocTemplate(self.report_path, pagesize=A4)
+
+		# Define a Frame (usable area for content) excluding the header/footer space
+		self.frame = Frame(
+			x1=0.5 * inch,  # Left margin
+			y1=0.5 * inch + 30,  # Bottom margin (adjusted for footer)
+			width=A4[0] - inch,  # Page width minus left/right margins
+			height=A4[1] - inch - (ExpReport.header_height_pts+ExpReport.footer_height_pts),  # Page height minus header/footer
+		)
+
+		# Add the header and footer to each page using a PageTemplate
+		self.template = PageTemplate(id="MainTemplate", frames=self.frame, onPage=self.__header_footer__)
+		self.doc.addPageTemplates([self.template])
+
+		content = self.content
+
+		# Build the document with the content
+		self.doc.build(content)
+		#self.pdf.save()
 
 	def __summary__(self, exp):
 		self.summary += "## Summary\n\n"
 		
 
-		summarydict = {"measurement streams": self.df[self.df.type == "measurement_stream"][["name",  "dt", "elapsed"]]
+		summarydict = {"measurement streams": self.df[self.df.type == "measurement_stream"][["dt", "elapsed"]]
 					   #"sessions": self.df[self.df.type == "session"][["name",  "dt", "elapsed"]],
 					   #"notes"    : self.df[self.df.type == "user_note"][["note"]]
 					   #"peripherals": Scope.current.tree
@@ -60,6 +147,9 @@ class Report:
 		self.df["elapsed"] = self.df["dt"] - self.df.loc[0]["dt"]
 		self.df["elapsed"] = self.df["elapsed"].apply(lambda x: str(x))
 
+		self.report_str += f"![Header](/Users/byatharth/code/Trappy-Scopes/scope-cli/utilities/trappyscopes.png)"
+		#self.report_str += f"> {fluff.pageheader_plain().replace('\n', '\n> ')}"
+		self.report_str += "\n\n"
 		self.report_str += f"# Experiment Report\n\n"
 		#self.report_str += f"## {exp.name} :: {exp.eid}\n\n"
 
@@ -74,4 +164,4 @@ class Report:
 		self.report_str += self.__events__(exp)
 		
 		output = pypandoc.convert_text(self.report_str, 'pdf', \
-									   format='md', outputfile=exp.newfile('expreport.pdf'))
+									   format='md', outputfile=exp.newfile('report.pdf'))
