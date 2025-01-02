@@ -4,9 +4,12 @@
 
 
 
+global scope, exp
+scope = None
+exp = None
 
 from config.common import Common
-from sharing import Share
+from core.permaconfig.sharing import Share
 exec(open("core/startup/__init__.py").read())
 
 

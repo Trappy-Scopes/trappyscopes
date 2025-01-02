@@ -1,6 +1,6 @@
 from rich import print
 import os
-from sharing import Share
+from core.permaconfig.sharing import Share
 import logging as log
 import asyncio
 import subprocess
@@ -11,7 +11,7 @@ import time
 import datetime
 
 
-from uid import uid
+from core.uid import uid
 
 
 class ExpSync:

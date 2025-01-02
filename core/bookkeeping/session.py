@@ -1,13 +1,13 @@
 import datetime
 import os
 import logging as log
-from uid import uid
+from core.uid import uid
 import git
 import pkg_resources
 import time
 
 
-from sharing import Share
+from core.permaconfig.sharing import Share
 from .user import User
 
 from rich.rule import Rule

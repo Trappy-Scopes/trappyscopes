@@ -15,7 +15,7 @@ from picamera2.encoders import *
 
 ## TS imports
 from yamlprotocol import YamlProtocol
-from sharing import Share
+from core.permaconfig.sharing import Share
 
 from .abstractcamera import Camera as AbstractCamera
 

@@ -2,10 +2,8 @@ import datetime
 import time
 from copy import deepcopy
 
-from sharing import Share
-from core.bookkeeping.session import Session
-
-
+from core.permaconfig.sharing import Share
+from .bookkeeping.session import Session
 
 
 class TSEvent(dict):

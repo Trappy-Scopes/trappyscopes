@@ -2,7 +2,6 @@ import githubfiles as gitf
 #from experiment import Experiment
 
 from markdown_it import MarkdownIt
-from bs4 import BeautifulSoup
 import logging as log
 
 from rich import print

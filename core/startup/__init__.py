@@ -31,7 +31,7 @@ session = Session()
 
 ## Define exp object - for Crash safety
 global exp
-exp = Share.ScopeVars.exp
+
 ## ------------------------------––-------------------------------  Goal 2 ----------------------------------------------------------------------
 
 ### Pretty printing
@@ -64,8 +64,8 @@ from expframework.protocol import Protocol
 
 
 from utilities.fluff import pageheader, intro
-from terminalplot import *
-from sharing import Share
+from expframework.plotter import Plotter as plt
+from core.permaconfig.sharing import Share
 from loadscripts import ScriptEngine
 
 
@@ -129,11 +129,6 @@ for i, key in enumerate(expmap):
 #exppanel = Panel(exppanel)
 
 print(Panel(exppanel, title="All current experiments on the Microscope", style="white"))
-
-
-
-
-exp_name = None
 print("\nCall intro() to get an introduction.")
 
 # Output the summary of errors
@@ -161,7 +156,7 @@ finally:
 ### Run all scripts
 if not Share.argparse["noep"]:
 	exp = findexp()
-
+scope.add_device("exp", Experiment.current)
 
 from core.installer.installer import Installer
 

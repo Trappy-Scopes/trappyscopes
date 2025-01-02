@@ -12,7 +12,7 @@ Options: <script1> <script2> <script3> : Positional, run in sequence.
 import argparse
 #from rich import print
 
-from sharing import Share
+from core.permaconfig.sharing import Share
 import os
 import sys
 

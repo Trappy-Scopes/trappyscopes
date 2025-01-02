@@ -23,17 +23,17 @@ from rich.align import Align
 
 import config.common
 from core.bookkeeping.user import User
-from sharing import Share
+from core.permaconfig.sharing import Share
 from utilities.resolvetypes import resolve_type
 from core.bookkeeping.session import Session
-from uid import uid
-from yamlprotocol import YamlProtocol
-from devicestate import sys_perma_state
-from tsexceptions import TS_InvalidNameException
-from tsevents import TSEvent
+from core.uid import uid
+from core.bookkeeping.yamlprotocol import YamlProtocol
+from core.bookkeeping.systeminfo import sys_perma_state
+from core.exceptions import TS_InvalidNameException
+from core.tsevents import TSEvent
 from core.idioms.clock import Clock
 
-
+from expframework.report import ExpReport
 from expframework.expsync import ExpSync
 
 class ExpEvent(TSEvent):
@@ -77,7 +77,7 @@ class ExpScheduler(schedule.Scheduler):
 	#def do(self, job_func, *args, **kwargs):
 	#	obj = super().do(job_func=job_func, *args, **kwargs)
 
-class Experiment(ExpSync):
+class Experiment(ExpSync, ExpReport):
 	"""
 
 	ExperimentEvents emiited into the <experiemtn_name>.yaml file, and are broadly
@@ -356,6 +356,11 @@ class Experiment(ExpSync):
 		## Start logging events
 		self.log("session", attribs={"sessionid": Session.current.__getstate__()["name"]})
 
+
+		## ExpReport
+		ExpReport.__init__(self, self.eid)
+
+
 		#from transmit.hivemqtt import HiveMQTT
 		#HiveMQTT.send(f"{Share.scopeid}/experiment", {"state": "init", "session": Session.current.name, "eid":self.eid})
 
@@ -564,7 +569,7 @@ class Experiment(ExpSync):
 		"""
 		Returns a stream wrapper aroind a given measurement object.
 		"""
-		from measurement import MeasurementStream
+		from expframework.measurement import MeasurementStream
 
 		ms = MeasurementStream(name=name)
 		for detection in detections:
@@ -588,7 +593,7 @@ class Experiment(ExpSync):
 
 	@autosave
 	def new_measurement(self, **kwargs):
-		from measurement import Measurement
+		from expframework.measurement import Measurement
 
 		self.logs["results"].append(Measurement(**kwargs))
 		return self.logs["results"][-1]

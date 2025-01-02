@@ -4,7 +4,7 @@ import sys
 from rich.panel import Panel
 from rich import print
 
-from sharing import Share
+from core.permaconfig.sharing import Share
 
 class User:
 	

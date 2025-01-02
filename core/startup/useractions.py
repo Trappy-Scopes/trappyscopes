@@ -2,7 +2,7 @@ import os
 from rich import print
 from rich.rule import Rule
 from time import sleep
-from sharing import Share
+from core.permaconfig.sharing import Share
 import logging as log
 
 
@@ -62,7 +62,7 @@ def preview(tsec=30):
 	"""
 	Start camera preview.
 	"""
-	cam = Share.ScopeVars.cam
+	cam = ScopeAssembly.current.cam
 	
 	if cam:
 		if not cam.is_open():
@@ -95,9 +95,9 @@ def findexp():
 	exp_name.strip()
 
 
-	Share.ScopeVars.exp = None
+	ScopeAssembly.current.exp = None
 	if exp_name:
-		Share.ScopeVars.exp = Experiment(exp_name)
+		ScopeAssembly.current.exp = Experiment(exp_name)
 	return Experiment.current
 
 

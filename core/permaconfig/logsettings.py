@@ -4,7 +4,7 @@ import logging
 from rich.logging import RichHandler
 
 from experiment import Experiment
-from sharing import Share
+from .sharing import Share
 
 
 

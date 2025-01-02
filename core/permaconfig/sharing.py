@@ -4,12 +4,6 @@ import os
 
 class Share:
 
-	## Scope Vars
-	class ScopeVars:
-		exp = None
-		cam = None
-		lit = None
-		pico = None
 
 	## Software level info
 	scopecli_fullpath = os.path.abspath(".")
@@ -26,11 +20,8 @@ class Share:
 	expname = None
 	expdir = os.path.join(os.path.expanduser("~"), "experiments")
 	logdir = os.path.join(os.path.expanduser("~"), "experiments")
-	## 
 
 
-	## Main directories
-	networkinfo_path = "../network/network.yaml"
 
 	def updateps1(user=None, exp=None):
 		

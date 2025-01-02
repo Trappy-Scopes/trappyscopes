@@ -3,14 +3,15 @@ import datetime
 import time
 from copy import deepcopy
 
-from sharing import Share
+from core.permaconfig.sharing import Share
 from experiment import ExpEvent
 from experiment import Experiment as Experiment_
 from config.common import Common
 from core.bookkeeping.session import Session
 from uid import uid
 import logging as log
-from terminalplot import *
+from .plotter import *
+import plotext as plt
 
 from pandas import DataFrame, concat
 
