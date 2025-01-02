@@ -18,8 +18,8 @@ Goal of this script:
 
 import os
 print(os.getcwd())
-exec(open("argparser.py", "r").read())
-
+#exec(open("..argparser.py", "r").read())
+from core.argparser import *
 
 ## Login
 from core.bookkeeping.user import User
