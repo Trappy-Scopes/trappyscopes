@@ -57,7 +57,7 @@ class Installer:
 				print(f"{i}. {lib} : already exists!")
 			except ImportError:
 				#pip.main(['install', lib, "--break-system-packages"])
-				os.system(f"sudo pip install {lib} --break-system-packages")
+				os.system(f"sudo pip install {lib}")
 				print(f"{i}. {lib} : was installed!")
 
 	def install_bin_libs(required_libs):
