@@ -14,3 +14,14 @@ class TSDeviceNotRegistered(Exception):
 
 class TSDeviceCreationFailed(Exception):
 	...
+
+class MissingConfigException(Exception):
+	"""
+	Raised when essential configuration is missing.
+	"""
+	...
+
+class TSBaseModelError(Exception):
+	"""
+	Called when the construction is of a type other than "basedevice", "actuator", or "detector".
+	"""

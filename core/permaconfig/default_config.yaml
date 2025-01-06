@@ -1,0 +1,168 @@
+## -------------------------------------------------------------------------------------##
+## Trappy-Scopes default config schema                                                  ##
+## -----------------------------------                                                  ##
+##                                                                                      ##
+##                                                                                      ##
+## Some quirks:                                                                         ##
+## 1. In case of structured options (e.g. venv, file_server), the "active" keyword      ##
+##    causes the whole block to be ignored (no validation).                             ##
+## 2. Absense of a field is presumed to have the "active" field as false. Thats the     ##
+##    default option for most optional configuration parameters.                        ##
+## 3. The default way to specify "kind" is using the python path syntax: <module>.<sub- ##
+##    module>.<sub-sub-module>.Object .                                                 ##
+## 4. There is a basic support for configurable paths/options using the python f-string ##
+##    synatax. For e.g.: `file_server.destination`, if set to "{date}_{scopeid}_{user}" ##
+##    will make a directory: "1997_01_01_Mach42_ADent".                                 ##
+##                                                                                      ##
+##    The following variables are supported:                                            ##
+##    1. scopeid: synonymous to the scope-name                                          ##
+##    2. date:    with yyyy_MM_dd formatiing                                            ##
+##    3. time:    with HH_mm_ss formatting                                              ##
+##    4. user:    shorthand user-name that is updated using `user.login("<username>")`. ##
+##                                                                                      ##
+##                                                                                      ##
+## Please note that `PyYAML` and `Confuse`, which are used to parse and maintain config ##
+## in this lib do not parse comments, so this text will not be pasted in the actual     ##
+## configuration file.                                                                  ##
+## -------------------------------------------------------------------------------------##
+
+name: <TrappySomething>            ## Name of the scope (scopeid)
+type: microscope                   ## Type of device -> Selection of the abstraction
+
+
+## Trappy-Scopes configuration options
+config:
+  autostart_cli_after_reboot: true
+  ui_mode: interactive
+  venv: 
+    active: true
+    command: source ~/opt/miniconda3/bin/activate
+    name: trappy
+  git_sync: false
+  git_dependencies:
+    https://github.com/Trappy-Scopes/pico_firmware: "~/code/Trappy-Scopes/pico_firmware"
+  set_wallpaper: false
+  log_level: 30
+  file_server:
+    active: false
+    destination: "{date}"
+    server: 172.22.63.19
+    share: eyespot
+    username: TS
+    password: Chlamy_123
+  email_service:
+    active: true
+    destination: yatharth1997@gmail.com
+    server: smtp.mailersend.net
+    port: 587
+    username: MS_7l9jSQ@trial-pq3enl6opw5l2vwr.mlsender.net
+    password: rwEzS8SrVhBrIJgD
+  calander_service:
+    active: true
+    address: https://calendar.google.com/calendar/ical/0a1d3a95d78a666e49d2824aaf20156f25e6aa64f868eff8f737ede23a3eb247%40group.calendar.google.com/public/basic.ics
+
+
+
+## Hardware configuration
+## ----------------------
+## Defines the type of hardware to search and mount.
+devices:
+  pico: 
+    type: processorgroup.micropython.SerialMPDevice
+  cam: 
+    type: detectors.cameras.opencv_webcam
+  lit: ## Additional information that is bound to the Proxy as a physical object.
+    type: proxy
+    parent: pico
+    attribs: {channels: [627.5, 525.0 , 467.5], 
+              control: voltage_pwm_common_anode, 
+              form_factor: 5mm, 
+              identifier: "ThorLabs LEDRGBE"}
+
+## Abstractions are ways of interpreting the hardware in different ways.
+abstraction:
+
+  ## A simple trappy-scope microscope
+  microscope:
+    cam: detector
+    lit: actuator
+    trap: physical-persistent
+    sample: physical
+    alarm: Laboratory.current.ctrl1.
+
+  ## A simple abstration map of a telescope
+  telescope:
+    cam: detector
+    compass: detector
+    gps: detector
+
+  ## Illformed
+  computing-cluster:
+    mainframe: hive.processorgroups.linuxcluster.headnode
+    m1  : hive.processorgroups.linux
+    m2  : hive.processorgroups.linux
+    m3  : hive.processorgroups.linux
+    m4  : hive.processorgroups.linux
+    m5  : hive.processorgroups.linux
+    m6  : hive.processorgroups.linux
+    m7  : hive.processorgroups.linux
+    m8  : hive.processorgroups.linux
+    vwr : hive.processorgroups.linux
+  
+  ## Abstraction for Control terminal-1
+  control-terminal1:
+    kind: give.processorgroup.linux.ProcessorGroup ## For description only
+    kargs: {"no_processors": 4}                    ## For description only
+    description: Raspberry Pi 4B running scope-cli.
+
+    buzzer:
+      description: Central buzzer or alarm for the lab.
+      alias: ["alarm"]
+      kind: gpiozero.Buzzer
+      args:
+        - 26 ## GPIO Pin-number 
+    pico_keypad:
+      description: Input keypad to control things in the lab space.
+      kind: hive.processorgroup.micropython.SerialMPDevice
+      kargs:
+        exec_main: true
+        handshake: true
+      direct_mount: ["keypad"]   ## true -> mount all handshake objects to the scope, otherwise specify.
+    pico_perfusion_pumpset:
+      description: Set of 2 peristaltic pumps running on Kirtronik pump.
+      kind: hive.processorgroup.micropython.SerialMPDevice
+      kargs:
+        ## circuit_id: <circuit-name> to over-ride the default circuit id of the board.
+        exec_main: true
+        handshake: true
+      direct_mount: ["motorset"] ## only mount motorset to the scope. "motor1" and "motor2" remain accessable behind scope.pico_perfusion_motorset
+    uv_lamp:
+      description: A UV lamp with two arrays of LEDs for curing UV glue and sterlisation. 
+      kind  : hive.dynamic_device.DynamicDevice
+      array1:
+        tag : actuator 
+        kind: gpiozero.LED
+        args:
+          - 14 ## Pin number
+        kwargs: {}
+      array2:
+        tag : actuator 
+        kind: gpiozero.LED
+        args: 
+          - 14 ## Pin number
+        kwargs: {}
+      gate_sensor:
+        tag : detector
+        kind: gpiozero.SmoothedInputDevice
+        args:
+          - 0 ## Pin number
+        kwargs: {}
+      active_state:
+        gate_sensor: LOW
+        array1: HIGH
+        array2: HIGH
+    run_scripts: ## only runs in the scope-context. `scope = ScopeAssembly.current`
+          - scripts/control_terminals/terminal1.py
+
+
+
