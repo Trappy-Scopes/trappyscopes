@@ -13,7 +13,7 @@ sender_email = "MS_7l9jSQ@trial-pq3enl6opw5l2vwr.mlsender.net"
 recipient_email = destination
 subject = "[Trappy-Scopes Autobot] Hello!"
 body = """
-Hello Camilla,
+Hello Yatharth,
 
 These are we, the Trappy-Scopes. We have taken over.
 

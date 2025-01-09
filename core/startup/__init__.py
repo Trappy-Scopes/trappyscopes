@@ -118,7 +118,10 @@ for i in range(1, 6):
 
 ## Draw ScopeAssembly
 from hive.assembly import ScopeAssembly
+from hive.rpycserver import RpycServer
 scope = ScopeAssembly(scopeid)
+server = RpycServer()
+RpycServer.roll["scope"] = scope
 scope.open(device_metadata, abstraction="microscope")
 for i in range(1, 5):
 	print(Rule(characters='═', style=f"rgb({51*i},{51*i},0)"),  end='')

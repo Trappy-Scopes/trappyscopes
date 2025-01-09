@@ -19,7 +19,8 @@ from .actuator import Actuator
 from .detector import Detector
 from .exchange import CodeExchange
 
-class ScopeAssembly(RpycServer):
+#from rpyc.core.service import SlaveService
+class ScopeAssembly():
 	"""
 	A ScopeAssembly is a collection of peripheral objects, which are shared
 	between different `abstracts`, that create virtual devices.
@@ -48,8 +49,8 @@ class ScopeAssembly(RpycServer):
 		self.tree = {}
 
 		self.main_pg = LinuxProcessorGroup("*")
-		self.add_device("*", self.main_pg)
-		self.processors.append("*")
+		self.add_device("node", self.main_pg)
+		self.processors.append("node")
 
 
 		self.exchange = None
@@ -79,6 +80,9 @@ class ScopeAssembly(RpycServer):
 
 	def __del__(self):
 		ScopeAssembly.close()
+
+	def lights(self, a, b, c):
+		self.lit.setVs(a, b, c)
 
 
 	def start_server(self):
@@ -165,7 +169,7 @@ class ScopeAssembly(RpycServer):
 
 
 	def __repr__(self):
-		print(f"< Scope Assembly :: {len(self.devices)} devices :: {self.abs_name}>")
+		return f"< Scope Assembly :: {len(self.devices)} devices :: {self.abs_name}>"
 
 	def __call__(self, command):
 		self.main_pg.shell(command)
@@ -233,7 +237,7 @@ class ScopeAssembly(RpycServer):
 		## Start recursion
 		add_dict_to_tree(tree, self.tree)
 		from rich.align import Align
-		print(Align.center(Panel.fit(tree, style="yellow", title="ScopeAssembly")))
+		print(Align.center(Panel(tree, style="yellow", title="ScopeAssembly")))
 
 	def add_device(self, name, deviceobj, description=None):
 		"""

@@ -20,6 +20,11 @@ class MicropythonDevice(AbstractProcessorGroup):
 		self.port = None
 		self.connected = False
 
+	def __getstate__(self):
+		return {}
+	def __setstate__(self, state):
+		pass
+
 	def __del__(self):
 		if self.device:
 			self.device.exit_raw_repl()
