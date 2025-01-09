@@ -104,22 +104,30 @@ SerialMPDevice.print_all_ports()
 ##3. Print Header
 from rich.align import Align
 from rich.rule import Rule
-print("\n\n", Rule(characters='═', style="cyan"))
+
+
+## Draw Page header
+for i in range(1, 5):
+	print(Rule(characters='═', style=f"rgb(0,{51*i},{51*i})"),  end='')
+print("\n")
+#print("\n\n", Rule(characters='═', style="cyan"))
 print(Align.center(pageheader()))
-print(Rule(characters='═', style="cyan"), "\n\n")
+for i in range(1, 6):
+	print(Rule(characters='═', style=f"rgb(0,{int(255/i)},{int(255/i)})"),  end='')
 
 
-
-
+## Draw ScopeAssembly
 from hive.assembly import ScopeAssembly
 scope = ScopeAssembly(scopeid)
 scope.open(device_metadata, abstraction="microscope")
+for i in range(1, 5):
+	print(Rule(characters='═', style=f"rgb({51*i},{51*i},0)"),  end='')
 scope.draw_tree()
+for i in range(1, 5):
+	print(Rule(characters='═', style=f"rgb({int(255/i)},{int(255/i)},0)"),  end='')
 
 
-## 4. Set Experiment
-print("\n\n")
-
+## Set Experiment
 import rich.box as box
 from rich.table import Table
 exppanel = Table("#.", "EID", "Experiment", box=False, show_lines=True, title_style="blink2")
@@ -127,17 +135,25 @@ expmap = Experiment.list_all_eids()
 for i, key in enumerate(expmap):
 	exppanel.add_row(str(i), key, expmap[key])
 #exppanel = Panel(exppanel)
-
+for i in range(1, 5):
+	print(Rule(characters='═', style=f"rgb({51*i},{51*i},{51*i})"),  end='')
 print(Panel(exppanel, title="All current experiments on the Microscope", style="white"))
-print("\nCall intro() to get an introduction.")
+for i in range(1, 6):
+	print(Rule(characters='═', style=f"rgb({int(255/i)},{int(255/i)},{int(255/i)})"),  end='')
+
 
 # Output the summary of errors
 from rich.rule import Rule
-print(Rule(title="Summary of errors", style="red"))
-
-print("Summary of errors:")
+for i in range(1, 4):
+	print(Rule(characters='═', style=f"rgb({int(51*i)},0,0)"),  end='')
+print(Rule(title="Summary of errors", characters='═', style=f"rgb({int(51*5)},0,0)"),  end='')
 print(logsettings.error_collector.summarize_errors())
-print(Rule(style="red"))
+print(Rule(characters='═', style=f"rgb({int(51*5)},0,0)"),  end='')
+for i in range(1, 5):
+	print(Rule(characters='═', style=f"rgb({int(255/i)},0,0)"),  end='')
+print("\n")
+
+print("\nCall intro() to get an introduction.")
 
 
 from expframework.expsync import ExpSync
@@ -160,7 +176,8 @@ scope.add_device("exp", Experiment.current)
 
 from core.installer.installer import Installer
 
-
+from core.bookkeeping.registry import Reg
+Reg.load()
 
 #from _hive.network.transmit.hivemqtt import HiveMQTT
 #HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})

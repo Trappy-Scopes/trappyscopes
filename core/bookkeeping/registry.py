@@ -4,9 +4,58 @@ import datetime
 from rich import print
 from rich.pretty import Pretty
 from rich.panel import Panel
+from rich.rule import Rule
 from rich.console import Console
 from rich.table import Table
 import logging as log
+import pandas as pd
+
+
+class Reg:
+	registry = None
+	def load():
+		# Create a table
+		csv_file = os.path.join(os.path.expanduser("~"), ".trappyscope_registry")
+
+		# Load the CSV into a DataFrame
+		Reg.registry = pd.read_csv(csv_file)		
+
+
+
+	def search():
+		from prompt_toolkit import prompt
+		from prompt_toolkit.completion import WordCompleter
+		from prompt_toolkit.shortcuts import CompleteStyle
+		from prompt_toolkit.validation import Validator
+		from colorama import Fore
+		escape_validation = False
+		def is_valid_uid(text):
+			if text == "":
+				## return true
+				escape_validation = True
+				return True
+			return text in Reg.registry.name.to_numpy() 
+
+		validator = Validator.from_callable(
+			is_valid_uid,
+			error_message='Object id is not present in the registry!',
+			move_cursor_to_end=False)
+
+		all_objects = WordCompleter(Reg.registry.name)
+		print("[red](press enter to abort search)[default]")
+		obj_name = prompt('Enter registry id -> ', completer=all_objects, \
+						  complete_style=CompleteStyle.MULTI_COLUMN, validator=validator)
+		if obj_name != None and obj_name != "":
+			print(Rule("Search successfull!", style="green"))
+			partial_df = Reg.registry[Reg.registry['name'] == obj_name]
+			result = partial_df.iloc[0]
+			print(Panel(Pretty(result.to_dict()), title=obj_name))
+			return str(obj_name)
+		else:
+			print(Rule("Search un-successfull!", style="red"))
+			return None
+		
+
 
 def Registry(name, kind, tag=None):
 
@@ -40,23 +89,23 @@ def Registry(name, kind, tag=None):
 	print(Panel(Pretty(new_row), title="TrappyScope Registry"))
 
 def ShowRegistry():
-    console = Console()
+	console = Console()
 
-    # Create a table
-    csv_file = os.path.join(os.path.expanduser("~"), ".trappyscope_registry")
-    table = Table(title="TrappyScope Registry")
+	# Create a table
+	csv_file = os.path.join(os.path.expanduser("~"), ".trappyscope_registry")
+	table = Table(title="TrappyScope Registry")
 
-    # Read the CSV file
-    with open(csv_file, mode="r") as file:
-        reader = csv.reader(file)
-        headers = next(reader)  # Extract headers
+	# Read the CSV file
+	with open(csv_file, mode="r") as file:
+		reader = csv.reader(file)
+		headers = next(reader)  # Extract headers
 
-        # Add columns to the table
-        for header in headers:
-            table.add_column(header)
+		# Add columns to the table
+		for header in headers:
+			table.add_column(header)
 
-        # Add rows to the table
-        for row in reader:
-            table.add_row(*row)
-    # Print the table
-    console.print(table)
+		# Add rows to the table
+		for row in reader:
+			table.add_row(*row)
+	# Print the table
+	console.print(table)

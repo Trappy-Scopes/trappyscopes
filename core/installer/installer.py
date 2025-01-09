@@ -10,7 +10,7 @@ class Installer:
 			  "plotext", "asciichartpy", "prompt_toolkit", 
 			  "GitPython", "schedule", "paho-mqtt", "websockets", 
 			  "pandas", "textual", "pyserial", "sounddevice", "requests", 
-			  "beautifulsoup4", "rpyc", "pypandoc"]
+			  "beautifulsoup4", "rpyc", "pypandoc", "reportlab"]
 	
 	binlibs = []
 	gitclones = ["https://github.com/Trappy-Scopes/network.git", 
