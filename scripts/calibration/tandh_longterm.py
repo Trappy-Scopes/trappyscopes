@@ -43,7 +43,7 @@ def start():
 	
 	record_sensor()
 	exp.schedule.every(exp.attribs["sample_period_s"]).seconds.until(timedelta(hours=exp.attribs["total_time_hours"])).do(record_sensor)
-	print(f"Tandh sensors set to record every {exp.attribs["sample_period_s"]} seconds for the next {exp.attribs["total_time_hours"]} hours, starting now.")
+	print(f'Tandh sensors set to record every {exp.attribs["sample_period_s"]} seconds for the next {exp.attribs["total_time_hours"]} hours, starting now.')
 	exp.logs.update(scope.get_config())
 	exp.__save__()
 
