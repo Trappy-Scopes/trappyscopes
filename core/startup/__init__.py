@@ -180,7 +180,12 @@ scope.add_device("exp", Experiment.current)
 from core.installer.installer import Installer
 
 from core.bookkeeping.registry import Reg
-Reg.load()
+if scopeid == "MDev":
+	Reg.load()
+
+
+from hive.laboratory import Lab
+lab = Lab()
 
 #from _hive.network.transmit.hivemqtt import HiveMQTT
 #HiveMQTT.send(f"{scopeid}/init", {"state": "init", "session": Session.current.name, "id":1, "idf":123.4})

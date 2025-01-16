@@ -48,7 +48,7 @@ class ScopeAssembly():
 						"devices": self.devices}
 		self.tree = {}
 
-		self.main_pg = LinuxProcessorGroup("*")
+		self.main_pg = LinuxProcessorGroup("node")
 		self.add_device("node", self.main_pg)
 		self.processors.append("node")
 

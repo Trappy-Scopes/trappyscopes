@@ -8,7 +8,7 @@ from experiment import ExpEvent
 from experiment import Experiment as Experiment_
 from config.common import Common
 from core.bookkeeping.session import Session
-from uid import uid
+from core.uid import uid
 import logging as log
 from .plotter import *
 import plotext as plt

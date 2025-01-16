@@ -585,7 +585,7 @@ class Experiment(ExpSync, ExpReport):
 
 		self.mstreams[name] = ms
 		log.info(f"Added measurment stream: {name}")
-		self.log("measurement_stream", attribs={"name":name,
+		self.log("measurement_stream", attribs={"name":name, "measureid": ms.uid, 
 				 "detections":ms.detections, "measurements":ms.measurements,
 				 "monitors":ms.monitors})
 		print(self.mstreams[name])

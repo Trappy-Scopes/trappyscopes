@@ -1,37 +1,65 @@
 import rpyc
+import logging as log
 
 from core.exceptions import TSDeviceNotRegistered
+from hive.processorgroups.abstractprocessorgroup import ProcessorGroup
+
+
+from rich import print
+
+class RemoteLink(ProcessorGroup):
+	def __init__(self, device, mode="classic"):
+		if mode == "classic":
+			self.device =  rpyc.classic.connect(device)    # use default TCP port (18812)
+	
+	def __call__(self):
+		self.device.root()
 
 class Lab(object):
 	"""
 	Collection of devices and assemblies that represents the whole lab.
 	"""
-	def __init__(self, arg):
+
+	def __init__(self):
 		self.devices = {}
 
-		self.conn = {}
+	def open(self, devices):
+		for device in list(devices):
+			try:
+				device_name = device.replace(".local", "").strip()
+				self.devices[device_name] = self.__connect__(device)
+				log.info(f"Device connected: {device_name}!")
+			except Exception as e:
+				log.error(f"Device connection failed: {device_name}!")
+				print("[red]", e)
 
-	def open(self, device):
-		pass
 
-	def close(self, device):
-		pass
+	def close(self, devices, mode="classic"):
+		for device_name, device in self.devices.items():
+			log.info(f"Closed connection to: {device_name}")
+			device.close()
+
 
 	def start_process(self, device, commmand):
 		"""
 		Uses Rpyc server call.
 		"""
-		self.conn[device] = rpyc.classic.connect(device)    # use default TCP port (18812)
-		proc = conn.modules.subprocess.Popen(commmand, stdout = -1, stderr = -1)
-		stdout, stderr = proc.communicate()
-		print(stdout.split())
-		print(stderr.split())
+		self.conn[device] = self.__connect__()
+		
+		#proc = conn.modules.subprocess.Popen(commmand, stdout = -1, stderr = -1)
+		#stdout, stderr = proc.communicate()
+		#print(stdout.split())
+		#print(stderr.split())
 
 		return stdout
 
-	def __getattr__(self, device):
-		if device in self.conn.devices:
-			return self.conn[device]
+	def __connect__(self, device, mode="classic"):
+		if mode == "classic":
+			self.device =  rpyc.classic.connect(device)    # use default TCP port (18812)
+
+	def __getitem__(self, device):
+		if device in self.devices:
+			return self.devices[device]
 		else:
 			raise TSDeviceNotRegistered(f"Device not found: {device}")
 

@@ -6,12 +6,32 @@ import time
 from rpyc.core.service import SlaveService
 
 from core.permaconfig.sharing import Share
-
 from rpyc.core.service import ClassicService
+from rpyc.utils.server import ThreadedServer
+
+class Service_(ClassicService):
+	...
+
 class RpycServer(ClassicService):
 	
+
+	## ------------------------ Singleton template ---------------------------
 	## All objects
 	roll = {}
+
+	### Server utils
+	server = \
+	ThreadedServer(Service_, port=18812, hostname="0.0.0.0", 
+				   protocol_config={
+				   "allow_public_attrs": True,  # Expose all public attributes
+				   "allow_all_attrs": True,    # Allow access to all attributes
+				   'import_custom_exceptions': True,
+				   "allow_pickle" : True
+				   })
+
+	rpycserver_thread = None
+	__stop_server_flag__ = False
+	## ----------------------------------------------------------------------
 
 	def __getitem__(key):
 		return RpycServer.roll[key]
@@ -36,37 +56,20 @@ class RpycServer(ClassicService):
 		return RpycServer.roll
 
 
-class _RpycServer(SlaveService):
-	"""
-	Interface to launch and manage RPyC Server within the assembly scope.
+	#def __run_server__():
+	#	RpycServer.start()
 
-	Uses the RPyc classic mode.
-	"""
-	def classmethod():
-		print("Heyo!")
-		return "Heyo!"
-	def __init__(self):
-		self.rpycserver = None
-		self.rpycserver_thread = None
+	#	while not RpycServer.__stop_server_flag__:
+	#	close()
 
-	def __start_server__(self):
-		# = ClassicServer.run()
-		self.rpycserver = ClassicServer(port=18812, hostname="0.0.0.0", 
-									protocol_config={
-									"allow_public_attrs": True,  # Expose all public attributes
-									"allow_all_attrs": True,    # Allow access to all attributes
-									'import_custom_exceptions': True,
-									"allow_pickle" : True
-									})
-		self.rpycserver.start
+	def start_rpycserver():
+		RpycServer.__stop_server_flag__ = False
+		RpycServer.rpycserver_thread = threading.Thread(target=RpycServer.__start_server__)
+		RpycServer.rpycserver_thread.daemon = True  # Daemonize thread
+		RpycServer.rpycserver_thread.start()
 
-	def start_rpycserver(self):
-		self.rpycserver_thread = threading.Thread(target=self.__start_server__)
-		self.rpycserver_thread.daemon = True  # Daemonize thread
-		self.rpycserver_thread.start()
-
-	def close_rpycserver(self):
-		pass
+	def stop_rpycserver():
+		paRpycServerss
 
 
 	#def _rpyc_getattr(self, name):
