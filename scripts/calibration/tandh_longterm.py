@@ -21,7 +21,7 @@ tandh = exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
 exp.attribs["light"] = (2,0,0)
 exp.attribs["sample_period_s"] = 60
 exp.attribs["total_time_hours"] = 24
-
+scope.beacon.blink()
 
 def start():
 
@@ -46,5 +46,13 @@ def start():
 	print("Tandh sensors set to record every 5 mins for the next 24 hours, starting now.")
 	exp.logs.update(scope.get_config())
 	exp.__save__()
+
+
+def stop():
+	global exp, scope, capture
+	scope.beacon.blink()
+	exp.sync_dir()
+	exp.close()
+
 
 	
