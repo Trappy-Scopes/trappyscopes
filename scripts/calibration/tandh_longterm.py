@@ -47,12 +47,10 @@ def start():
 	exp.logs.update(scope.get_config())
 	exp.__save__()
 
-
 def stop():
 	global exp, scope, capture
 	scope.beacon.blink()
 	exp.sync_dir()
 	exp.close()
-
 
 	
