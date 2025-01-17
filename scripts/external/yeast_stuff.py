@@ -37,4 +37,6 @@ def yeast_capture(sample, tsec=10, force=False):
 
 
 	## Sync
+	print("[yellow] ------------ syncing -------------")
 	exp.sync_dir()
+	print("[yellow] ------------ syncing -------------")
