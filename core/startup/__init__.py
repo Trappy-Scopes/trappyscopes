@@ -194,6 +194,8 @@ lab = Lab()
 #report = Report()
 
 #from loadscripts import ScriptEngine
-ScriptEngine.execlist += device_metadata["config"]["startup_scripts"]
+if "startup_scripts" in device_metadata["config"]>
+	if device_metadata["config"]["startup_scripts"]:
+		ScriptEngine.execlist += device_metadata["config"]["startup_scripts"]
 ScriptEngine.run_all(globals())
 Share.updateps1()
