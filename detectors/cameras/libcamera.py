@@ -47,9 +47,9 @@ class Camera(AbstractCamera):
 		cmd_list = f"libcamera-vid -t {tsec*1000} -f --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} --contrast 2 --sharpness 1 -q {kwargs['quality']}"
 		return self.__process__(cmd_list)
 
-	def __image__(self, filename, *args, **kwargs):
+	def __image__(self, filename, *args, tsec=3, **kwargs):
 		print("Capturing in 5 seconds!")
-		cmd_list = f"libcamera-still -t {5*1000} -f -o {filename}"
+		cmd_list = f"libcamera-still -t {tsec} -f -o {filename}"
 		return self.__process__(cmd_list)
 
 	def __video__(self, filename, *args, **kwargs):

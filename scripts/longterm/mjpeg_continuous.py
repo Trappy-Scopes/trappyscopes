@@ -41,9 +41,11 @@ def stop_cam():
 	process.kill()
 
 def capture():
+	global exp
 	for i in range(exp.attribs["no_chunks"]):
 		#filename = exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.avi', abspath=False)
 		filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.mjpeg', abspath=False)
+		exp.mstreams["acq"](filename=filename)
 		scope.cam.read("vid_mjpeg_tpts", filename, tsec=exp.attribs["chunk_size_sec"], fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
 		#scope.cam.read("video", filename, tsec=10)
 		exp.sync_file_bg(filename, remove_source=True)

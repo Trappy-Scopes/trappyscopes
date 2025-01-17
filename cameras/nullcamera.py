@@ -24,7 +24,7 @@ class Camera():
 		return
 
 	# 5
-	def capture(self, action, filepath, tsec=1,
+	def read(self, action, filepath, tsec=1,
 				it=1, it_delay_s=0, init_delay_s=0):
 		# Write a dummy file
 		for i in range(it):
