@@ -193,6 +193,7 @@ lab = Lab()
 #from expframework.report import Report
 #report = Report()
 
-
+#from loadscripts import ScriptEngine
+ScriptEngine.execlist += device_metadata["config"]["startup_scripts"]
 ScriptEngine.run_all(globals())
 Share.updateps1()

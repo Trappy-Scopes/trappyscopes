@@ -15,5 +15,3 @@ exec(open("core/startup/__init__.py").read())
 
 
 
-
-
