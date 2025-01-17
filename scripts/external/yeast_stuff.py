@@ -27,7 +27,7 @@ def yeast_capture(sample, tsec=10, force=False):
 	time_str = f"{t.tm_hour}hh_{t.tm_min}mm"
 	filename = f"{sample}_{dt}_{time_str}.png"
 
-	if os.path.isfile(filename):
+	if os.path.isfile(filename) and not force:
 		print(f"[red][bold] ERROR : [red] Filename already exists: {filename}")
 		print("[red] Choose a new one or pass force=True")
 		return
