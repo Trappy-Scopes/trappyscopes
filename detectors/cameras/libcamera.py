@@ -49,7 +49,7 @@ class Camera(AbstractCamera):
 
 	def __image__(self, filename, *args, tsec=5, **kwargs):
 		print(f"Preview will last {tsec} seconds!")
-		cmd_list = f"libcamera-still -t {tsec*1000} -o {filename} --width 2028 --height 2028"
+		cmd_list = f"libcamera-still -t {tsec*1000} -o {filename} --keypress --width 2028 --height 2028"
 		if filename.endswith(".png"):
 			cmd_list += " -e png"
 		return self.__process__(cmd_list)
