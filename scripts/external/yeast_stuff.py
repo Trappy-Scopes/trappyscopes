@@ -78,3 +78,7 @@ def yeast_capture_MV(sample, tsec=10, force=False):
 	print("[yellow] ------------ syncing -------------")
 	exp.sync_dir()
 	print("[yellow] ------------ syncing -------------")
+
+def yeast_packup():
+	exp.close()
+	User.logout()
