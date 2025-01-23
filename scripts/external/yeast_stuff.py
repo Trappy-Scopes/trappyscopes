@@ -36,6 +36,11 @@ def yeast_capture_AG(sample, tsec=10, force=False):
 	## Capture
 	scope.cam.read("img", filename, tsec=tsec)
 
+		## Sync
+	print("[yellow] ------------ syncing -------------")
+	exp.sync_dir()
+	print("[yellow] ------------ syncing -------------")
+
 def yeast_capture_MV(sample, tsec=10, force=False):
 	"""
 	Function to capture yeasty images.
@@ -67,12 +72,6 @@ def yeast_capture_MV(sample, tsec=10, force=False):
 
 	## Capture
 	scope.cam.read("img", filename, tsec=tsec)
-
-
-	## Sync
-	print("[yellow] ------------ syncing -------------")
-	exp.sync_dir()
-	print("[yellow] ------------ syncing -------------")
 
 
 	## Sync
