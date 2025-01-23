@@ -445,6 +445,7 @@ class Experiment(ExpSync, ExpReport):
 
 		if self.__node_validator__(filename):
 			### Log
+			attribs.update({"filename": filename})
 			self.log("filename_created", attribs=attribs)
 			return filename
 		else:

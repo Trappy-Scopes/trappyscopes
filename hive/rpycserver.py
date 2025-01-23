@@ -20,14 +20,14 @@ class RpycServer(ClassicService):
 	roll = {}
 
 	### Server utils
-	server = \
-	ThreadedServer(Service_, port=18812, hostname="0.0.0.0", 
-				   protocol_config={
-				   "allow_public_attrs": True,  # Expose all public attributes
-				   "allow_all_attrs": True,    # Allow access to all attributes
-				   'import_custom_exceptions': True,
-				   "allow_pickle" : True
-				   })
+	#server = \
+	#ThreadedServer(Service_, port=18812, hostname="0.0.0.0", 
+	#			   protocol_config={
+	#			   "allow_public_attrs": True,  # Expose all public attributes
+	#			   "allow_all_attrs": True,    # Allow access to all attributes
+	#			   'import_custom_exceptions': True,
+	#			   "allow_pickle" : True
+	#			   })
 
 	rpycserver_thread = None
 	__stop_server_flag__ = False
