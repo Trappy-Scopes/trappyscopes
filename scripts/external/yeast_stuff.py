@@ -17,7 +17,7 @@ def yeast_capture_AG(sample, tsec=10, force=False):
 	exp_name = "TS_VWR__AG__persistent_experiment"
 	## Assert the write conditions
 	if Experiment.current == None or Experiment.current.name != exp_name:
-		exp = Experiment("Arrest_Ana_Yeast_Photos")
+		exp = Experiment(exp_name)
 
 	## Login
 	if User.info["user"] != "AG":
