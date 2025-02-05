@@ -164,7 +164,7 @@ if args.loc:
     exit(0)
 
 if args.uid:
-    from uid import uid
+    from core.uid import uid
     from rich import print
     uid_ = uid()
     print(f"Unique identifier: {uid_}")

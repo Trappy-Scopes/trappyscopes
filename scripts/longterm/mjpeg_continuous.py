@@ -43,11 +43,16 @@ def stop_cam():
 def capture():
 	global exp
 	for i in range(exp.attribs["no_chunks"]):
+		
 		#filename = exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.avi', abspath=False)
 		filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.mjpeg', abspath=False)
-		exp.mstreams["acq"](filename=filename)
+		
+		c = exp.mstreams["acq"](filename=filename)
+		c.panel()
+		
 		scope.cam.read("vid_mjpeg_tpts", filename, tsec=exp.attribs["chunk_size_sec"], fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
 		#scope.cam.read("video", filename, tsec=10)
+		
 		exp.sync_file_bg(filename, remove_source=True)
 	
 	## Experiment is finishing - therefore sync the whole directory
@@ -78,9 +83,9 @@ def start_acq():
 	
 	record_sensor()
 	exp.schedule.every(5).minutes.until(timedelta(seconds=exp.attribs["chunk_size_sec"]*exp.attribs["no_chunks"])).do(record_sensor)
-	exp.note("Tandh sensors set to record every 5 mins for the next 24 hours, starting now.")
 	exp.logs.update(scope.get_config())
 	exp.__save__()
+	print("All jobs: ", exp.schedule.get_jobs())
 
 	## Set lights and capture
 
