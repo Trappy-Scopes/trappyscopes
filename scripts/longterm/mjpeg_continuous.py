@@ -20,7 +20,7 @@ def create_exp():
 	exp.attribs["fps"] = 20
 	exp.attribs["exposure_ms"] = 18
 	exp.attribs["quality"] = 70
-	exp.attribs["no_chunks"] = 24*6
+	exp.attribs["no_chunks"] = 21*6
 	exp.attribs["light"] = (2,0,0)
 	exp.attribs["group"] = "red_light"
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
@@ -56,9 +56,9 @@ def capture():
 		exp.sync_file_bg(filename, remove_source=True)
 	
 	## Experiment is finishing - therefore sync the whole directory
-	exp.sync_dir()
 	exp.logs.update(scope.get_config())
 	exp.__save__()
+	exp.sync_dir()
 	scope.beacon.blink()
 	exp.close()
 
