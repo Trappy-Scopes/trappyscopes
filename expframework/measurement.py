@@ -82,7 +82,7 @@ class Measurement(ExpEvent):
 
 
 	def panel(self):
-		print((Panel(Pretty(self.copy()), title=f"Measurement: {self['mid']} #{self['measureidx']}")))
+		print(Panel(Pretty(self.copy()), title=f"Measurement: {self['measureidx']}"))
 	    
 	def get(self):
 		return self

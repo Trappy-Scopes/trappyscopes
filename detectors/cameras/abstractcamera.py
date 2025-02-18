@@ -108,7 +108,7 @@ class Camera:
 
 			## Begin iteration
 			local_filename = self.__process_filename__(filename=filename, iteration=it, **kwargs)
-			#ScopeAssembly.current.set_status("acq")
+			#ScopeAssembly.current.set_status("acq")	
 			
 
 			try:

@@ -20,6 +20,8 @@ from rich.text import Text
 from rich.prompt import Prompt
 from rich.rule import Rule
 from rich.align import Align
+from rich.panel import Panel
+from rich.pretty import Pretty
 
 import config.common
 from core.bookkeeping.user import User
@@ -589,7 +591,8 @@ class Experiment(ExpSync, ExpReport):
 		self.log("measurement_stream", attribs={"name":name, "measureid": ms.uid, 
 				 "detections":ms.detections, "measurements":ms.measurements,
 				 "monitors":ms.monitors})
-		print(self.mstreams[name])
+		print(Panel(Pretty(self.mstreams[name]), 
+					title=f"Measurement stream created: {name}", style="white on blue"))
 		return self.mstreams[name]
 
 	@autosave
