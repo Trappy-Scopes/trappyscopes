@@ -37,7 +37,8 @@ from core.idioms.clock import Clock
 
 from expframework.report import ExpReport
 from expframework.expsync import ExpSync
-
+from expframework.notebook import ExpNotebook
+from expframework.clockgroup import ClockGroup
 class ExpEvent(TSEvent):
 	def __init__(self, kind="expevent", attribs={}):
 		super().__init__()
@@ -79,7 +80,7 @@ class ExpScheduler(schedule.Scheduler):
 	#def do(self, job_func, *args, **kwargs):
 	#	obj = super().do(job_func=job_func, *args, **kwargs)
 
-class Experiment(ExpSync, ExpReport):
+class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	"""
 
 	ExperimentEvents emiited into the <experiemtn_name>.yaml file, and are broadly
@@ -521,7 +522,7 @@ class Experiment(ExpSync, ExpReport):
 	@autosave
 	def note(self, string):
 		self.log("user_note", attribs={"note": string})
-		return string
+		return Panel(string, title=f"Noted! @ {self.expclock.time_elapsed():.3f}")
 
 	def write(self):
 		"""

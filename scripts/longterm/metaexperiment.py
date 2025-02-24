@@ -39,6 +39,6 @@ def link_objects():
 def new_count(label, *args, df=2):
 	import numpy as np
 	c = Experiment.current.mstreams["cell_counts"](counts=args, label=label, df=df,
-									density=np.mean(args)*1000*df)
+									density=np.mean(args)*10000*df)
 	c.panel()
 	print(Panel(f"Culture density is: {c['density']:.2e}"))
