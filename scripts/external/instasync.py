@@ -11,7 +11,7 @@ def instasync(samplename, tsec=10, force=False, camera_mode="img",
 	global exp, scope
 
 	if expname:
-		exp_name = "TS_VWR__AG__persistent_experiment"
+		exp_name = expname
 	else:
 		exp_name = f"{scopeid}__{newexp}__{user}"
 	
