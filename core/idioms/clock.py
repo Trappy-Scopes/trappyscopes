@@ -36,6 +36,7 @@ class Clock:
 
 	def __repr__(self):
 		return f"< Clock {self.time_elapsed()}s == {self.resume_time()}s+{self.offset}s >"
+	
 	def __getstate__(self):
 		"""
 		Pickling the clock will automatically offset the clock.

@@ -73,13 +73,6 @@ class ExpScheduler(schedule.Scheduler):
 		self.thread = Thread(name="exp.schedule.loop", target=callback)
 		self.thread.start()
 
-	## TODO - Is this worth it?
-	#def every(self, interval: int = 1):
-	#	job = super().every(interval=interval)
-	#	return job
-	#def do(self, job_func, *args, **kwargs):
-	#	obj = super().do(job_func=job_func, *args, **kwargs)
-
 class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	"""
 
@@ -288,7 +281,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 
 		## Different experiment clocks
 		self.expclock = Clock()
-		self.timers = {}  ## Set of different timers.
+		self.all_clocks = {}  ## Set of all timers.
 
 		self.schedule = ExpScheduler() ## TODO: Scheduler would not automatically restart.
 		### ---------------------------------------------------
@@ -377,14 +370,14 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		## Attributes and streams are non-fungable and should be pickled.
 		return {"mstreams": self.mstreams, "attribs": self.attribs, 
 				"expclock": self.expclock, 
-				"timers": self.timers}
+				"all_clocks": self.all_clocks}
 
 	def __setstate__(self, state):
 		## Attributes and streams are non-fungable and should be pickled.
 		self.mstreams = state["mstreams"]
 		self.attribs = state["attribs"]
 		self.expclock = state["expclock"]
-		self.timers = state["timers"]
+		self.all_clocks = state["all_clocks"]
 
 	
 	def __save__(self):
@@ -657,7 +650,8 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 			end = time.time_ns()
 		self.log("tracked_task", attribs={"name":name, "duration":float(end-start)*(10**-9), "start_ns":start, 
 				 "end_ns": end, "interrupted": False, "task": str(task), "args": args, "kwargs":kwargs,
-				 "description": desc})
+				 "description": desc
+				 "task_description": task.__doc__})
 	
 	@is_event
 	@autosave
@@ -701,8 +695,6 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		event = self.log("user_prompt", attribs=attribs)
 		print("Time elapsed: ", f"{(self.logs['events'][-1]['machinetime']-start)/10**9:.3f}", "s")
 
-	def follow_protocol(self, *args):
-		pass
 
 	@is_event
 	@autosave

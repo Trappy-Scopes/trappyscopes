@@ -1,21 +1,33 @@
 from rich.table import Table
 from rich.console import Console
+from rich import print
 
 class ExpNotebook:
 	"""
 	Note: Will only work when inherited by an `Experiment` object.
 	A collection of facts from the events list - mostly the tag "user_note".
+	`notebook` is defined as a property of the experiment.
+
+	## Usage
+
+	+ `exp.notebook` : print the notebook.
+	+ `exp.notebook = "new note!"`: add a new note.
+	+ `exp < = "new note!"` : add a new note 
 	"""
 
 	def __init__(self):
 		
-		self.logs = {}     ## Inherited object
+		self.logs = {}			## Inherited object
+		self.note = None		## Inherited object
 		self._notebook = None
-	
-	def _get_notebook(self):
+
+	def _all_notes(self):
 		import pandas as pd
 		notes = pd.DataFrame(self.logs["events"])
 		notes = notes[notes.type == "user_note"]
+	
+	def _get_notebook(self):
+		notes = self._all_notes()
 
 		table = Table(title="Experiment notebook. All user notes:")
 
@@ -29,10 +41,19 @@ class ExpNotebook:
 		console = Console()
 		console.print(table)
 
+	def _set_notebook(self, text):
+		ret = self.note(text)
+		print(ret)
+
+	def __le__(self, text):
+		ret = self.note(text)
+		print(ret)
+
 
 	## The notebook property.
 	notebook = property(
 		fget=_get_notebook,
+		fset=_set_notebook,
 		doc="The notebook property."
 	)
 
