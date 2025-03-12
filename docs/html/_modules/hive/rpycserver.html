@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>hive.rpycserver &mdash; Trappy-Scopes  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Trappy-Scopes
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">scope-cli</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Trappy-Scopes</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">hive.rpycserver</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for hive.rpycserver</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">rpyc</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">from</span> <span class="nn">rpyc.utils.server</span> <span class="kn">import</span> <span class="n">ThreadedServer</span>
+<span class="kn">from</span> <span class="nn">rpyc.cli.rpyc_classic</span> <span class="kn">import</span> <span class="n">ClassicServer</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">rpyc.core.service</span> <span class="kn">import</span> <span class="n">SlaveService</span>
+
+<span class="kn">from</span> <span class="nn">core.permaconfig.sharing</span> <span class="kn">import</span> <span class="n">Share</span>
+<span class="kn">from</span> <span class="nn">rpyc.core.service</span> <span class="kn">import</span> <span class="n">ClassicService</span>
+<span class="kn">from</span> <span class="nn">rpyc.utils.server</span> <span class="kn">import</span> <span class="n">ThreadedServer</span>
+
+<div class="viewcode-block" id="Service_">
+<a class="viewcode-back" href="../../hive.html#hive.rpycserver.Service_">[docs]</a>
+<span class="k">class</span> <span class="nc">Service_</span><span class="p">(</span><span class="n">ClassicService</span><span class="p">):</span>
+	<span class="o">...</span></div>
+
+
+<div class="viewcode-block" id="RpycServer">
+<a class="viewcode-back" href="../../hive.html#hive.rpycserver.RpycServer">[docs]</a>
+<span class="k">class</span> <span class="nc">RpycServer</span><span class="p">(</span><span class="n">ClassicService</span><span class="p">):</span>
+	
+
+	<span class="c1">## ------------------------ Singleton template ---------------------------</span>
+	<span class="c1">## All objects</span>
+	<span class="n">roll</span> <span class="o">=</span> <span class="p">{}</span>
+
+	<span class="c1">### Server utils</span>
+	<span class="c1">#server = \</span>
+	<span class="c1">#ThreadedServer(Service_, port=18812, hostname=&quot;0.0.0.0&quot;, </span>
+	<span class="c1">#			   protocol_config={</span>
+	<span class="c1">#			   &quot;allow_public_attrs&quot;: True,  # Expose all public attributes</span>
+	<span class="c1">#			   &quot;allow_all_attrs&quot;: True,    # Allow access to all attributes</span>
+	<span class="c1">#			   &#39;import_custom_exceptions&#39;: True,</span>
+	<span class="c1">#			   &quot;allow_pickle&quot; : True</span>
+	<span class="c1">#			   })</span>
+
+	<span class="n">rpycserver_thread</span> <span class="o">=</span> <span class="kc">None</span>
+	<span class="n">__stop_server_flag__</span> <span class="o">=</span> <span class="kc">False</span>
+	<span class="c1">## ----------------------------------------------------------------------</span>
+
+	<span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+		<span class="k">return</span> <span class="n">RpycServer</span><span class="o">.</span><span class="n">roll</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+	<span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+		<span class="n">RpycServer</span><span class="o">.</span><span class="n">roll</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="RpycServer.on_connect">
+<a class="viewcode-back" href="../../hive.html#hive.rpycserver.RpycServer.on_connect">[docs]</a>
+	<span class="k">def</span> <span class="nf">on_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conn</span><span class="p">):</span>
+		<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Client connected :: </span><span class="si">{</span><span class="n">Share</span><span class="o">.</span><span class="n">scopeid</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RpycServer.on_disconnect">
+<a class="viewcode-back" href="../../hive.html#hive.rpycserver.RpycServer.on_disconnect">[docs]</a>
+	<span class="k">def</span> <span class="nf">on_disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">conn</span><span class="p">):</span>
+		<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Client dis-connected :: </span><span class="si">{</span><span class="n">Share</span><span class="o">.</span><span class="n">scopeid</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span></div>
+
+
+	<span class="c1"># Expose all attributes and methods dynamically for both objects</span>
+	<span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+		<span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">RpycServer</span><span class="o">.</span><span class="n">roll</span><span class="p">:</span>
+			<span class="k">return</span> <span class="n">RpycServer</span><span class="o">.</span><span class="n">roll</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> not found!&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RpycServer.get_roll">
+<a class="viewcode-back" href="../../hive.html#hive.rpycserver.RpycServer.get_roll">[docs]</a>
+	<span class="k">def</span> <span class="nf">get_roll</span><span class="p">():</span>
+		<span class="k">return</span> <span class="n">RpycServer</span><span class="o">.</span><span class="n">roll</span></div>
+
+
+
+	<span class="c1">#def __run_server__():</span>
+	<span class="c1">#	RpycServer.start()</span>
+
+	<span class="c1">#	while not RpycServer.__stop_server_flag__:</span>
+	<span class="c1">#	close()</span>
+
+<div class="viewcode-block" id="RpycServer.start_rpycserver">
+<a class="viewcode-back" href="../../hive.html#hive.rpycserver.RpycServer.start_rpycserver">[docs]</a>
+	<span class="k">def</span> <span class="nf">start_rpycserver</span><span class="p">():</span>
+		<span class="n">RpycServer</span><span class="o">.</span><span class="n">__stop_server_flag__</span> <span class="o">=</span> <span class="kc">False</span>
+		<span class="n">RpycServer</span><span class="o">.</span><span class="n">rpycserver_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">RpycServer</span><span class="o">.</span><span class="n">__start_server__</span><span class="p">)</span>
+		<span class="n">RpycServer</span><span class="o">.</span><span class="n">rpycserver_thread</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Daemonize thread</span>
+		<span class="n">RpycServer</span><span class="o">.</span><span class="n">rpycserver_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="RpycServer.stop_rpycserver">
+<a class="viewcode-back" href="../../hive.html#hive.rpycserver.RpycServer.stop_rpycserver">[docs]</a>
+	<span class="k">def</span> <span class="nf">stop_rpycserver</span><span class="p">():</span>
+		<span class="n">paRpycServerss</span></div>
+</div>
+
+
+
+	<span class="c1">#def _rpyc_getattr(self, name):</span>
+	<span class="c1">#	# allow all other attributes</span>
+	<span class="c1">#	return getattr(self, name)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Yatharth Bhasin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

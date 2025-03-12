@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>expframework package &mdash; Trappy-Scopes  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="githubfiles module" href="githubfiles.html" />
+    <link rel="prev" title="experiment module" href="experiment.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Trappy-Scopes
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">scope-cli</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cellcounter.html">cellcounter package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html">config package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core.html">core package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="experiment.html">experiment module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">expframework package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-expframework.clockgroup">expframework.clockgroup module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#expframework.clockgroup.ClockGroup"><code class="docutils literal notranslate"><span class="pre">ClockGroup</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-expframework.expsync">expframework.expsync module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#expframework.expsync.ExpSync"><code class="docutils literal notranslate"><span class="pre">ExpSync</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-expframework.flowcharts">expframework.flowcharts module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#expframework.flowcharts.generate_seq"><code class="docutils literal notranslate"><span class="pre">generate_seq()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#expframework-measurement-module">expframework.measurement module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-expframework.notebook">expframework.notebook module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#expframework.notebook.ExpNotebook"><code class="docutils literal notranslate"><span class="pre">ExpNotebook</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-expframework.plotter">expframework.plotter module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#expframework.plotter.Plotter"><code class="docutils literal notranslate"><span class="pre">Plotter</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-expframework.protocol">expframework.protocol module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#expframework.protocol.Protocol"><code class="docutils literal notranslate"><span class="pre">Protocol</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#expframework-report-module">expframework.report module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-expframework">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="githubfiles.html">githubfiles module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gui.html">gui package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hive.html">hive package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="loadscripts.html">loadscripts module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">main module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scopeconfigurations.html">scopeconfigurations package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="setup.html">setup module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="startup.html">startup module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test.html">test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test2.html">test2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test3.html">test3 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test4.html">test4 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test5.html">test5 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test6.html">test6 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="viewer.html">viewer module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Trappy-Scopes</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">scope-cli</a></li>
+      <li class="breadcrumb-item active">expframework package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/expframework.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="expframework-package">
+<h1>expframework package<a class="headerlink" href="#expframework-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-expframework.clockgroup">
+<span id="expframework-clockgroup-module"></span><h2>expframework.clockgroup module<a class="headerlink" href="#module-expframework.clockgroup" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="expframework.clockgroup.ClockGroup">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">expframework.clockgroup.</span></span><span class="sig-name descname"><span class="pre">ClockGroup</span></span><a class="reference internal" href="_modules/expframework/clockgroup.html#ClockGroup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.clockgroup.ClockGroup" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>The set of all clocks in a given experiment.</p>
+<p>Note: Does not function if not inherited by an <cite>Experiment</cite> instance.
+Property wrapper around the clocks/timers of the Experiment Group.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.clockgroup.ClockGroup.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/clockgroup.html#ClockGroup.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.clockgroup.ClockGroup.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="expframework.clockgroup.ClockGroup.clocks">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">clocks</span></span><a class="headerlink" href="#expframework.clockgroup.ClockGroup.clocks" title="Link to this definition"></a></dt>
+<dd><p>The group of clocks for this experiment.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-expframework.expsync">
+<span id="expframework-expsync-module"></span><h2>expframework.expsync module<a class="headerlink" href="#module-expframework.expsync" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">expframework.expsync.</span></span><span class="sig-name descname"><span class="pre">ExpSync</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sync_max_threads</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/expsync.html#ExpSync"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.expsync.ExpSync" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Synchronises experiment files with a remote server.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sync_max_threads</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">destination_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/expsync.html#ExpSync.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.expsync.ExpSync.__init__" title="Link to this definition"></a></dt>
+<dd><p>sync_max_threads: maximum number of processes/threads for synching files.
+destination_dir: if not set, a directory is created using the destination
+string in the configuration.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.active">
+<span class="sig-name descname"><span class="pre">active</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#expframework.expsync.ExpSync.active" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.configure">
+<span class="sig-name descname"><span class="pre">configure</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/expsync.html#ExpSync.configure"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.expsync.ExpSync.configure" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.destination_fmt">
+<span class="sig-name descname"><span class="pre">destination_fmt</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#expframework.expsync.ExpSync.destination_fmt" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.mkexpdir">
+<span class="sig-name descname"><span class="pre">mkexpdir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scopeid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">experiment</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/expsync.html#ExpSync.mkexpdir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.expsync.ExpSync.mkexpdir" title="Link to this definition"></a></dt>
+<dd><p>scopeid: Scopeid.
+experiment: experiment name.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.mount">
+<span class="sig-name descname"><span class="pre">mount</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">server</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">share</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/expsync.html#ExpSync.mount"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.expsync.ExpSync.mount" title="Link to this definition"></a></dt>
+<dd><p>Mount an SMB share at a specified mount point.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>server</strong> – SMB server address (e.g., 192.168.1.10)</p></li>
+<li><p><strong>share</strong> – SMB share name (e.g., shared_folder)</p></li>
+<li><p><strong>mount_point</strong> – Local directory to mount the share</p></li>
+<li><p><strong>username</strong> – SMB username</p></li>
+<li><p><strong>password</strong> – SMB password</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.password">
+<span class="sig-name descname"><span class="pre">password</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#expframework.expsync.ExpSync.password" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.server">
+<span class="sig-name descname"><span class="pre">server</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#expframework.expsync.ExpSync.server" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.set_sync_logfile">
+<span class="sig-name descname"><span class="pre">set_sync_logfile</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/expsync.html#ExpSync.set_sync_logfile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.expsync.ExpSync.set_sync_logfile" title="Link to this definition"></a></dt>
+<dd><p>Mark the experiment for synchronisation and use a dot
+file called .sync for logging. This is used to maintain the filetree.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.share">
+<span class="sig-name descname"><span class="pre">share</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#expframework.expsync.ExpSync.share" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.sync_dir">
+<span class="sig-name descname"><span class="pre">sync_dir</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">remove_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/expsync.html#ExpSync.sync_dir"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.expsync.ExpSync.sync_dir" title="Link to this definition"></a></dt>
+<dd><p>Note: Blocking function</p>
+<p>Synchronise the whole experiment directory to the source.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.sync_file">
+<span class="sig-name descname"><span class="pre">sync_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay_sec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/expsync.html#ExpSync.sync_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.expsync.ExpSync.sync_file" title="Link to this definition"></a></dt>
+<dd><p>Note: Blocking function</p>
+<p>Run rsync for a specific file or directory.
+file: filename (relative to exp_dir)
+remove_source: transfers the sourcefile vs copy
+delay_sec: delay the transfer by a number of seconds. This is useful in
+case, the transfers need to be staggered because of bandwidth limitations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.sync_file_bg">
+<span class="sig-name descname"><span class="pre">sync_file_bg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_source</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay_sec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/expsync.html#ExpSync.sync_file_bg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.expsync.ExpSync.sync_file_bg" title="Link to this definition"></a></dt>
+<dd><p>Same as <cite>sync_file</cite> function, but is non-blocking manner.
+This uses a threadpool. The number of workers can be set,
+while creating the experiment.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="expframework.expsync.ExpSync.username">
+<span class="sig-name descname"><span class="pre">username</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#expframework.expsync.ExpSync.username" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-expframework.flowcharts">
+<span id="expframework-flowcharts-module"></span><h2>expframework.flowcharts module<a class="headerlink" href="#module-expframework.flowcharts" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="expframework.flowcharts.generate_seq">
+<span class="sig-prename descclassname"><span class="pre">expframework.flowcharts.</span></span><span class="sig-name descname"><span class="pre">generate_seq</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">flow</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Control</span> <span class="pre">flow'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/flowcharts.html#generate_seq"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.flowcharts.generate_seq" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="expframework-measurement-module">
+<h2>expframework.measurement module<a class="headerlink" href="#expframework-measurement-module" title="Link to this heading"></a></h2>
+</section>
+<section id="module-expframework.notebook">
+<span id="expframework-notebook-module"></span><h2>expframework.notebook module<a class="headerlink" href="#module-expframework.notebook" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="expframework.notebook.ExpNotebook">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">expframework.notebook.</span></span><span class="sig-name descname"><span class="pre">ExpNotebook</span></span><a class="reference internal" href="_modules/expframework/notebook.html#ExpNotebook"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.notebook.ExpNotebook" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Note: Will only work when inherited by an <cite>Experiment</cite> object.
+A collection of facts from the events list - mostly the tag “user_note”.
+<cite>notebook</cite> is defined as a property of the experiment.</p>
+<p>## Usage</p>
+<ul class="simple">
+<li><p><cite>exp.notebook</cite> : print the notebook.</p></li>
+<li><p><cite>exp.notebook = “new note!”</cite>: add a new note.</p></li>
+<li><p><cite>exp &lt; = “new note!”</cite> : add a new note</p></li>
+</ul>
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.notebook.ExpNotebook.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/notebook.html#ExpNotebook.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.notebook.ExpNotebook.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="expframework.notebook.ExpNotebook.notebook">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">notebook</span></span><a class="headerlink" href="#expframework.notebook.ExpNotebook.notebook" title="Link to this definition"></a></dt>
+<dd><p>The notebook property.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-expframework.plotter">
+<span id="expframework-plotter-module"></span><h2>expframework.plotter module<a class="headerlink" href="#module-expframework.plotter" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="expframework.plotter.Plotter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">expframework.plotter.</span></span><span class="sig-name descname"><span class="pre">Plotter</span></span><a class="reference internal" href="_modules/expframework/plotter.html#Plotter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.plotter.Plotter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.plotter.Plotter.for_report">
+<span class="sig-name descname"><span class="pre">for_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/plotter.html#Plotter.for_report"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.plotter.Plotter.for_report" title="Link to this definition"></a></dt>
+<dd><p>Export for report, lets you define the 3D size.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.plotter.Plotter.for_terminal">
+<span class="sig-name descname"><span class="pre">for_terminal</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/plotter.html#Plotter.for_terminal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.plotter.Plotter.for_terminal" title="Link to this definition"></a></dt>
+<dd><p>Export to the current size of the terminal.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.plotter.Plotter.matplotlib">
+<span class="sig-name descname"><span class="pre">matplotlib</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/plotter.html#Plotter.matplotlib"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.plotter.Plotter.matplotlib" title="Link to this definition"></a></dt>
+<dd><p>Export to matplotlib API.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-expframework.protocol">
+<span id="expframework-protocol-module"></span><h2>expframework.protocol module<a class="headerlink" href="#module-expframework.protocol" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="expframework.protocol.Protocol">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">expframework.protocol.</span></span><span class="sig-name descname"><span class="pre">Protocol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">protocol</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/protocol.html#Protocol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.protocol.Protocol" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<section id="scientific-protocol-system">
+<h3>Scientific Protocol System<a class="headerlink" href="#scientific-protocol-system" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>parse</p></li>
+<li><p>track user time and includes annotation</p></li>
+<li><p>execute inline code.</p></li>
+</ul>
+<p>The protocol is split into two parts: <cite>preamble</cite> and <cite>procedure</cite>.
+The <cite>procedure</cite> is selected by looking for the <cite>##Procedure tag</cite>.</p>
+<p>The <cite>execute</cite> method sequentially runs all the items in the ordered list:</p>
+<ol class="arabic simple">
+<li><p>Step 1 of scientific protocol: set the beacons to blink.
+<code class="docutils literal notranslate"><span class="pre">`python</span>
+<span class="pre">scope.beacon.blink()</span> <span class="pre">##</span> <span class="pre">This</span> <span class="pre">code</span> <span class="pre">will</span> <span class="pre">be</span> <span class="pre">run</span> <span class="pre">automatically.</span>
+<span class="pre">`</span></code>
+||&gt; !done ## To mark the step as “done”.</p></li>
+<li><p>Step 2 Pipette Reagent A in cell-culture C.
+<code class="docutils literal notranslate"><span class="pre">`python</span>
+<span class="pre">exp.delay(&quot;Pipette</span> <span class="pre">stuff&quot;,</span> <span class="pre">&quot;10mins&quot;)</span>
+<span class="pre">scope.buzzer.pulse(n=3)</span>
+<span class="pre">`</span></code>
+||&gt; !done ## To mark the step as “done”.</p></li>
+<li><p>Step 3 Simple step with no executable code.
+…</p></li>
+</ol>
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.protocol.Protocol.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">protocol</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/protocol.html#Protocol.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.protocol.Protocol.__init__" title="Link to this definition"></a></dt>
+<dd><p>Name of the protocol server.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="expframework.protocol.Protocol.execute">
+<span class="sig-name descname"><span class="pre">execute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">exp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">globals_</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/expframework/protocol.html#Protocol.execute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#expframework.protocol.Protocol.execute" title="Link to this definition"></a></dt>
+<dd><p>exp: Experiment class object.
+<a href="#id1"><span class="problematic" id="id2">globals_</span></a>: pass global variables to execute code.</p>
+<p>Start execution of the protocol.
+Execute runs a blocking call.</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+</section>
+<section id="expframework-report-module">
+<h2>expframework.report module<a class="headerlink" href="#expframework-report-module" title="Link to this heading"></a></h2>
+</section>
+<section id="module-expframework">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-expframework" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="experiment.html" class="btn btn-neutral float-left" title="experiment module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="githubfiles.html" class="btn btn-neutral float-right" title="githubfiles module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Yatharth Bhasin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
