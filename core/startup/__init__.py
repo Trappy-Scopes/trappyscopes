@@ -172,10 +172,13 @@ except:
 finally:
 	pass
 
+print("Use `exp = findexp()` to search for an old experiment.")
+print("Use `exp = Experiment('new_name')` to create a new experiment.")
+
 ### Run all scripts
-if not Share.argparse["noep"]:
-	exp = findexp()
-scope.add_device("exp", Experiment.current)
+#if not Share.argparse["noep"]:
+#	exp = findexp()
+#scope.add_device("exp", Experiment.current)
 
 from core.installer.installer import Installer
 
