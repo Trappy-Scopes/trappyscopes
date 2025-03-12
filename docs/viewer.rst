@@ -1,7 +1,7 @@
-sync module
-===========
+viewer module
+=============
 
-.. automodule:: sync
+.. automodule:: viewer
    :members:
    :undoc-members:
    :show-inheritance:

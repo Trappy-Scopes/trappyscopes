@@ -1,7 +1,7 @@
-session module
-==============
+test4 module
+============
 
-.. automodule:: session
+.. automodule:: test4
    :members:
    :undoc-members:
    :show-inheritance:

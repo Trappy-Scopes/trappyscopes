@@ -1,7 +1,0 @@
-perturbations module
-====================
-
-.. automodule:: perturbations
-   :members:
-   :undoc-members:
-   :show-inheritance:

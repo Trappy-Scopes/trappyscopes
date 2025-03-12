@@ -1,7 +1,7 @@
-sharing module
-==============
+test6 module
+============
 
-.. automodule:: sharing
+.. automodule:: test6
    :members:
    :undoc-members:
    :show-inheritance:

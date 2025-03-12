@@ -17,11 +17,14 @@ import sphinx_rtd_theme
 extensions = [
 
   "sphinx_rtd_theme",
-  "sphinx.ext.autodoc"
+  "sphinx.ext.autodoc",
+  "sphinx.ext.viewcode"
+
 ]
 
 templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', "gui", "config", "scripts", 
+                    "viewer.py", "startup.py", "utilities", "cellcounter"]
 
 
 
@@ -39,4 +42,7 @@ def skip(app, what, name, obj, would_skip, options):
 def setup(app):
     app.connect("autodoc-skip-member", skip)
 
+import os
+import sys
+sys.path.insert(0, os.path.abspath('..'))  # Adjust if needed
 

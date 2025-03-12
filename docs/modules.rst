@@ -4,37 +4,23 @@ scope-cli
 .. toctree::
    :maxdepth: 4
 
-   argparser
-   cleaners
+   cellcounter
    config
-   devicestate
-   devicetree
+   core
    experiment
-   fluidicsdevice
+   expframework
    githubfiles
+   gui
+   hive
    loadscripts
-   logsettings
    main
-   mass_converter
-   measurement
-   microscope
-   monitor
-   optics
-   perturbations
-   picodevice
    scopeconfigurations
-   scopeframe
-   session
    setup
-   sharing
-   sync
-   terminalplot
+   startup
    test
    test2
    test3
-   tsevents
-   tsexceptions
-   uid
-   user
-   useractions
-   yamlprotocol
+   test4
+   test5
+   test6
+   viewer

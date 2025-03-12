@@ -1,7 +1,7 @@
-optics module
-=============
+test5 module
+============
 
-.. automodule:: optics
+.. automodule:: test5
    :members:
    :undoc-members:
    :show-inheritance:

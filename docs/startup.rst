@@ -1,7 +1,7 @@
-user module
-===========
+startup module
+==============
 
-.. automodule:: user
+.. automodule:: startup
    :members:
    :undoc-members:
    :show-inheritance:
