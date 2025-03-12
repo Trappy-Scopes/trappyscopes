@@ -62,7 +62,7 @@ class ExpSync:
 					   ExpSync.username, ExpSync.password)
 
 			if not os.path.exists(".sync"):
-				self.set_sync_file()
+				self.set_sync_logfile()
 					
 			date = Share.get_date_str()
 			time = Share.get_time_str()
@@ -74,7 +74,7 @@ class ExpSync:
 
 			if not destination_dir:
 				self.mkexpdir(effify(ExpSync.destination_fmt, locals()), expname)
-				self.destination_dir = os.path.join(self.mount_addr, effify(ExpSync.destination_fmt, locals()), experiment)
+				self.destination_dir = os.path.join(self.mount_addr, effify(ExpSync.destination_fmt, locals()), expname)
 			else:
 				self.destination_dir = destination_dir
 
@@ -176,7 +176,7 @@ class ExpSync:
 													   		"sessions.yaml"]]
 
 		# Create a ThreadPoolExecutor for parallel execution
-		with ThreadPoolExecutor(max_workers=self.max_workers) as __executor:
+		with ThreadPoolExecutor(max_workers=self.sync_max_threads) as __executor:
 			if not remove_source:
 				results = __executor.map(self.sync_file, files)
 			else:
@@ -244,10 +244,10 @@ if __name__ == '__main__':
 	destination_directory = '/path/to/destination/directory'
 	
 	# Set the maximum number of parallel workers
-	max_parallel_workers = 4
+	#max_parallel_workers = 4
 	
 	# Start the rsync process
-	rsync_directory(source_directory, destination_directory, max_parallel_workers)
+	#rsync_directory(source_directory, destination_directory, max_parallel_workers)
 
 
 

@@ -360,7 +360,10 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		
 		
 		## ExpSync
-		super().__init__(Share.scopeid, self.name, 
+		self.destination_dir = None
+		if "destination_dir" in self.logs:
+			self.destination_dir = self.logs["destination_dir"]
+		super().__init__(self.name, 
 						 destination_dir=self.destination_dir)
 		### Set the current pointer
 		Experiment.current = self
