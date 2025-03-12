@@ -24,9 +24,13 @@ from rich.panel import Panel
 from rich.pretty import Pretty
 
 import config.common
+
+
+from utilities.resolvetypes import resolve_type
+
+
 from core.bookkeeping.user import User
 from core.permaconfig.sharing import Share
-from utilities.resolvetypes import resolve_type
 from core.bookkeeping.session import Session
 from core.uid import uid
 from core.bookkeeping.yamlprotocol import YamlProtocol
@@ -39,6 +43,8 @@ from expframework.report import ExpReport
 from expframework.expsync import ExpSync
 from expframework.notebook import ExpNotebook
 from expframework.clockgroup import ClockGroup
+
+
 class ExpEvent(TSEvent):
 	def __init__(self, kind="expevent", attribs={}):
 		super().__init__()
@@ -223,8 +229,18 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		return wrapper
 
 
-	def Construct(*args, **kwargs):
-		...
+	def Construct(attribs, *args, scopeid=True, username=True, 
+				  date=True, time=True, eid=True, **kwargs):
+		scopeid_ = f"{Share.scopeid}__" * scopeid
+		username_ = f"{User.name()}__"  * date
+		date_ = f"{Share.get_date_str()}__" * date
+		time_ = f"{Share.get_time_str()}__" * time
+		namestr = ""
+		for key in [scopeid_, username_, date_, time_, *[f"{attr}_" for attr in attribs]]:
+			namestr +=key
+		log.debug(f"Constructed experiment name: {namestr}__<eid>")
+		return Experiment(namestr, *args, append_eid=eid, **kwargs)
+		
 
 
 	def __init__(self, name, append_eid=False, **kwargs):
@@ -244,13 +260,14 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		
 		## First stage validation -> detect obvious culprits
 		if not self.__head_validator__(name):
-			raise TS_InvalidNameException(f"{Fore.RED}Experiment name invalid!")
+			raise TS_InvalidNameException(f"Experiment name invalid!")
 		
 		## Clean experiment name
 		self.name = self.__sanatize__(name)
+		
 		## Second stage validaion -> detect any unwanted artifacts.
 		if not self.__head_validator__(name):
-			raise TS_InvalidNameException(f"{Fore.RED}Sanatized experiment name invalid!")
+			raise TS_InvalidNameException(f"Sanatized experiment name invalid!")
 		
 
 		# Check if the experiment exists -> a sanatised and valid name is guaranted
@@ -339,46 +356,39 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
 		self.eventid = 0
 
-		## ExpSync
-		super().__init__(Share.scopeid, self.name)
 
 		
-		#TODO self.metadata = Metadata()
 		
-		
+		## ExpSync
+		super().__init__(Share.scopeid, self.name, 
+						 destination_dir=self.destination_dir)
 		### Set the current pointer
 		Experiment.current = self
-
-		## Start logging events
-		self.log("session", attribs={"sessionid": Session.current.__getstate__()["name"]})
-
 
 		## ExpReport
 		ExpReport.__init__(self, self.eid)
 
-
-		#from transmit.hivemqtt import HiveMQTT
-		#HiveMQTT.send(f"{Share.scopeid}/experiment", {"state": "init", "session": Session.current.name, "eid":self.eid})
-
+		## Start logging events
+		self.log("session", attribs={"sessionid": Session.current.__getstate__()["name"]})
 
 	
 	def __repr__(self):
-		end_time = time.perf_counter()
 		return f"< Experiment: {self.name} :::: duration: {self.expclock.time_elapsed():.3f} s >"
+
+	
 
 	def __getstate__(self):
 		## Attributes and streams are non-fungable and should be pickled.
 		return {"mstreams": self.mstreams, "attribs": self.attribs, 
 				"expclock": self.expclock, 
 				"all_clocks": self.all_clocks}
-
+	
 	def __setstate__(self, state):
 		## Attributes and streams are non-fungable and should be pickled.
 		self.mstreams = state["mstreams"]
 		self.attribs = state["attribs"]
 		self.expclock = state["expclock"]
 		self.all_clocks = state["all_clocks"]
-
 	
 	def __save__(self):
 		if self.active:
@@ -428,14 +438,21 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		print(Rule(title="Experiment closed", align="center", style="red"))
 
 
-	def newfile(self, filename, attribs={}, abspath=True):
+	def newfile(self, filename, attribs={}, abspath=True, eid=True):
+		"""
+		filename: relative path from the exp_dir.
+		attribs: attributes to add to the event.
+		abspath: whether to return the absolute path from filesystem home.
+		eid: prepend eid to the path name.
+		"""
 
 		## Clean
 		filename = self.__sanatize__(filename)
 
 		## Combine
 		if abspath:
-			filename = os.path.join(self.exp_dir, f"{self.eid}_{filename}")
+			eid_ = f"{self.eid}_"
+			filename = os.path.join(self.exp_dir, f"{eid_*eid}{filename}")
 		else:
 			filename = f"{self.eid}_{filename}"
 
@@ -650,8 +667,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 			end = time.time_ns()
 		self.log("tracked_task", attribs={"name":name, "duration":float(end-start)*(10**-9), "start_ns":start, 
 				 "end_ns": end, "interrupted": False, "task": str(task), "args": args, "kwargs":kwargs,
-				 "description": desc
-				 "task_description": task.__doc__})
+				 "description": desc, "task_description": task.__doc__})
 	
 	@is_event
 	@autosave

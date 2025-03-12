@@ -1,6 +1,5 @@
 from rich import print
 import os
-from core.permaconfig.sharing import Share
 import logging as log
 import asyncio
 import subprocess
@@ -12,7 +11,8 @@ import datetime
 
 
 from core.uid import uid
-
+from core.permaconfig.sharing import Share
+from core.bookkeeping.user import User
 
 class ExpSync:
 	"""
@@ -36,8 +36,15 @@ class ExpSync:
 
 
 
-	def __init__(self, scopeid, experiment, max_threads=2):
-		self.max_workers = max_threads
+	def __init__(self, expname, sync_max_threads=2, destination_dir=None):
+		"""
+		sync_max_threads: maximum number of processes/threads for synching files.
+		destination_dir: if not set, a directory is created using the destination
+		string in the configuration.
+		"""
+		self.sync_max_threads = sync_max_threads
+		
+		## Deduce a mount point for the remote share
 		if platform.system() == "Linux":
 			log.debug("Plateform is Linux.")
 			self.mount_addr = f"/mnt/{ExpSync.share}/"
@@ -45,45 +52,66 @@ class ExpSync:
 		elif platform.system() == "Darwin":
 			log.debug("Plateform is Darwin (MacOS).")
 			self.mount_addr = f"/Volumes/{ExpSync.share}/"
+		else:
+			log.error("Operating system not implemented.")
 
 		#if not os.path.exists(self.mount_addr):
+		self.destination_dir = None
 		if ExpSync.active:
 			self.mount(ExpSync.server, ExpSync.share, 
 					   ExpSync.username, ExpSync.password)
 
-		if ExpSync.active:
-			
 			if not os.path.exists(".sync"):
 				self.set_sync_file()
-		
-			from datetime import date as date_
-			date = str(date_.today()).replace("-", "_")
+					
+			date = Share.get_date_str()
+			time = Share.get_time_str()
+			user = User.name()
+			scopeid = Share.scopeid
+
 			def effify(non_f_str: str, locals_):
 				return eval(f'f"""{non_f_str}"""', locals_)
-			self.mkexpdir(effify(ExpSync.destination_fmt, locals()), experiment)
-			self.destination_dir = os.path.join(self.mount_addr, effify(ExpSync.destination_fmt, locals()), experiment)
+
+			if not destination_dir:
+				self.mkexpdir(effify(ExpSync.destination_fmt, locals()), expname)
+				self.destination_dir = os.path.join(self.mount_addr, effify(ExpSync.destination_fmt, locals()), experiment)
+			else:
+				self.destination_dir = destination_dir
+
+			if not os.path.exists(self.destination_dir):
+				raise FileNotFoundError("exp.destination_dir not found. Check experiment.yaml file.")
 
 		## Background executor
-		self.executor = ThreadPoolExecutor(max_workers=max_threads)
-		self.futures = []
+		self.__executor = ThreadPoolExecutor(max_workers=sync_max_threads)
+		self.__futures = []
 
+
+	def __get__state__(self):
+		return {"active" : ExpSync.active,
+				"destination_dir": self.destination_dir,
+				"sync_max_threads" : self.sync_max_threads}
 
 	def __exit__(self):
-		log.info("Waiting for transfers...")
-		self.executor.shutdown(wait=True)
-		log.info("Transfers complete...")
+		log.warning("Waiting for transfers...")
+		self.__executor.shutdown(wait=True)
+		log.warning("[OK] Transfers complete...")
 
 	
 	def mkexpdir(self, scopeid, experiment):
+		"""
+		scopeid: Scopeid.
+		experiment: experiment name.
+		"""
 		try:
 			os.makedirs(os.path.join(self.mount_addr, scopeid, experiment), mode=0o777, exist_ok=True)
 		except:
 			os.system(f"sudo mkdir -p {os.path.join(self.mount_addr, scopeid, experiment)}")
 		log.info("Created / confirmed remote Experiment directory.")
 
-	def set_sync_file(self):
+	def set_sync_logfile(self):
 		"""
-		Mark the experiment for synchronisation.
+		Mark the experiment for synchronisation and use a dot
+		file called .sync for logging. This is used to maintain the filetree.
 		"""
 		syncid = uid()
 		log.critical(f"Set experiment syncronisation with syncid: {syncid}")
@@ -135,6 +163,11 @@ class ExpSync:
 			return
 
 	def sync_dir(self, remove_source=False):
+		"""
+		Note: Blocking function
+
+		Synchronise the whole experiment directory to the source.
+		"""
 		files = [f for f in os.listdir(os.getcwd())]
 		files = [file for file in files if not file.startswith(".")]
 		if remove_source:
@@ -143,13 +176,13 @@ class ExpSync:
 													   		"sessions.yaml"]]
 
 		# Create a ThreadPoolExecutor for parallel execution
-		with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+		with ThreadPoolExecutor(max_workers=self.max_workers) as __executor:
 			if not remove_source:
-				results = executor.map(self.sync_file, files)
+				results = __executor.map(self.sync_file, files)
 			else:
 				from functools import partial
 				sync_ = partial(self.sync_file, remove_source=remove_source)
-				results = executor.map(sync_, files)
+				results = __executor.map(sync_, files)
 
 		# Collecting the results (just for demonstration purposes)
 		for result in results:
@@ -158,12 +191,23 @@ class ExpSync:
 
 
 	def sync_file_bg(self, file, remove_source=False, delay_sec=0):
-		self.executor.submit(self.sync_file, file, remove_source=remove_source, \
+		"""
+		Same as `sync_file` function, but is non-blocking manner.
+		This uses a threadpool. The number of workers can be set,
+		while creating the experiment.
+		"""
+		self.__executor.submit(self.sync_file, file, remove_source=remove_source, \
 							 delay_sec=delay_sec)
 
 	def sync_file(self, file, remove_source=False, delay_sec=0):
 		"""
+		Note: Blocking function
+
 		Run rsync for a specific file or directory.
+		file: filename (relative to exp_dir)
+		remove_source: transfers the sourcefile vs copy
+		delay_sec: delay the transfer by a number of seconds. This is useful in
+		case, the transfers need to be staggered because of bandwidth limitations.
 		"""
 
 		# To account for file write delays for example.
@@ -195,6 +239,7 @@ class ExpSync:
 
 # Example usage
 if __name__ == '__main__':
+	print("This program will not execute. It is an example.")
 	source_directory = '/path/to/source/directory'
 	destination_directory = '/path/to/destination/directory'
 	
