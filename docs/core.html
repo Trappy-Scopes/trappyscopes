@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>core package &mdash; Trappy-Scopes  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="core.startup package" href="core.startup.html" />
+    <link rel="prev" title="config package" href="config.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Trappy-Scopes
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">scope-cli</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cellcounter.html">cellcounter package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="config.html">config package</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">core package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#subpackages">Subpackages</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="core.startup.html">core.startup package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#core-argparser-module">core.argparser module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-core.exceptions">core.exceptions module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#core.exceptions.MissingConfigException"><code class="docutils literal notranslate"><span class="pre">MissingConfigException</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core.exceptions.TSBaseModelError"><code class="docutils literal notranslate"><span class="pre">TSBaseModelError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core.exceptions.TSDeviceCreationFailed"><code class="docutils literal notranslate"><span class="pre">TSDeviceCreationFailed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core.exceptions.TSDeviceNotRegistered"><code class="docutils literal notranslate"><span class="pre">TSDeviceNotRegistered</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core.exceptions.TS_InvalidNameException"><code class="docutils literal notranslate"><span class="pre">TS_InvalidNameException</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#core-sync-module">core.sync module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-core.tsevents">core.tsevents module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#core.tsevents.TSEvent"><code class="docutils literal notranslate"><span class="pre">TSEvent</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-core.uid">core.uid module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#core.uid.uid"><code class="docutils literal notranslate"><span class="pre">uid()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#core.uid.uid_hex"><code class="docutils literal notranslate"><span class="pre">uid_hex()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-core">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="experiment.html">experiment module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="expframework.html">expframework package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="githubfiles.html">githubfiles module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gui.html">gui package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hive.html">hive package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="loadscripts.html">loadscripts module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="main.html">main module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scopeconfigurations.html">scopeconfigurations package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="setup.html">setup module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="startup.html">startup module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test.html">test module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test2.html">test2 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test3.html">test3 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test4.html">test4 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test5.html">test5 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="test6.html">test6 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="viewer.html">viewer module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Trappy-Scopes</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">scope-cli</a></li>
+      <li class="breadcrumb-item active">core package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/core.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="core-package">
+<h1>core package<a class="headerlink" href="#core-package" title="Link to this heading"></a></h1>
+<section id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="core.startup.html">core.startup package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="core.startup.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core.startup.html#core-startup-useractions-module">core.startup.useractions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="core.startup.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="core-argparser-module">
+<h2>core.argparser module<a class="headerlink" href="#core-argparser-module" title="Link to this heading"></a></h2>
+</section>
+<section id="module-core.exceptions">
+<span id="core-exceptions-module"></span><h2>core.exceptions module<a class="headerlink" href="#module-core.exceptions" title="Link to this heading"></a></h2>
+<dl class="py exception">
+<dt class="sig sig-object py" id="core.exceptions.MissingConfigException">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">core.exceptions.</span></span><span class="sig-name descname"><span class="pre">MissingConfigException</span></span><a class="reference internal" href="_modules/core/exceptions.html#MissingConfigException"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.exceptions.MissingConfigException" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+<p>Raised when essential configuration is missing.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="core.exceptions.TSBaseModelError">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">core.exceptions.</span></span><span class="sig-name descname"><span class="pre">TSBaseModelError</span></span><a class="reference internal" href="_modules/core/exceptions.html#TSBaseModelError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.exceptions.TSBaseModelError" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+<p>Called when the construction is of a type other than “basedevice”, “actuator”, or “detector”.</p>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="core.exceptions.TSDeviceCreationFailed">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">core.exceptions.</span></span><span class="sig-name descname"><span class="pre">TSDeviceCreationFailed</span></span><a class="reference internal" href="_modules/core/exceptions.html#TSDeviceCreationFailed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.exceptions.TSDeviceCreationFailed" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="core.exceptions.TSDeviceNotRegistered">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">core.exceptions.</span></span><span class="sig-name descname"><span class="pre">TSDeviceNotRegistered</span></span><a class="reference internal" href="_modules/core/exceptions.html#TSDeviceNotRegistered"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.exceptions.TSDeviceNotRegistered" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="core.exceptions.TS_InvalidNameException">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">core.exceptions.</span></span><span class="sig-name descname"><span class="pre">TS_InvalidNameException</span></span><a class="reference internal" href="_modules/core/exceptions.html#TS_InvalidNameException"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.exceptions.TS_InvalidNameException" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></p>
+<p>Raised when an invalid name is passed and normal error handling is not sufficient.
+Example: during object creation -&gt; use to quit object creation altogether when an
+invalid name is passed.</p>
+</dd></dl>
+
+</section>
+<section id="core-sync-module">
+<h2>core.sync module<a class="headerlink" href="#core-sync-module" title="Link to this heading"></a></h2>
+</section>
+<section id="module-core.tsevents">
+<span id="core-tsevents-module"></span><h2>core.tsevents module<a class="headerlink" href="#module-core.tsevents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="core.tsevents.TSEvent">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">core.tsevents.</span></span><span class="sig-name descname"><span class="pre">TSEvent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'event'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attribs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/core/tsevents.html#TSEvent"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.tsevents.TSEvent" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></p>
+<p>A dictionary with a specialised constructor that represents an event
+across the Trappy-Scopes system.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="core.tsevents.TSEvent.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'event'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attribs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/core/tsevents.html#TSEvent.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.tsevents.TSEvent.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="core.tsevents.TSEvent.expand">
+<span class="sig-name descname"><span class="pre">expand</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/core/tsevents.html#TSEvent.expand"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.tsevents.TSEvent.expand" title="Link to this definition"></a></dt>
+<dd><p>Expand all attributes and give a single dictionary, instead of a nested one.
+This is the “inverse” operation of the the <cite>sqlize</cite> method.
+Does not return a TSEvent instance.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="core.tsevents.TSEvent.sqlize">
+<span class="sig-name descname"><span class="pre">sqlize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/core/tsevents.html#TSEvent.sqlize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.tsevents.TSEvent.sqlize" title="Link to this definition"></a></dt>
+<dd><p>Process the dictionary for transmission, into a fixed attribute set.
+Does not return a TSEvent instance.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-core.uid">
+<span id="core-uid-module"></span><h2>core.uid module<a class="headerlink" href="#module-core.uid" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="core.uid.uid">
+<span class="sig-prename descclassname"><span class="pre">core.uid.</span></span><span class="sig-name descname"><span class="pre">uid</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/core/uid.html#uid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.uid.uid" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="core.uid.uid_hex">
+<span class="sig-prename descclassname"><span class="pre">core.uid.</span></span><span class="sig-name descname"><span class="pre">uid_hex</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/core/uid.html#uid_hex"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#core.uid.uid_hex" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-core">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-core" title="Link to this heading"></a></h2>
+<p># Core libraries that are specific to Trappy-Systems</p>
+<ol class="arabic simple">
+<li><p>UID</p></li>
+<li><p>ARGPARSER</p></li>
+<li><p>GIT modules</p></li>
+<li><p>FAMMOD</p></li>
+<li><p>Whole of utilities</p></li>
+</ol>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="config.html" class="btn btn-neutral float-left" title="config package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="core.startup.html" class="btn btn-neutral float-right" title="core.startup package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Yatharth Bhasin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

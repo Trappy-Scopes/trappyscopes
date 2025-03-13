@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>utilities.wallpaper &mdash; Trappy-Scopes  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Trappy-Scopes
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">scope-cli</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Trappy-Scopes</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">utilities.wallpaper</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for utilities.wallpaper</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">art</span> <span class="kn">import</span> <span class="n">text2art</span>
+<span class="kn">from</span> <span class="nn">rich.console</span> <span class="kn">import</span> <span class="n">Console</span>
+<span class="kn">from</span> <span class="nn">rich.terminal_theme</span> <span class="kn">import</span> <span class="n">MONOKAI</span>
+<span class="kn">from</span> <span class="nn">rich.layout</span> <span class="kn">import</span> <span class="n">Layout</span>
+<span class="kn">from</span> <span class="nn">rich.panel</span> <span class="kn">import</span> <span class="n">Panel</span>
+<span class="kn">from</span> <span class="nn">rich.pretty</span> <span class="kn">import</span> <span class="n">Pretty</span>
+
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">ctypes</span>
+<span class="kn">import</span> <span class="nn">platform</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="c1">#import matplotlib.pyplot as plt</span>
+
+<span class="kn">from</span> <span class="nn">.fluff</span> <span class="kn">import</span> <span class="n">pageheader</span>
+<span class="kn">from</span> <span class="nn">core.bookkeeping.session</span> <span class="kn">import</span> <span class="n">Session</span>
+
+<span class="n">def_wallpaper_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~&#39;</span><span class="p">),</span> <span class="s2">&quot;wallpaper.svg&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="generate_wallpaper">
+<a class="viewcode-back" href="../../utilities.html#utilities.wallpaper.generate_wallpaper">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_wallpaper</span><span class="p">(</span><span class="n">info</span><span class="p">):</span>
+	<span class="n">stream</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span> <span class="c1">## Temporary dump</span>
+	<span class="n">scopename</span><span class="o">=</span><span class="n">text2art</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span> <span class="n">font</span><span class="o">=</span><span class="s2">&quot;tarty8&quot;</span><span class="p">)</span>
+	<span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">stream</span><span class="p">,</span> 
+	<span class="c1">#				  width=int(1920/8), height=int(1080/8)</span>
+					  <span class="p">)</span>
+	
+	<span class="n">layout</span> <span class="o">=</span> <span class="n">Layout</span><span class="p">()</span>
+	<span class="n">layout</span><span class="o">.</span><span class="n">split_row</span><span class="p">(</span>
+		<span class="n">Layout</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">),</span>
+		<span class="n">Layout</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;right&quot;</span><span class="p">),</span>
+	<span class="p">)</span>
+	<span class="n">layout</span><span class="p">[</span><span class="s2">&quot;left&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">console</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="o">/</span><span class="mi">5</span><span class="p">)</span>
+	<span class="n">lpanel</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">*</span><span class="mi">2</span> <span class="o">+</span> <span class="n">pageheader</span><span class="p">()</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">*</span><span class="mi">3</span> <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;Control layer version: </span><span class="si">{</span><span class="n">Session</span><span class="o">.</span><span class="n">current</span><span class="o">.</span><span class="n">commitid</span><span class="p">()</span><span class="si">}{</span><span class="s2">&quot; &quot;</span><span class="si">}{</span><span class="n">scopename</span><span class="si">}</span><span class="s1">&#39;</span>
+	<span class="n">p1</span> <span class="o">=</span> <span class="n">Panel</span><span class="p">(</span><span class="n">lpanel</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;yellow&quot;</span><span class="p">)</span>
+	<span class="n">p2</span> <span class="o">=</span> <span class="n">Panel</span><span class="p">(</span><span class="n">Pretty</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">5</span><span class="p">),</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Scope parameters&quot;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s2">&quot;yellow&quot;</span><span class="p">)</span>
+
+	<span class="n">layout</span><span class="p">[</span><span class="s2">&quot;left&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">p1</span><span class="p">)</span>
+	<span class="n">layout</span><span class="p">[</span><span class="s2">&quot;right&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">p2</span><span class="p">)</span>
+
+	<span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">layout</span><span class="p">)</span>
+	<span class="n">console</span><span class="o">.</span><span class="n">save_svg</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~&#39;</span><span class="p">),</span> <span class="s2">&quot;wallpaper.svg&quot;</span><span class="p">),</span> <span class="n">theme</span><span class="o">=</span><span class="n">MONOKAI</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Trappy-Scope&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="generate_wallpaper2">
+<a class="viewcode-back" href="../../utilities.html#utilities.wallpaper.generate_wallpaper2">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_wallpaper2</span><span class="p">(</span><span class="n">info</span><span class="p">):</span>
+	
+	<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">ImageFont</span><span class="p">,</span> <span class="n">ImageDraw</span><span class="p">,</span> <span class="n">Image</span>
+	<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+	<span class="kn">import</span> <span class="nn">cv2</span>
+	<span class="n">image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1080</span><span class="p">,</span> <span class="mi">1920</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+	<span class="c1"># Convert to PIL Image</span>
+	<span class="n">cv2_im_rgb</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2RGB</span><span class="p">)</span>
+	<span class="n">pil_im</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+	<span class="n">draw</span> <span class="o">=</span> <span class="n">ImageDraw</span><span class="o">.</span><span class="n">Draw</span><span class="p">(</span><span class="n">pil_im</span><span class="p">)</span>
+
+	<span class="c1"># Choose a font</span>
+	<span class="n">font</span> <span class="o">=</span> <span class="n">ImageFont</span><span class="o">.</span><span class="n">truetype</span><span class="p">(</span><span class="s2">&quot;Adumu.ttf&quot;</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
+
+	<span class="c1">### Print -&gt; Trappy Scopes</span>
+	<span class="n">draw</span><span class="o">.</span><span class="n">text</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">text</span><span class="o">=</span><span class="n">pageheader</span><span class="p">(),</span> <span class="n">font</span><span class="o">=</span><span class="n">font</span><span class="p">)</span>
+
+	<span class="c1">### Print -&gt; Scope name</span>
+	<span class="n">scopename</span><span class="o">=</span><span class="n">text2art</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span> <span class="n">font</span><span class="o">=</span><span class="s2">&quot;tarty8&quot;</span><span class="p">)</span>
+	<span class="n">draw</span><span class="o">.</span><span class="n">text</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">text</span><span class="o">=</span><span class="n">scopename</span><span class="p">,</span> <span class="n">font</span><span class="o">=</span><span class="n">font</span><span class="p">)</span>
+
+
+
+	<span class="c1"># Save the image</span>
+	<span class="n">cv2_im_processed</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pil_im</span><span class="p">),</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_RGB2BGR</span><span class="p">)</span>
+	<span class="n">cv2</span><span class="o">.</span><span class="n">imwrite</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s1">&#39;~&#39;</span><span class="p">),</span> <span class="s2">&quot;wallpaper.png&quot;</span><span class="p">),</span> <span class="n">cv2_im_processed</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="set_wallpaper">
+<a class="viewcode-back" href="../../utilities.html#utilities.wallpaper.set_wallpaper">[docs]</a>
+<span class="k">def</span> <span class="nf">set_wallpaper</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+	<span class="c1">#Check the operating system</span>
+	<span class="n">system_name</span> <span class="o">=</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+	<span class="k">if</span> <span class="n">system_name</span> <span class="o">==</span><span class="s1">&#39;linux&#39;</span><span class="p">:</span>
+		<span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span><span class="o">+</span><span class="n">path</span>
+		<span class="n">command</span> <span class="o">=</span> <span class="s2">&quot;gsettings set org.gnome.desktop.background picture-uri file:&quot;</span> <span class="o">+</span> <span class="n">path</span>
+		<span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
+	<span class="k">elif</span> <span class="n">system_name</span> <span class="o">==</span> <span class="s1">&#39;windows&#39;</span><span class="p">:</span>
+		<span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span><span class="o">+</span><span class="n">path</span>
+		<span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">user32</span><span class="o">.</span><span class="n">SystemParametersInfoW</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">path</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="stl_render">
+<a class="viewcode-back" href="../../utilities.html#utilities.wallpaper.stl_render">[docs]</a>
+<span class="k">def</span> <span class="nf">stl_render</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+	<span class="c1">## Little help from chatgpt		 </span>
+	<span class="kn">import</span> <span class="nn">trimesh</span>                                                              
+	<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>                                             
+	<span class="kn">from</span> <span class="nn">mpl_toolkits.mplot3d.art3d</span> <span class="kn">import</span> <span class="n">Poly3DCollection</span>                     
+																				  
+	<span class="c1"># Load the STL file                                                         </span>
+	<span class="n">mesh</span> <span class="o">=</span> <span class="n">trimesh</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>                                                   
+																				  
+	<span class="c1"># Extract vertices and faces                                                </span>
+	<span class="n">vertices</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">vertices</span>                                                    
+	<span class="n">faces</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">faces</span>                                                          
+																				  
+	<span class="c1"># Set up Matplotlib figure and 3D axis with high DPI                        </span>
+	<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">150</span><span class="p">)</span>  <span class="c1"># Increased size and DPI       </span>
+	<span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="mi">111</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="s1">&#39;3d&#39;</span><span class="p">)</span>                                  
+																				  
+	<span class="c1"># Create a Poly3DCollection for the faces of the mesh with improved aestheti</span>
+	<span class="n">poly3d</span> <span class="o">=</span> <span class="p">[[</span><span class="n">vertices</span><span class="p">[</span><span class="n">vertex</span><span class="p">]</span> <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="n">face</span><span class="p">]</span> <span class="k">for</span> <span class="n">face</span> <span class="ow">in</span> <span class="n">faces</span><span class="p">]</span>          
+	<span class="n">mesh_collection</span> <span class="o">=</span> <span class="n">Poly3DCollection</span><span class="p">(</span><span class="n">poly3d</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">edgecolor</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span> <span class="n">linewidths</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">facecolor</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">)</span>
+	<span class="c1"># Add the collection to the axis                                            </span>
+	<span class="n">ax</span><span class="o">.</span><span class="n">add_collection3d</span><span class="p">(</span><span class="n">mesh_collection</span><span class="p">)</span>                                        
+																				  
+	<span class="c1"># Set limits for better visualization                                       </span>
+	<span class="n">scale</span> <span class="o">=</span> <span class="n">vertices</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>                                                  
+	<span class="n">ax</span><span class="o">.</span><span class="n">auto_scale_xyz</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="n">scale</span><span class="p">,</span> <span class="n">scale</span><span class="p">)</span>                                      
+																				  
+	<span class="c1"># Label axes                                                                </span>
+	<span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;X&quot;</span><span class="p">)</span>                                                          
+	<span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Y&quot;</span><span class="p">)</span>
+	<span class="n">ax</span><span class="o">.</span><span class="n">set_zlabel</span><span class="p">(</span><span class="s2">&quot;Z&quot;</span><span class="p">)</span>
+	 
+	<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>      </div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Yatharth Bhasin.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -21,4 +21,4 @@ help:
 
 
 html:
-    sphinx-build -b html -d _build/doctrees . docs
+	sphinx-build -b html -d _build/doctrees . docs
