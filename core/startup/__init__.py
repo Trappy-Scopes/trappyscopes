@@ -21,6 +21,13 @@ print(os.getcwd())
 #exec(open("..argparser.py", "r").read())
 from core.argparser import *
 
+### --------------  Load metadata --------------------------
+from core.permaconfig.config import TrappyConfig
+device_metadata = TrappyConfig()
+device_metadata = device_metadata.get()
+## --------------------------------------------------
+
+
 ## Login
 from core.bookkeeping.user import User
 User.login(Share.argparse["user"])
@@ -40,33 +47,26 @@ import readline
 from rich.markdown import Markdown
 from rich import print
 
-from rich import pretty ## Default pretty printing
-pretty.install()        ## Install pretty traceback handling
-from rich.traceback import install as tracebackinstall 
-tracebackinstall(show_locals=False)
+
+
 
 import os
 import logging
-from core.permaconfig import logsettings ## Why is this required ?
+from core.permaconfig import loggersettings ## Why is this required ?
 # Get the root logger
 import yaml
 from yaml.loader import SafeLoader
 from core.bookkeeping.yamlprotocol import YamlProtocol
-with open(os.path.join(os.path.expanduser("~"), "trappyconfig.yaml")) as deviceid:
-    device_metadata = yaml.load(deviceid, Loader=SafeLoader)
-logger = logging.getLogger()
-logger.setLevel(device_metadata["config"]["log_level"])  # or any level you need
-logger.addHandler(logsettings.error_collector)
 
 
-from experiment import Experiment
+
+from expframework.experiment import Experiment
 from expframework.protocol import Protocol
 
 
 from utilities.fluff import pageheader, intro
 from expframework.plotter import Plotter as plt
 from core.permaconfig.sharing import Share
-from loadscripts import ScriptEngine
 
 
 ## ------------------------------––-------------------------------  Goal 3 ----------------------------------------------------------------------
@@ -91,12 +91,11 @@ if device_metadata["config"]["set_wallpaper"]:
 global scopeid, scope_user
 scopeid = device_metadata["name"]
 Share.scopeid = scopeid
-Common.scopeid = scopeid
+
 
 from rich.pretty import Pretty
 from rich.panel import Panel
-devicepanel = Panel(Pretty(device_metadata), title="Device")
-print(devicepanel)
+#device_metadata.panel()
 
 from hive.processorgroups.micropython import SerialMPDevice
 SerialMPDevice.print_all_ports()
@@ -150,7 +149,7 @@ from rich.rule import Rule
 for i in range(1, 4):
 	print(Rule(characters='═', style=f"rgb({int(51*i)},0,0)"),  end='')
 print(Rule(title="Summary of errors", characters='═', style=f"rgb({int(51*5)},0,0)"),  end='')
-print(logsettings.error_collector.summarize_errors())
+print(loggersettings.error_collector.summarize_errors())
 print(Rule(characters='═', style=f"rgb({int(51*5)},0,0)"),  end='')
 for i in range(1, 5):
 	print(Rule(characters='═', style=f"rgb({int(255/i)},0,0)"),  end='')
@@ -197,6 +196,7 @@ lab = Lab()
 #report = Report()
 
 #from loadscripts import ScriptEngine
+from expframework.scriptengine import ScriptEngine
 if "startup_scripts" in device_metadata["config"]:
 	if device_metadata["config"]["startup_scripts"]:
 		ScriptEngine.execlist += device_metadata["config"]["startup_scripts"]

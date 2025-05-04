@@ -1,5 +1,8 @@
 
 
+class TS_ConfigNotFound(Exception):
+	...
+
 class TS_InvalidNameException(Exception):
 	"""
 	Raised when an invalid name is passed and normal error handling is not sufficient.

@@ -2,123 +2,101 @@
 
 Control Layer Interface for parallel microscopy system.
 
-![](https://github.com/username/repo_name/workflows/docs/badge.svg)
-
-
-
-
+![](https://github.com/Trappy-Scopes/scope-cli/workflows/docs/badge.svg)
 
 
 
 ## Introduction
 
-TODO
-
-
+1. What is Trappy-Scopes?
+2. How to use it?
+3. Why you should use it?
 
 ## Installation
 
-```bash
-git clone -r <repo_link>
-cd <scope-cli>
-python main.py --install
-```
+1. Install through conda or pip #todo
 
-## Trappy-Scope Tool
+	```
+	pip install trappyscopes
+	conda install trappyscopes
 
-```bash
-python main.py -h
-```
+2. You can install directly from the source and install the environment using the inbuilt installer that uses `pip`.
 
-```
-usage: Trappy-Scopes scope-cli [-h] [-itr N <script>] [-su <user-initials>] [--login <user-initials>] [-exp <exp-name>] [-noep] [-noff] [--intro]
-                               [-mp4 <exp-name>] [-fps <fps>] [-install] [-loc] [-uid]
-                               [<script>]
+	```bash
+	git clone -r <repo_link>
+	cd <scope-cli>
+	python main.py --install
+	```
 
-Trappy-Scopes Control Layer
+## Configure the Scope
 
-positional arguments:
-  <script>              List of scripts to execute in sequence
+1. 
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -itr N <script>, --iterate N <script>
-                        Specify the number of iterations to perform for a given script.
-  -su <user-initials>, --setuser <user-initials>
-                        Login/Set user for the microscope.
-  --login <user-initials>
-                        Login/Set user for the microscope.
-  -exp <exp-name>, --experiment <exp-name>
-                        Set the experiment.
-  -noep, --noep         Skip prompt to select experiment
-  -noff, --nofluff      Supress all the fluff during startup.
-  --intro               Print the scope CLI introduction document.
-  -mp4 <exp-name>, --mp4 <exp-name>
-                        Convert all the .h264 videos in the experiment folder to .mp4 videos.
-  -fps <fps>, --fps <fps>
-                        Specify the fps for conversion to mp4.
-  -install, --install   Do installation of all required python and Unix libraries required for trappyscopes.
-  -loc, --loc           Count lines of code for this project.
-  -uid, --uid           Generate a trappy-scopes (systems) unique identifier.
-```
+
+
+## Get to know Trappy-Scope
+
+1. Basic information about application startup
+	```bash
+	python main.py -h
+	```
+
+2. A little introduction can be summoned by calling `intro()`.
 
 ## Start-up and usage
 
++ Use `./trappyscope`, a typical startup would look like:
+	```bash
+	./trappyscope -su UserName experiment_script.py
+	```
+
 + Start control layer utility with `python -i main.py` in the interactive mode. 
-+ On Raspian (Linux machine), and during experiments, use `trappyscope` utility, that sets real-time priority on the thread. It only works for Linux.
-+ When using script files, the `-i` flag, which enables the python interactive mode may be ommited.
-+ Usage:
-```bash
-python main.py <script1> <script2> <script3>
-trappyscope <script1> <script2> <script3>
-python main.py --iterate 3 <script1> ## Run Script1 three times
-```
+
++ Scripts are an important part of running experimental procedures:
+	```bash
+	python main.py <script1> <script2> <script3>
+	trappyscope <script1> <script2> <script3>
+	python main.py --iterate 3 <script1> ## Run Script1 three times
+	```
+
 + The scripts are executed in sequence and can be used to load pre-defined experimental protocols.
 
-+ Alternatively, to load a script/execute a script, use on REPL:
++ Alternatively, to load a script/execute a script from the interactive session:
+	```bash
+	ScriptEngine.now(globals(), "scriptfile.py")
+	```
 
-```python
-ScriptEngine.now(globals(), "scriptfile.py")
-```
+
+
+## Start an experiment
 
 + All data-collection should be done within the context of an `Experiment`:
-	```python
-	exp = Experiment("test")
-	```
 
-	You should get the following output:
+  ```python
+  exp = Experiment("test")
+  ```
 
-	```bash
-	────────────────────────────── Experiment open ─────────────────────────────────────────
-	[17:21:08] INFO     Loading Experiment: test                                                                                                experiment.py:267
-	Working directory changed to: /Users/byatharth/experiments/test
-	.
-	├── .experiment
-	├── analysis
-	├── converted
-	├── experiment.yaml
-	├── postprocess
-	└── sessions.yaml
-	
-	3 directories, 3 files
-	
-	user:ghost || ‹‹M1›› Experiment: test 
-	>>> 
-	```
-	
-+ You should also login as a user:
+  You should get the following output:
 
-	```python
-	User.login("YB")
-	```
+  ```bash
+  ────────────────────────────── Experiment open ─────────────────────────────────────────
+  [17:21:08] INFO     Loading Experiment: test                                                                                                experiment.py:267
+  Working directory changed to: /Users/byatharth/experiments/test
+  .
+  ├── .experiment
+  ├── analysis
+  ├── converted
+  ├── experiment.yaml
+  ├── postprocess
+  └── sessions.yaml
+  
+  3 directories, 3 files
+  
+  user:ghost || ‹‹M1›› Experiment: test 
+  >>>
+  ```
 
-	The python terminal prompt should change to:
-
-	```bash
-	user:YB || ‹‹MDev›› Experiment: test >>> 
-	```
-
-
+The experiment features are described in the [expframework](expframework/README.md) submodule.
 
 ## Describing one scope
 

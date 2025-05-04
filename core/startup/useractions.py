@@ -86,7 +86,7 @@ def findexp():
 	print("Press Ctrl+Z to exit or enter to ignore.")
 	from prompt_toolkit import prompt
 	from prompt_toolkit.completion import WordCompleter
-	from experiment import Experiment
+	from expframework.experiment import Experiment
 
 	expcompleter = WordCompleter([os.path.basename(exp_) for exp_ in Experiment.list_all()])
 	exp_name = prompt('Input the session/experiment name -> ', completer=expcompleter)
@@ -111,7 +111,7 @@ def delexp():
 	print("Press Ctrl+Z to exit or enter to ignore.")
 	from prompt_toolkit import prompt
 	from prompt_toolkit.completion import WordCompleter
-	from experiment import Experiment
+	from expframework.experiment import Experiment
 
 	expcompleter = WordCompleter([os.path.basename(exp_) for exp_ in Experiment.list_all()])
 	exp_name = prompt('Input the session/experiment name -> ', completer=expcompleter)
@@ -120,11 +120,10 @@ def delexp():
 	exp_name.strip()
 
 
-	exp = None
+	path = None
 	if exp_name:
-		exp = Experiment(exp_name)
-		path = exp.exp_dir
-		exp.close()
+		if exp_name in Experiment.list_all_pathmap().keys():
+			path = Experiment.list_all_pathmap()[exp_name]
 		from rich.prompt import Confirm
 		confirmdelete = Confirm.ask(f"Delete for sure? : {exp_name}")
 		if confirmdelete:

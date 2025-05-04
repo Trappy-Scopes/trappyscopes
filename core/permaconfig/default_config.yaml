@@ -27,7 +27,7 @@
 ## -------------------------------------------------------------------------------------##
 
 name: <TrappySomething>            ## Name of the scope (scopeid)
-type: microscope                   ## Type of device -> Selection of the abstraction
+type: generic-scope                ## Type of device -> Selection of the abstraction
 
 
 ## Trappy-Scopes configuration options
@@ -90,11 +90,85 @@ abstraction:
     sample: physical
     alarm: Laboratory.current.ctrl1.
 
-  ## A simple abstration map of a telescope
-  telescope:
-    cam: detector
-    compass: detector
-    gps: detector
+  control-terminal1:
+    description: A terminal for controlling a diverse set of instruments, placed at the center of the lab.
+    kind: give.processorgroup.linux.ProcessorGroup ## For description only
+    kwargs: {"no_processors": 4}                    ## For description only      
+    
+    ## List of all instruments that are directly connected
+    buzzer:
+     description: Central buzzer or alarm for the lab.
+     alias: ["alarm"]
+     kind: gpiozero.Buzzer
+     args:
+      - 26 ## GPIO Pin-number 
+    uv_lamp:
+     description: A UV lamp with two arrays of LEDs for curing UV glue and sterlisation. 
+     array1:
+       tag : actuator 
+       kind: gpiozero.LED
+       args: [14] ## Pin number
+       kwargs: {}
+     array2:
+       tag : actuator 
+       kind: gpiozero.LED
+       args: [14] ## Pin number
+       kwargs: {}
+
+      - pico_keypad:
+        description: Input keypad to control things in the lab space.
+        kind: hive.processorgroup.micropython.SerialMPDevice
+        kargs:
+          exec_main: true
+          handshake: false
+          direct_mount: ["keypad"]   ## true -> mount all handshake objects to the scope, otherwise specify.
+      - pico_perfusion_pumpset:
+        description: Set of 2 peristaltic pumps running on Kirtronik pump.
+        kind: hive.processorgroup.micropython.SerialMPDevice
+        kargs:
+          ## circuit_id: <circuit-name> to over-ride the default circuit id of the board.
+          exec_main: true
+          handshake: true
+    run_scripts: ## only runs in the scope-context. `scope = ScopeAssembly.current`
+          - scripts/control_terminals/terminal1.py
+
+
+  telescope: ## We are describing a telescope
+    description: A telescope with a camera, a gps sensor, and 2 dc motors for alignment. We assume that the focusing is manual.
+    *:
+      kind: hive.processorgroups.linux
+      description: Raspberry Pi 4B 8GB
+
+      - cam:
+          kind: vimba.imxrt_smth.Camera
+          description: Main camera
+          args: ()
+          kwargs: {}
+        run_scripts: [camera_init.py]
+      - gps:
+          description: GPS module to record the earth coordiante.
+          kind: null ## Its a complex device
+          run_code:
+            cd ~
+            git clone https://github.com/DexterInd/GrovePi.git
+            cd GrovePi/Software/Python/grove_gps
+        uart: busio.UART
+          args: ["board.TX", "board.RX"]
+          kwargs: {baudrate: 9600, timeout: 30}
+        gps:
+          kind: adafruit_gps.GPS
+          args: [uart]
+          kwargs: {debug: False}
+      - motorset:
+         - axial:
+           kind: gpiozero.Motor
+           args: [17, 18]
+         - azumuthal:
+           kind: gpiozero.Motor
+           args: [4,5]
+    ## Run this post device initalization
+    run_scripts: {"init_telescope.py"}
+
 
   ## Illformed
   computing-cluster:
@@ -109,60 +183,7 @@ abstraction:
     m8  : hive.processorgroups.linux
     vwr : hive.processorgroups.linux
   
-  ## Abstraction for Control terminal-1
-  control-terminal1:
-    kind: give.processorgroup.linux.ProcessorGroup ## For description only
-    kargs: {"no_processors": 4}                    ## For description only
-    description: Raspberry Pi 4B running scope-cli.
-
-    buzzer:
-      description: Central buzzer or alarm for the lab.
-      alias: ["alarm"]
-      kind: gpiozero.Buzzer
-      args:
-        - 26 ## GPIO Pin-number 
-    pico_keypad:
-      description: Input keypad to control things in the lab space.
-      kind: hive.processorgroup.micropython.SerialMPDevice
-      kargs:
-        exec_main: true
-        handshake: true
-      direct_mount: ["keypad"]   ## true -> mount all handshake objects to the scope, otherwise specify.
-    pico_perfusion_pumpset:
-      description: Set of 2 peristaltic pumps running on Kirtronik pump.
-      kind: hive.processorgroup.micropython.SerialMPDevice
-      kargs:
-        ## circuit_id: <circuit-name> to over-ride the default circuit id of the board.
-        exec_main: true
-        handshake: true
-      direct_mount: ["motorset"] ## only mount motorset to the scope. "motor1" and "motor2" remain accessable behind scope.pico_perfusion_motorset
-    uv_lamp:
-      description: A UV lamp with two arrays of LEDs for curing UV glue and sterlisation. 
-      kind  : hive.dynamic_device.DynamicDevice
-      array1:
-        tag : actuator 
-        kind: gpiozero.LED
-        args:
-          - 14 ## Pin number
-        kwargs: {}
-      array2:
-        tag : actuator 
-        kind: gpiozero.LED
-        args: 
-          - 14 ## Pin number
-        kwargs: {}
-      gate_sensor:
-        tag : detector
-        kind: gpiozero.SmoothedInputDevice
-        args:
-          - 0 ## Pin number
-        kwargs: {}
-      active_state:
-        gate_sensor: LOW
-        array1: HIGH
-        array2: HIGH
-    run_scripts: ## only runs in the scope-context. `scope = ScopeAssembly.current`
-          - scripts/control_terminals/terminal1.py
+  
 
 
 

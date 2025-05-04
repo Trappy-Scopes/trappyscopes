@@ -1,17 +1,18 @@
-import os
+"""
+This file is called to configure the logging system.
+"""
 
+
+import os
 import logging
 from rich.logging import RichHandler
 
-from experiment import Experiment
 from .sharing import Share
 
 
 
-if isinstance(Experiment.current, Experiment):
-    filename = Experiment.current.exp_dir
-else:
-    filename = Share.logdir
+
+filename = Share.logdir
 FORMAT = "%(message)s"
 logging.basicConfig(
                      #filename=os.path.join(filename, "logfile.txt"),

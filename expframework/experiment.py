@@ -23,11 +23,11 @@ from rich.align import Align
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-import config.common
-
 
 from utilities.resolvetypes import resolve_type
 
+
+from core.permaconfig.config import TrappyConfig
 
 from core.bookkeeping.user import User
 from core.permaconfig.sharing import Share
@@ -152,7 +152,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 			name = name + "_" + uuid
 
 
-		dir_ = os.path.join(config.common.DATA_DIR, name)
+		dir_ = os.path.join(os.path.expanduser(TrappyConfig.current["config"]["expdir"].get()), name)
 		os.mkdir(dir_)
 		os.mkdir(os.path.join(dir_, "postprocess"))
 		os.mkdir(os.path.join(dir_, "analysis"))
@@ -184,9 +184,10 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		"""
 		Returns a list of the fullpath of all qualified experiments.
 		"""
-		all_dirs = os.listdir(config.common.DATA_DIR)
-		all_dirs = [os.path.join(config.common.DATA_DIR, dir_) for dir_ in all_dirs if \
-			os.path.isfile(os.path.join(config.common.DATA_DIR, dir_, ".experiment"))]
+		data_dir = os.path.expanduser(TrappyConfig.current["config"]["expdir"].get())
+		all_dirs = os.listdir(data_dir)
+		all_dirs = [os.path.join(data_dir, dir_) for dir_ in all_dirs if \
+			os.path.isfile(os.path.join(data_dir, dir_, ".experiment"))]
 		return all_dirs
 
 	def list_all_names():
@@ -204,6 +205,14 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		expmap = {open(os.path.join(exp, ".experiment"), "r").read()
 					: exp.rsplit("/", 1)[1] for exp in exps}
 		return expmap
+
+	def list_all_pathmap():
+		"""
+		Returns a dictionary of all the experiment names with fullpaths.
+		"""
+		exps = Experiment.list_all()
+		expnames = Experiment.list_all_names()
+		return dict(zip(expnames, exps))
 
 
 
@@ -272,11 +281,12 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 
 		# Check if the experiment exists -> a sanatised and valid name is guaranted
 		# to pass through and will always be recovered.
-		if not os.path.join(config.common.DATA_DIR, self.name) in all_exps:
+		data_dir = os.path.expanduser(TrappyConfig.current["config"]["expdir"].get())
+		if not os.path.join(data_dir, self.name) in all_exps:
 			self.name = Experiment.new(self.name, append_eid=append_eid)
 			log.info(f"Creating new experiment: {self.name}")
 
-		self.exp_dir = os.path.join(config.common.DATA_DIR, self.name)
+		self.exp_dir = os.path.join(data_dir, self.name)
 		self.log_file = os.path.join(self.exp_dir, "experiment.yaml")
 		
 
@@ -757,50 +767,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		self.log("exp_interrupted")
 
 
-class Calibration(Experiment):
-	
-	def __init__(self, name, append_eid=False, **kwargs):
-		super().__init__(name, append_eid=append_eid)
-		self.exp_dir = os.path.join(config.common.CALIB_DIR, self.name)
 
-class Test(Experiment):
-
-	def __init__(self, name, append_eid=False, **kwargs):
-		self.checks = []
-		super().__init__(name, append_eid=append_eid, kwargs=kwargs)
-
-	def testfn(self, callable_, *args, **kwargs):
-		"""
-		Only fails if exceptions are raised. TODO
-		"""
-		self.log("testfn", attribs={"check":str(callable_)})
-		print(f"<< Check {len(self.checks)} >>")
-		try:
-			if not args and not kwargs:
-				callable_()
-			elif not args:
-				callable_(kwargs)
-			elif kwargs:
-				callable_(args)
-			else:
-				callable_(args, kwargs)
-			print(Rule(title=f"{callable_} : OK", style="green"))
-			self.checks.append(1) ## Inverted
-			return True
-
-		except Exception as e:
-			print(Rule(title=f"{callable_} : NOK", style="red"))
-			print(Fore.RED)
-			print(e)
-			print(Fore.RESET)
-			self.checks.append(0) ## Inverted
-			return False
-
-	def conclude(self):
-		if sum(self.checks) == len(self.checks):
-			print(f"{Fore.GREEN}All checks passed!{Fore.RESET}")
-		print(f"Checks: {Fore.BLUE}{sum(self.checks)} / {len(self.checks)} passed.{Fore.RESET}")
-		self.logs["checks_passed"] = [sum(self.checks), len(self.checks)]
 
 
 if __name__ == "__main__":
