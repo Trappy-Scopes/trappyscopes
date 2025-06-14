@@ -86,7 +86,7 @@ def start_acq():
 	scope = ScopeAssembly.current
 
 	## Read tandh
-	tandh = Experiment.current.streams["tandh"]
+	tandh = Experiment.current.mstreams["tandh"]
 	record_sensor = lambda: tandh(scope.tandh.read())
 	record_sensor()
 	Experiment.current.schedule.every(exp.params["tandh_sampling_period_minutes"]).minutes.until(timedelta(hours=24)).do(record_sensor)
