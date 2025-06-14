@@ -47,7 +47,7 @@ def capture():
 	exp = Experiment.current
 	split = len(exp.mstreams["acq"].readings)
 	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{split}.mjpeg', abspath=False)
-	acq = exp.mstreams["acq"](filename)
+	acq = exp.mstreams["acq"](filename=filename)
 	scope.cam.capture(exp.params["camera_action"],
 	                  filename,
 	                  tsec=exp.params["capture_time_sec"],
