@@ -25,6 +25,7 @@ class ExpNotebook:
 		import pandas as pd
 		notes = pd.DataFrame(self.logs["events"])
 		notes = notes[notes.type == "user_note"]
+		return notes
 	
 	def _get_notebook(self):
 		notes = self._all_notes()

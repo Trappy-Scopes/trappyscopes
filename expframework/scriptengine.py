@@ -2,13 +2,14 @@ from colorama import Fore, Style
 from rich import print
 from rich.rule import Rule
 from rich.panel import Panel
+import os
 
 from .experiment import Experiment
 
 class ScriptEngine:
 
 	execlist = []
-
+	payload = []
 	def run_all(globals_, scripts=None):
 		if scripts == None:
 			scripts = ScriptEngine.execlist
@@ -19,6 +20,7 @@ class ScriptEngine:
 				#print("scopeid" in globals(), globals())
 				with open(script) as f:
 					try:
+						ScriptEngine.payload.append(os.path.abspath(script))
 						exec(f.read(), globals_)
 					except KeyboardInterrupt:
 						print('\n', Rule(title="Experiment interrupted!", align="center", style="red"))

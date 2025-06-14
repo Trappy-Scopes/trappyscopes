@@ -69,7 +69,7 @@ class TrappyConfig(confuse.Configuration):
 		return list(set(deepcopy(Config.default_paths) + self["config_files"].get()))
 
 
-	def get_active():
+	def get_feature():
 		"""
 		This is used for a subfunction where the validation is only performed
 		if the feature is active.

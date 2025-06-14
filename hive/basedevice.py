@@ -24,7 +24,7 @@ class BaseDevice: #ProcessorGroup
 		## Imported here to prevent circular imports - thus an expensive call.
 		from .actuator import Actuator
 		from .detector import Detector
-		from processorgroups.abstractprocessorgroup import ProcessorGroup
+		from .processorgroups.abstractprocessorgroup import ProcessorGroup
 		basemodelmap = {"actuator": Actuator, "detector": Detector, 
 						"basedevice": BaseDevice, "processorgroup": ProcessorGroup}
 

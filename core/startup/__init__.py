@@ -162,8 +162,7 @@ from expframework.expsync import ExpSync
 ExpSync.configure(device_metadata)
 
 
-#from .useractions import *
-#import useractions
+
 try:
 	exec(open("core/startup/useractions.py").read())
 except:
@@ -194,6 +193,8 @@ lab = Lab()
 
 #from expframework.report import Report
 #report = Report()
+
+from utilities.codeviewer import codeviewer
 
 #from loadscripts import ScriptEngine
 from expframework.scriptengine import ScriptEngine

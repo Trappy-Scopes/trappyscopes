@@ -26,7 +26,6 @@ from rich.pretty import Pretty
 
 from utilities.resolvetypes import resolve_type
 
-
 from core.permaconfig.config import TrappyConfig
 
 from core.bookkeeping.user import User
@@ -39,11 +38,10 @@ from core.exceptions import TS_InvalidNameException
 from core.tsevents import TSEvent
 from core.idioms.clock import Clock
 
-from expframework.report import ExpReport
-from expframework.expsync import ExpSync
-from expframework.notebook import ExpNotebook
-from expframework.clockgroup import ClockGroup
-
+from .report import ExpReport
+from .expsync import ExpSync
+from .notebook import ExpNotebook
+from .clockgroup import ClockGroup
 
 class ExpEvent(TSEvent):
 	def __init__(self, kind="expevent", attribs={}):
@@ -82,14 +80,24 @@ class ExpScheduler(schedule.Scheduler):
 class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	"""
 
-	ExperimentEvents emiited into the <experiemtn_name>.yaml file, and are broadly
-	classified into two kinds based on extra fields that are added to the datastruct.
+	A Trappy-Scope Experiment.
+	.
+	|- header < name, eid, path, syncpath, ...>
+	|- params (experiment parameters, what is being perturbed?)
+	|- clocks (timing)
+	|- events (chronological record of what happened)
+	|- measurements (MeasurementStreams)
+	|- scheduler (scheduler -> actions)
+	*
 
+
+	ExperimentEvents are emiited into the experiment.yaml file.
 	An experiment is qualified programaatically as a directory with a .experiment file.
+	A Measurement is a "special" event that contains scientific data.
 
 
 				.
-			 	|---> Events (user actions, actuator movements, file _emissions, acquisitions, measurement_stream)
+			 	|---> Events (user actions, actuator movements, file_emissions, acquisitions, measurement_stream)
 	Experiment--|
 	Event		|---> Measurements
 				·
@@ -101,7 +109,6 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		|- eid (uid)
 		|- created
 		|- system-info (syspermastate)
-		|- camera-info !!!
 		|- <sessions.yaml>
 		:	|- sid (uid) 
 		:	|- <User login info>
@@ -157,6 +164,8 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		os.mkdir(os.path.join(dir_, "postprocess"))
 		os.mkdir(os.path.join(dir_, "analysis"))
 		os.mkdir(os.path.join(dir_, "converted"))
+		os.mkdir(os.path.join(dir_, "scripts"))
+
 
 		# Copy payload to the dir_
 		with open(os.path.join(dir_, ".experiment"), "w") as f:
@@ -304,6 +313,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 
 		### ------ Create the state of the experiment  --------
 		self.attribs = {}   ## Persistent experiment parameters.
+		self.params = self.attribs
 		self.mstreams = {}  ## Measuremnt streams that are conserved over sessions.
 
 		## Different experiment clocks
@@ -326,7 +336,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 				print(f"[red] Exception raised: {e}")
 				log.error("Failed to load experiment state.")
 		else:
-			log.warning("Experiment state not found.")
+			log.warning("Experiment state not found. Not a problem if this is a new experiment.")
 
 
 		# Changing Working Directory to Experiment Directory		
@@ -375,7 +385,9 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 			self.destination_dir = self.logs["destination_dir"]
 		super().__init__(self.name, 
 						 destination_dir=self.destination_dir)
+		
 		### Set the current pointer
+		## Don't move this!
 		Experiment.current = self
 
 		## ExpReport
@@ -422,6 +434,11 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	def close(self):
 		self.schedule.end_thread = True
 
+		import shutil
+		from .scriptengine import ScriptEngine
+		for file in ScriptEngine.payload:
+			shutil.copy2(file, os.path.join(self.exp_dir, "scripts", os.path.basename(file)))
+
 		###
 		self.logs["attribs"] = self.attribs
 		with open("expstate.pickle", "wb") as file:
@@ -444,7 +461,6 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 			os.chdir(self.lastwd)	
 			print(f"Working directory changed to: {os.getcwd()}")
 			Share.updateps1(exp="")
-
 
 			
 		from rich.rule import Rule
@@ -481,6 +497,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	def filetree(self):
 		"""
 		Print the current file tree of the experiment.
+		TODO: pythonic way.
 		"""
 		from subprocess import run
 		out = run(["tree", "-a"], capture_output=True, text=True)
@@ -596,7 +613,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		"""
 		Returns a stream wrapper aroind a given measurement object.
 		"""
-		from expframework.measurement import MeasurementStream
+		from .measurement import MeasurementStream
 
 		ms = MeasurementStream(name=name)
 		for detection in detections:

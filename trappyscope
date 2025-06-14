@@ -2,7 +2,7 @@
 
 
 ## Only works on linux machines
-hanme=hostname
+hname=hostname
 
 #sudo chrt -r 98 tmux -T 256 new-session -s $hname
 
