@@ -88,7 +88,7 @@ def start_acq():
 
 	## Read tandh
 	record_sensor()
-	Experiment.current.schedule.every(exp.params["tandh_sampling_period_minutes"]).minutes.until(timedelta(hours=24)).do(record_sensor)
+	Experiment.current.schedule.every(exp.params["tandh_sampling_period_minutes"]).minutes.until(timedelta(hours=exp.params["sampling_hours"])).do(record_sensor)
 
 	## Set lights and capture
 	scope.lit.setVs(*exp.params["light"])
