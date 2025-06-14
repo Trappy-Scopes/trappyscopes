@@ -125,7 +125,7 @@ for script in args.scriptlist_:
 if None in scriptlist:
     scriptlist.remove(None)
 if len(scriptlist) > 0:
-    from loadscripts import ScriptEngine
+    from expframework.loadscripts import ScriptEngine
     ScriptEngine.execlist = scriptlist
     print("Scripts that will be loaded: ")
     print(ScriptEngine.execlist)
