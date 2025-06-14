@@ -40,6 +40,7 @@ print("Use cleanup() to close and sync experiment.")
 def capture():
 	"""Function that records videos"""
 	scope = ScopeAssembly.current
+	exp = Experiment.current
 	scope.beacon.on()
 	time.sleep(exp.params["beacon_stabilization_delay_s"])
 
