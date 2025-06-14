@@ -1,5 +1,5 @@
 from rich import print
-from experiment import Experiment
+from expframework.experiment import Experiment
 from core.bookkeeping.user import User
 import datetime
 import time
