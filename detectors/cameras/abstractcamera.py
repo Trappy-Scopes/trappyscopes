@@ -9,7 +9,7 @@ from rich.console import Console
 
 # TS imports
 #from hive.assembly import ScopeAssembly
-from experiment import Experiment
+from expframework.experiment import Experiment
 
 from hive.detector import Detector
 # Used to print exceptions properly.
