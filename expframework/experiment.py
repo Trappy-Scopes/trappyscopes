@@ -313,7 +313,6 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 
 		### ------ Create the state of the experiment  --------
 		self.attribs = {}   ## Persistent experiment parameters.
-		self.params = self.attribs
 		self.mstreams = {}  ## Measuremnt streams that are conserved over sessions.
 
 		## Different experiment clocks
@@ -395,6 +394,10 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 
 		## Start logging events
 		self.log("session", attribs={"sessionid": Session.current.__getstate__()["name"]})
+		
+
+		## Patch
+		self.params = self.attribs
 
 	
 	def __repr__(self):
