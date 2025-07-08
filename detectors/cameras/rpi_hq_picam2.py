@@ -89,8 +89,7 @@ class Camera(AbstractCamera):
         self.configset = {"preview": self.cam.preview_configuration,
                           "still"  : self.cam.still_configuration,
                           "video"  : self.cam.video_configuration}
-
-        self.cam.title_fields = self.win_title_fields
+        #self.cam.title_fields = self.win_title_fields
         
         self.cam_fsaddr = None   ## TODO
         self.opentime_ns = time.perf_counter()
