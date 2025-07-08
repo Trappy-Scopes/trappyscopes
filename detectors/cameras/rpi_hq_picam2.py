@@ -51,7 +51,7 @@ class Camera(AbstractCamera):
 						  "timelapse"    : self.__timelapse__,
 						  "vid"	         : self.__video__,
 						  "vid_noprev"   : self.__video_noprev__,
-					 	}
+						}
 
 
 		## Default quality and compression
@@ -78,17 +78,17 @@ class Camera(AbstractCamera):
 
 		## TODO -> Create main streams as well
 		self.cam.preview_configuration = self.create_preview_configuration()
-        self.cam.preview_configuration.enable_raw()  # causes the size to be reset to None
-        self.cam.still_configuration = self.create_still_configuration()
-        self.cam.still_configuration.enable_raw()  # ditto
-        self.cam.video_configuration = self.create_video_configuration()
-        self.cam.video_configuration.enable_raw()  # ditto
+		self.cam.preview_configuration.enable_raw()  # causes the size to be reset to None
+		self.cam.still_configuration = self.create_still_configuration()
+		self.cam.still_configuration.enable_raw()  # ditto
+		self.cam.video_configuration = self.create_video_configuration()
+		self.cam.video_configuration.enable_raw()  # ditto
 
-        self.configset = {"preview": self.cam.preview_configuration,
-        				  "still"  : self.cam.still_configuration,
-        				  "video"  : self.cam.video_configuration}
+		self.configset = {"preview": self.cam.preview_configuration,
+						  "still"  : self.cam.still_configuration,
+						  "video"  : self.cam.video_configuration}
 
-        self.cam.title_fields = self.win_title_fields
+		self.cam.title_fields = self.win_title_fields
 		
 		self.cam_fsaddr = None   ## TODO
 		self.opentime_ns = time.perf_counter()
