@@ -151,8 +151,8 @@ class Camera(AbstractCamera):
 
 		## Make sure that the filename folder exists.
 		os.path,makedirs(os.path.basename(filename), exist_ok=True)
-		filenames_ = "{:03d}" + f"_{filename.split(".")[0]}"*(filename.split(".")[0] != "") + \
-						  f".{filename.split(".")[1]}"    
+		filenames_ = "{:03d}" + f"_{filename.split('.')[0]}"*(filename.split(".")[0] != "") + \
+						  f".{filename.split('.')[1]}"    
 
 		self.cam.start_preview(self.preview_type)
 		
