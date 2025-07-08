@@ -194,7 +194,7 @@ class Camera(AbstractCamera):
             Camera.console.print_exception(e)
         finally:
             self.cam.stop()
-            self.stop_encoder()
+            encoder.stop_encoder()
             self.cam.stop_preview()
             gc.collect()
 
