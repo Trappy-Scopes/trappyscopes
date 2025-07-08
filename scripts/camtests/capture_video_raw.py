@@ -38,6 +38,7 @@ im2.save("test-16bit.tif")
 
 # Create DNG file from frame, based on https://github.com/schoolpost/PiDNG/blob/master/examples/raw2dng.py
 # Tested loading of DNG in darktable
+print(arr.shape)
 r = RAW2DNG()
 t = DNGTags()
 bpp = 10
