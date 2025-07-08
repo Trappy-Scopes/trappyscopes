@@ -14,8 +14,9 @@ from picamera2.encoders import Encoder
 
 size = (2592, 1944)
 picam2 = Picamera2()
-video_config = picam2.create_video_configuration(raw={"format": 'SGBRG10', 'size': size}, controls={"FrameDuration": (50000, 50000)})
+video_config = picam2.create_video_configuration(raw={"format": 'SGBRG10', 'size': size})
 picam2.configure(video_config)
+picam2.set_controls({"FrameDurationLimits": (50000, 50000)})
 picam2.encode_stream_name = "raw"
 encoder = Encoder()
 
