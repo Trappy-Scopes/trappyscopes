@@ -34,7 +34,7 @@ class Camera(AbstractCamera):
 
     def __init__(self, quality=95, compression=0, fps=30, res=[1920, 1080]):
          
-        Picamera2.set_logging(Share.logginglevel)
+        #Picamera2.set_logging(Share.logginglevel)
 
         self.id_ = "detectors.cameras.rpi_hq_picam2"
         self.cam = None
