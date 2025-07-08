@@ -184,7 +184,7 @@ class Camera(AbstractCamera):
         ## Choose encoder --------------------------------------
 
         try:
-            self.start_encoder(encoder=encoder, output=output)
+            self.cam.tart_encoder(encoder=encoder, output=output)
             self.cam.start(show_preview=show_preview)
             
             Experiment.current.delay("acq_delay", tsec)
@@ -194,7 +194,7 @@ class Camera(AbstractCamera):
             Camera.console.print_exception(e)
         finally:
             self.cam.stop()
-            encoder.stop_encoder()
+            self.cam.encoder.stop_encoder()
             self.cam.stop_preview()
             gc.collect()
 
