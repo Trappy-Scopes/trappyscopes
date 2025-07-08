@@ -135,7 +135,7 @@ class Camera(AbstractCamera):
 		else:
 			preview = True
 		
-		self.cam.start_and_capture_file(filename delay=tsec, capture_mode="still", show_preview=preview)
+		self.cam.start_and_capture_file(filename, delay=tsec, capture_mode="still", show_preview=preview)
 		self.cam.stop_preview()
 
 
