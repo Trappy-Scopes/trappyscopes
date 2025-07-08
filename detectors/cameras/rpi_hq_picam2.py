@@ -184,7 +184,7 @@ class Camera(AbstractCamera):
         ## Choose encoder --------------------------------------
 
         try:
-            self.cam.tart_encoder(encoder=encoder, output=output)
+            self.cam.start_encoder(encoder=encoder, output=output)
             self.cam.start(show_preview=show_preview)
             
             Experiment.current.delay("acq_delay", tsec)
