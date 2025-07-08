@@ -190,11 +190,11 @@ class Camera(AbstractCamera):
             Experiment.current.delay("acq_delay", tsec)
             
         except Exception as e:
-            print("TS::Cmaera::__video__ :: exception rasied")
+            print("TS::Camera::__video__ :: exception rasied")
             Camera.console.print_exception(e)
         finally:
             self.cam.stop()
-            self.cam.encoder.stop_encoder()
+            self.cam.stop_encoder()
             self.cam.stop_preview()
             gc.collect()
 
