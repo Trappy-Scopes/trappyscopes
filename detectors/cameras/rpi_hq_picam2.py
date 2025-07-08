@@ -149,8 +149,12 @@ class Camera(AbstractCamera):
 		if not all(["frames", "delay_s"]) in kwargs:
 			raise KeyError("Either arguments missing: frames and/or delay_s")
 
+		## Make sure that the filename folder exists.
+		os.path,makedirs(os.path.basename(filename), exist_ok=True)
+		filenames_ = "{:03d}" + f"_{filename.split(".")[0]}"*(filename.split(".")[0] != "") + \
+						  f".{filename.split(".")[1]}"    
+
 		self.cam.start_preview(self.preview_type)
-		filenames_ = "{:03d}" + f"_{filename}"
 		
 		self.cam.start_and_capture_files( \
 			name=filenames_, init_delay=0, \

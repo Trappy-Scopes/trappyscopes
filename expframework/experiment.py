@@ -344,7 +344,6 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		os.chdir(self.exp_dir)
 		print(f"Working directory changed to: {os.getcwd()}")
 		print(f"[cyan]{self.filetree()}[default]")
-		print("Devnotes: Experiment class TODO: submodule Metadata object.")
 
 
 		## User Information

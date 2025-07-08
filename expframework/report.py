@@ -10,7 +10,7 @@ import datetime
 from core.bookkeeping.session import Session
 
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import inch
+from reportlab.lib.units import inch, cm
 from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.colors import Color
@@ -187,3 +187,14 @@ class ExpReport:
 		#self.report_str += self.__events__(exp)
 		#output = pypandoc.convert_text(self.report_str, 'pdf', \
 		#							   format='md', outputfile=exp.newfile('report.pdf'))
+
+
+	def add_plot(fig, caption=None):
+		from reportlab.lib.utils import ImageReader
+		from io import cStringIO
+		imgdata = cStringIO.StringIO()
+		fig.savefig(imgdata, format='png')
+		imgdata.seek(0)  # rewind the data
+		Image = ImageReader(imgdata)
+		self.canvas.drawImage(Image, cm, cm, inch, inch)
+		self.canvas.save()
