@@ -150,8 +150,9 @@ class Camera(AbstractCamera):
         #if not all(["frames", "delay_s"]) in kwargs.keys():
         #    raise KeyError("Either arguments missing: frames and/or delay_s")
 
-        ## Make sure that the filename folder exists.
+        ## Make sure that the filename folder exists -> this logic is wrong.
         os.makedirs(os.path.basename(filename), exist_ok=True)
+        
         filenames_ = "{:03d}" + f"_{filename.split('.')[0]}"*(filename.split(".")[0] != "") + \
                           f".{filename.split('.')[1]}"    
 
