@@ -19,7 +19,7 @@ from picamera2.encoders import *
 from core.bookkeeping.yamlprotocol import YamlProtocol
 from core.permaconfig.sharing import Share
 
-from .abstractcamera import Camera as AbstractCamera
+from detectors.cameras.abstractcamera import Camera as AbstractCamera
 
 from expframework.experiment import Experiment
 
