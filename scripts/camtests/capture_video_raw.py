@@ -21,7 +21,7 @@ picam2.encode_stream_name = "raw"
 encoder = Encoder()
 
 picam2.start_recording(encoder, 'test.raw', pts='timestamp.txt')
-time.sleep(3*60)
+time.sleep(6*60)
 picam2.stop_recording()
 
 buf = open("test.raw", "rb").read(size[0] * size[1] * 2)
