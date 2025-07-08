@@ -158,7 +158,7 @@ class Camera(AbstractCamera):
         #self.cam.start_preview(self.preview_type)
         
         self.cam.start_and_capture_files( \
-            name=filenames_, init_delay=0, \
+            name=filenames_,  \
             num_files = kwargs["frames"], delay = kwargs["delay_s"], \
             show_preview = True)
         self.cam.stop_preview()
