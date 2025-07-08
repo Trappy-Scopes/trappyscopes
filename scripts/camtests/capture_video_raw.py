@@ -14,14 +14,14 @@ from picamera2.encoders import Encoder
 
 size = (2592, 1944)
 picam2 = Picamera2()
-video_config = picam2.create_video_configuration(raw={"format": 'SGBRG10', 'size': size})
+video_config = picam2.create_video_configuration(raw={"format": 'SGBRG10', 'size': size}, controls={"FrameDurationLimits": (50000, 50000)})
 picam2.configure(video_config)
-picam2.set_controls({"FrameDurationLimits": (50000, 50000)})
+#picam2.set_controls()
 picam2.encode_stream_name = "raw"
 encoder = Encoder()
 
 picam2.start_recording(encoder, 'test.raw', pts='timestamp.txt')
-time.sleep(5)
+time.sleep(3*60)
 picam2.stop_recording()
 
 buf = open("test.raw", "rb").read(size[0] * size[1] * 2)
