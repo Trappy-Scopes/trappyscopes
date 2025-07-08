@@ -147,7 +147,7 @@ class Camera(AbstractCamera):
         frames: number of frames that must be captured.
         delay_s (optional) : Delay between images in seconds.
         """
-        if not all(["frames", "delay_s"]) in kwargs:
+        if not all(["frames", "delay_s"]) in kwargs.keys():
             raise KeyError("Either arguments missing: frames and/or delay_s")
 
         ## Make sure that the filename folder exists.
