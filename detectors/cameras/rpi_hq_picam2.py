@@ -155,7 +155,7 @@ class Camera(AbstractCamera):
         filenames_ = "{:03d}" + f"_{filename.split('.')[0]}"*(filename.split(".")[0] != "") + \
                           f".{filename.split('.')[1]}"    
 
-        self.cam.start_preview(self.preview_type)
+        #self.cam.start_preview(self.preview_type)
         
         self.cam.start_and_capture_files( \
             name=filenames_, init_delay=0, \
