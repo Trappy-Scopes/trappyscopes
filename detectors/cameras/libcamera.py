@@ -17,7 +17,7 @@ class Camera(AbstractCamera):
 					    "vid_mjpeg": self.__vid_mjpeg__,
 					    "vid_mjpeg_tpts": self.__vid_mjpeg_tpts__,
 					    "prev_formatted": self.__preview_formatted__}
-		self.config={"kind":"camera-libcamera"}
+		self.config={"kind":"camera-libcamera", "res": (2028, 2028), "fps":20}
 
 	def __process__(self, cmd):
 		self.process = Popen(cmd, stdout=sys.stdout, stderr=sys.stderr, shell=True,\
@@ -41,15 +41,15 @@ class Camera(AbstractCamera):
 		"""
 		tsec = kwargs["tsec"]
 		print(kwargs)
-		self.config["res"] = (2028, 2028)
-		self.config["fps"] = 20
+		res = self.config["res"]
+		self.config["fps"] = fps
 		self.config["exposure_ms"] = kwargs["exposure_ms"]
-		cmd_list = f"libcamera-vid -t {tsec*1000} -f --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} --contrast 2 --sharpness 1 -q {kwargs['quality']}"
+		cmd_list = f"libcamera-vid -t {tsec*1000} -f --codec mjpeg --width {res[0]} --height {res[1]} --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} --contrast 2 --sharpness 1 -q {kwargs['quality']}"
 		return self.__process__(cmd_list)
 
 	def __image__(self, filename, *args, tsec=5, **kwargs):
 		print(f"Preview will last {tsec} seconds!")
-		cmd_list = f"libcamera-still -t {tsec*1000} -o {filename} --width 2028 --height 2028"
+		cmd_list = f"libcamera-still -t {tsec*1000} -o {filename} --width {res[0]} --height {res[1]}"
 		if filename.endswith(".png"):
 			cmd_list += " -e png"
 		return self.__process__(cmd_list)
@@ -57,36 +57,35 @@ class Camera(AbstractCamera):
 	def __video__(self, filename, *args, **kwargs):
 		
 		tsec = kwargs["tsec"]
-
 		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename}"
 		return self.__process__(cmd_list)
 
 	def __vid_mjpeg_prev__(self, filename, *args, **kwargs):
 		tsec = kwargs["tsec"]
 		print(kwargs)
-		self.config["res"] = (2028, 2028)
-		self.config["fps"] = 20
+		res = self.config["res"]
+		self.config["fps"] = fps
 		self.config["exposure_ms"] = kwargs["exposure_ms"]
-		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename} --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']}"
+		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename} --codec mjpeg --width {res[0]} --height {res[1]} --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']}"
 		return self.__process__(cmd_list)
 
 	def __vid_mjpeg__(self, filename, *args, **kwargs):
 		tsec = kwargs["tsec"]
 		print(kwargs)
-		self.config["res"] = (2028, 2028)
-		self.config["fps"] = 20
+		res = self.config["res"]
+		self.config["fps"] = fps
 		self.config["exposure_ms"] = kwargs["exposure_ms"]
-		cmd_list = f"libcamera-vid -t {tsec*1000} -o {filename} --nopreview --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']}"
+		cmd_list = f"libcamera-vid -t {tsec*1000} -o {filename} --nopreview --codec mjpeg --width {res[0]} --height {res[1]} --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']}"
 		return self.__process__(cmd_list)
 
 	def __vid_mjpeg_tpts__(self, filename, *args, **kwargs):
 		tsec = kwargs["tsec"]
 		ptsfname = filename.replace(".mjpeg", ".tpts")
 		print(kwargs)
-		self.config["res"] = (2028, 2028)
-		self.config["fps"] = 20
+		res = self.config["res"]
+		self.config["fps"] = fps
 		self.config["exposure_ms"] = kwargs["exposure_ms"]
-		cmd_list = f"libcamera-vid -t {tsec*1000} -o {filename} --nopreview --codec mjpeg --width 2028 --height 2028 --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']} --save-pts {ptsfname} --contrast 2 --sharpness 1"
+		cmd_list = f"libcamera-vid -t {tsec*1000} -o {filename} --nopreview --codec mjpeg --width {res[0]} --height {res[1]} --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']} --save-pts {ptsfname} --contrast 2 --sharpness 1"
 		return self.__process__(cmd_list)
 
 

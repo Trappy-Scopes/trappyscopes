@@ -25,23 +25,20 @@ time.sleep(10*60)
 picam2.stop_recording()
 
 buf = open("test.raw", "rb").read(size[0] * size[1] * 2)
-arr = np.frombuffer(buf, dtype=np.uint16).reshape((size[1], size[0]))
+arr = np.frombuffer(buf, dtype=np.uint8).reshape((size[1], size[0]))
+print(arr.shape)
 
 # Scale 10 bit / channel to 8 bit per channel
 im = Image.fromarray((arr * ((2**8 - 1) / (2**10 - 1))).astype(np.uint8))
 im.save("test-8bit.tif")
 
-# Note - this will look very dark, because it's 10 bit colour depth of image, in
-# a 16 bit / channel tiff
-im2 = Image.fromarray(arr)
-im2.save("test-16bit.tif")
 
 # Create DNG file from frame, based on https://github.com/schoolpost/PiDNG/blob/master/examples/raw2dng.py
 # Tested loading of DNG in darktable
 print(arr.shape)
 r = RAW2DNG()
 t = DNGTags()
-bpp = 10
+bpp = 8
 t.set(Tag.ImageWidth, size[0])
 t.set(Tag.ImageLength, size[1])
 t.set(Tag.TileWidth, size[0])
