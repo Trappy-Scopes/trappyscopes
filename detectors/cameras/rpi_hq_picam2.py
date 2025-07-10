@@ -187,7 +187,6 @@ class Camera(AbstractCamera):
         try:
             self.cam.start_encoder(encoder=encoder, output=output)
             self.cam.start(show_preview=show_preview)
-            
             Experiment.current.delay("acq_delay", tsec)
             
         except Exception as e:
@@ -196,7 +195,8 @@ class Camera(AbstractCamera):
         finally:
             self.cam.stop()
             self.cam.stop_encoder()
-            self.cam.stop_preview()
+            if show_preview:
+                self.cam.stop_preview()
             gc.collect()
 
 
@@ -205,16 +205,21 @@ class Camera(AbstractCamera):
         Record a video without preview in a given format.
         Recommended for high fps recordings.
         """
-
         self.__video__(filename, show_preview=False, *args, **kwargs)
 
-    def __lux__(self, filename, *args, **kwargs):
-        
+    def __lux__(self, filename, init_delay_s=3, *args, **kwargs):
+        """
+        Measure the lux (a.u) from the camera sensor. Averages at the defined fps.
+        """ 
         tsec = kwargs["tsec"]     ## To ensure failure if the time-duration is not specified.
         fps = self.fps
         no_frames = int(fps*tsec)
         delay = 1.0/fps
         results = []
+
+        self.cam.close()
+        self.cam.open()
+        time.sleep(init_delay_s)
 
         for i in range(no_frames):
             md = self.cam.capture_metadata()
@@ -222,4 +227,26 @@ class Camera(AbstractCamera):
             time.sleep(delay)
         print(f"Lux average: {np.mean(results)}±{np.std(results)} [fps: {fps}, tsec:{tsec}]")
         return results
+
+    def __overlay_preview__(self, tsec, overlay_fn, update_rate):
+        """
+        Preview where the buffer is pushed to an `overlay_fn`, which updates at a 
+        rate of `update_rate` until the `tsec` seconds expire.  
+        """
+
+        start_time = time.perf_counter()
+        self.cam.start_preview(self.preview_type)
+        
+        while time.perf_counter() - start_time <= tsec:
+            int_start_time = time.perf_counter()
+            array = self.cam.capture_array()
+            self.cam.set_overlay(overlay_fn(array))
+
+            sleep_time = max(0, self.perf_counter(1.0/update_rate)-int_start_time)
+            time.sleep(sleep_time)
+        self.cam.stop_preview()
+
+
+    def __mjpeg_noprev_tpts__(self, tsec, bitrate, overlay_fn, update_rate):
+        pass
 

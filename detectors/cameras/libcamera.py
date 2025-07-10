@@ -42,7 +42,8 @@ class Camera(AbstractCamera):
 		tsec = kwargs["tsec"]
 		print(kwargs)
 		res = self.config["res"]
-		self.config["fps"] = fps
+		self.config["fps"] = kwargs["fps"]
+		fps = self.config["fps"]
 		self.config["exposure_ms"] = kwargs["exposure_ms"]
 		cmd_list = f"libcamera-vid -t {tsec*1000} -f --codec mjpeg --width {res[0]} --height {res[1]} --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} --contrast 2 --sharpness 1 -q {kwargs['quality']}"
 		return self.__process__(cmd_list)
@@ -64,7 +65,8 @@ class Camera(AbstractCamera):
 		tsec = kwargs["tsec"]
 		print(kwargs)
 		res = self.config["res"]
-		self.config["fps"] = fps
+		self.config["fps"] = kwargs["fps"]
+		fps = self.config["fps"]
 		self.config["exposure_ms"] = kwargs["exposure_ms"]
 		cmd_list = f"libcamera-vid -t {tsec*1000} -f -o {filename} --codec mjpeg --width {res[0]} --height {res[1]} --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']}"
 		return self.__process__(cmd_list)
@@ -73,7 +75,8 @@ class Camera(AbstractCamera):
 		tsec = kwargs["tsec"]
 		print(kwargs)
 		res = self.config["res"]
-		self.config["fps"] = fps
+		self.config["fps"] = kwargs["fps"]
+		fps = self.config["fps"]
 		self.config["exposure_ms"] = kwargs["exposure_ms"]
 		cmd_list = f"libcamera-vid -t {tsec*1000} -o {filename} --nopreview --codec mjpeg --width {res[0]} --height {res[1]} --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']}"
 		return self.__process__(cmd_list)
@@ -83,7 +86,8 @@ class Camera(AbstractCamera):
 		ptsfname = filename.replace(".mjpeg", ".tpts")
 		print(kwargs)
 		res = self.config["res"]
-		self.config["fps"] = fps
+		self.config["fps"] = kwargs["fps"]
+		fps = self.config["fps"]
 		self.config["exposure_ms"] = kwargs["exposure_ms"]
 		cmd_list = f"libcamera-vid -t {tsec*1000} -o {filename} --nopreview --codec mjpeg --width {res[0]} --height {res[1]} --denoise off --awbgains 0,0 --analoggain 1 --framerate {kwargs['fps']} --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']} --save-pts {ptsfname} --contrast 2 --sharpness 1"
 		return self.__process__(cmd_list)
