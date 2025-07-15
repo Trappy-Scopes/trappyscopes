@@ -56,8 +56,7 @@ class JpegEncoderGrayRedCh(JpegEncoder):
                 width, height = request.config[name]['size']
                 bgr_frame = m.array.reshape((height, width, 3))
                 r_frame = bgr_frame[:, :, 2]
-            return simplejpeg.encode_jpeg(r_frame, quality=self.q, colorspace="GRAY",
-                                          colorsubsampling="Gray")
+            return simplejpeg.encode_jpeg(r_frame, quality=self.q, colorspace="GRAY")
 
 
 
