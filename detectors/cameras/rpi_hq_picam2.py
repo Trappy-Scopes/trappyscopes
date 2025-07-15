@@ -45,11 +45,10 @@ class JpegEncoderGrayRedCh(JpegEncoder):
         fmt = request.config[name]["format"]
         r_frame = None
         with MappedArray(request, name) as m:
-            if self.colour_space is None:
-                self.colour_space = self.FORMAT_TABLE[request.config[name]["format"]]
-                width, height = request.config[name]['size']
-                r_frame = m.array.reshape(height, width, 3)[:, :, 2].reshape((height, width, 1)).copy(order='C')
-        return simplejpeg.encode_jpeg(r_frame,
+            self.colour_space = self.FORMAT_TABLE[request.config[name]["format"]]
+            width, height = request.config[name]['size']
+            r_frame = m.array.reshape(height, width, 3)[:, :, 2].reshape((height, width, 1)).copy(order='C')
+            return simplejpeg.encode_jpeg(r_frame,
                 quality=self.q, colorspace="GRAY", colorsubsampling='Gray')
 
 
