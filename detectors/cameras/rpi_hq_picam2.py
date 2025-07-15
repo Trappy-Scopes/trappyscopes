@@ -55,11 +55,12 @@ class Camera(AbstractCamera):
 
         # Capture Modes for this implementation
         self.actions = {
-                          "preview"      : self.preview,
-                          "img"          : self.__image__,
-                          "timelapse"    : self.__timelapse__,
-                          "vid"          : self.__video__,
-                          "vid_noprev"   : self.__video_noprev__,
+                          "preview"       : self.preview,
+                          "img"           : self.__image__,
+                          "timelapse"     : self.__timelapse__,
+                          "vid"           : self.__video__,
+                          "vid_noprev"    : self.__video_noprev__,
+                          "vid_mjpeg_tpts": self.__vid_mjpeg_tpts__
                         }
 
 
@@ -81,7 +82,7 @@ class Camera(AbstractCamera):
         self.win_title_fields = ["ExposureTime", "FrameDuration"]
 
 
-    def configure():
+    def configure(self):
         """
         mode: video, still.
         """
@@ -102,7 +103,8 @@ class Camera(AbstractCamera):
     def open(self):
         #1self.cam = Picamera2()
         self.cam.configure(self.video_config)
-
+        self.cam.options["quality"] = self.config["quality"]
+        self.cam.options["compress_level"] = self.config["compression"]
         ## TODO -> Create main streams as well
         #self.cam.preview_configuration = self.create_preview_configuration()
         #self.cam.preview_configuration.enable_raw()  # causes the size to be reset to None
@@ -135,8 +137,10 @@ class Camera(AbstractCamera):
 
 
     def preview(self, tsec=10):
-        pass
-
+        self.cam.start_preview()
+        time.sleep(tsec)
+        self.cam.stop_preview()
+        gc.collect()
 
     ### ----------------------------- ACTION IMPLEMENTATIONS ---------------------------------------------
 
