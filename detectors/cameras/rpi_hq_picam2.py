@@ -29,8 +29,13 @@ class Camera(AbstractCamera):
     Camera object framework specialised for Raspberry Pi HQ Camera.
     Implementation used Picamera v2 python library.
 
+
     config parameter can be used to pass a configuration dict. 
     The default mode is to configure the camera for a "video" mode.
+
+    Development rules:
+    1. Create camera -> configure -> start recording, previews, etc.
+    2. Normal modes always open and reconfigure the camera. Then they close on exit.
     """
 
 
@@ -50,10 +55,10 @@ class Camera(AbstractCamera):
                          "NoiseReductionMode":controls.draft.NoiseReductionModeEnum.Off, 'FrameDurationLimits':(1e6/self.config["fps"], 1e6/self.config["fps"])}
 
         self.cam = Picamera2()
-        self.video_config = self.cam.create_video_configuration(buffer_count=6, 
-            main={"size":(self.config["res"][0], self.config["res"][1])}, 
-            lores={"size":(self.config["res"][0], self.config["res"][1])},
-            controls=self.controls, encode="main", display="lores")
+        #self.video_config = self.cam.create_video_configuration(buffer_count=6, 
+        #    main={"size":(self.config["res"][0], self.config["res"][1])}, 
+        #    lores={"size":(self.config["res"][0], self.config["res"][1])},
+        #    controls=self.controls, encode="main", display="lores")
         
 
         # Capture Modes for this implementation
@@ -85,36 +90,16 @@ class Camera(AbstractCamera):
         self.win_title_fields = ["ExposureTime", "FrameDuration"]
 
 
-    def configure(self):
-        """
-        mode: video, still.
-        """
-        
-        ## Default quality and compression
-        self.cam.options["quality"] = self.config["quality"]
-        self.cam.options["compress_level"] = self.config["compression"]
-
-        ## 
-        ##video_config = self.cam.create_video_configuration(main={"size": (self.config.res[0], self.config.res[1]), "format": "RGB888"},)
-
-        self.cam.configure(video_config)
-        self.cam.set_controls(self.controls)
-      
-
-
-
     def open(self):
+        self.cam = Picamera2()
         self.video_config = self.cam.create_video_configuration(buffer_count=6, 
             main={"size":(self.config["res"][0], self.config["res"][1])}, 
             lores={"size":(self.config["res"][0], self.config["res"][1])},
             controls=self.controls, encode="main", display="lores")
+        self.cam.video_config.enable_raw()
+        self.cam.video_config.enable_lores()
         self.cam.options["quality"] = self.config["quality"]
         self.cam.options["compress_level"] = self.config["compression"]
-        self.cam.video_configuration.enable_raw()
-        self.cam.video_configuration.enable_lores()
-        #self.cam.set_controls(self.controls)
-        #self.cam.configure("video")
-
         self.cam.title_fields = self.win_title_fields
         
         #self.cam_fsaddr = None   ## TODO
