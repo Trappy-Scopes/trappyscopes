@@ -267,7 +267,7 @@ class Camera(AbstractCamera):
         self.cam.stop_preview()
 
 
-    def __vid_mjpeg_tpts__(self, filename, *args, tsec=30, show_preview=False, quality=100, **kwargs):
+    def __vid_mjpeg_tpts__(self, filename, tsec=30, show_preview=False, quality=100, **kwargs):
         """
         MJPEG encoded video using a software encoder.
         """
