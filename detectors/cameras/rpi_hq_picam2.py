@@ -123,7 +123,7 @@ class Camera(AbstractCamera):
 
         self.opentime_ns = time.perf_counter()
         log.info("TS::Camera::PiCamera2 Camera was opened.")
-        self.cam.open()
+        #self.cam.open()
 
         
     def is_open(self):
