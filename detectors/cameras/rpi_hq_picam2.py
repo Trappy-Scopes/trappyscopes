@@ -104,32 +104,26 @@ class Camera(AbstractCamera):
 
 
     def open(self):
-        #1self.cam = Picamera2()
-        self.cam.video_configuration = self.video_config
+        self.video_config = self.cam.create_video_configuration(buffer_count=6, 
+            main={"size":(self.config["res"][0], self.config["res"][1])}, 
+            lores={"size":(self.config["res"][0], self.config["res"][1])},
+            controls=self.controls, encode="main", display="lores")
         self.cam.options["quality"] = self.config["quality"]
         self.cam.options["compress_level"] = self.config["compression"]
         self.cam.video_configuration.enable_raw()
         self.cam.video_configuration.enable_lores()
-        self.cam.set_controls(self.controls)
-        self.cam.configure("video")
-        ## TODO -> Create main streams as well
-        #self.cam.preview_configuration = self.create_preview_configuration()
-        #self.cam.preview_configuration.enable_raw()  # causes the size to be reset to None
-        #self.cam.still_configuration = self.create_still_configuration()
-        #self.cam.still_configuration.enable_raw()  # ditto
-        #self.cam.video_configuration = self.create_video_configuration()
-        #self.cam.video_configuration.enable_raw()  # ditto
+        #self.cam.set_controls(self.controls)
+        #self.cam.configure("video")
 
-        #self.configset = {"preview": self.cam.preview_configuration,
-        #                  "still"  : self.cam.still_configuration,
-        #                  "video"  : self.cam.video_configuration}
-        #self.cam.title_fields = self.win_title_fields
+        self.cam.title_fields = self.win_title_fields
         
         #self.cam_fsaddr = None   ## TODO
-        self.opentime_ns = time.perf_counter()
-        log.info("TS::Camera::PiCamera2 Camera was created.")
         cam_manager_cleanup = lambda : self.cam.camera_manager.cleanup(self.cam.cam_num) 
         atexit.register(self.close)
+
+        self.opentime_ns = time.perf_counter()
+        log.info("TS::Camera::PiCamera2 Camera was opened.")
+        self.cam.open()
 
         
     def is_open(self):
@@ -279,6 +273,7 @@ class Camera(AbstractCamera):
         """
         #video_config = self.cam.create_video_configuration(main={"size": self.config.res})
         #self.cam.configure(self.video_config)
+        self.open()
         if show_preview:
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoder(q=quality)
@@ -287,4 +282,7 @@ class Camera(AbstractCamera):
         self.cam.start_recording(encoder, filename, pts=tpts_filename)
         time.sleep(tsec)
         self.cam.stop_recording()
+        if show_preview:
+            self.cam.close_preview()
+        self.close()
 
