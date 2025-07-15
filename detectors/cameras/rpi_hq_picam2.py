@@ -271,6 +271,6 @@ class Camera(AbstractCamera):
         time.sleep(tsec)
         self.cam.stop_recording()
         if show_preview:
-            self.cam.close_preview()
+            self.cam.stop_preview()
         self.close()
 
