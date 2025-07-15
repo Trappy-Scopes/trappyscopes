@@ -54,6 +54,8 @@ class Camera(AbstractCamera):
             main={"size":(self.config["res"][0], self.config["res"][1])}, 
             lores={"size":(self.config["res"][0], self.config["res"][1])},
             controls=self.controls, encode="main", display="lores")
+        self.video_config.enable_raw()
+        self.video_config.enable_lores()
         
 
         # Capture Modes for this implementation
