@@ -43,23 +43,14 @@ class JpegEncoderGrayRedCh(JpegEncoder):
         :rtype: bytes
         """
         fmt = request.config[name]["format"]
+        r_frame = None
         with MappedArray(request, name) as m:
-            if fmt == "YUV420":
-                width, height = request.config[name]['size']
-                Y = m.array[:height, :width]
-                reshaped = m.array.reshape((m.array.shape[0] * 2, m.array.strides[0] // 2))
-                U = reshaped[2 * height: 2 * height + height // 2, :width // 2]
-                V = reshaped[2 * height + height // 2:, :width // 2]
-                return simplejpeg.encode_jpeg_yuv_planes(Y, U, V, self.q)
             if self.colour_space is None:
                 self.colour_space = self.FORMAT_TABLE[request.config[name]["format"]]
                 width, height = request.config[name]['size']
-                #bgr_frame = 
-                #r_frame = bgr_frame
-                #r_frame = r_frame
                 r_frame = deepcopy(m.array).reshape(height, width, 3)[:, :, 2].reshape((height, width, 1), order='C')
-                return simplejpeg.encode_jpeg(np.ascontiguousarray(r_frame),
-                        quality=self.q, colorspace="GRAY", colorsubsampling='Gray')
+        return simplejpeg.encode_jpeg(np.ascontiguousarray(r_frame),
+                quality=self.q, colorspace="GRAY", colorsubsampling='Gray')
 
 
 
