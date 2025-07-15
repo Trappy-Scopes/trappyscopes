@@ -15,6 +15,7 @@ from picamera2 import Picamera2, Preview
 from picamera2.outputs import *
 from picamera2.encoders import *
 from libcamera import controls
+import simplejpeg
 
 ## TS imports
 from core.bookkeeping.yamlprotocol import YamlProtocol
@@ -23,6 +24,42 @@ from core.permaconfig.sharing import Share
 from detectors.cameras.abstractcamera import Camera as AbstractCamera
 
 from expframework.experiment import Experiment
+
+
+class JpegEncoderGrayRedCh(JpegEncoder):
+    """
+    For this encoder, we overload the encoder function to encode only the red-channel.
+    Assumes that the format is "BGR888": pixel format: [B0, G0, R0, B1, G1, R1, ..., Bₙ, Gₙ, Rₙ]
+    """
+    def encode_func(self, request, name):
+        """Performs encoding
+
+        :param request: Request
+        :type request: request
+        :param name: Name
+        :type name: str
+        :return: Jpeg image
+        :rtype: bytes
+        """
+        fmt = request.config[name]["format"]
+        with MappedArray(request, name) as m:
+            if fmt == "YUV420":
+                width, height = request.config[name]['size']
+                Y = m.array[:height, :width]
+                reshaped = m.array.reshape((m.array.shape[0] * 2, m.array.strides[0] // 2))
+                U = reshaped[2 * height: 2 * height + height // 2, :width // 2]
+                V = reshaped[2 * height + height // 2:, :width // 2]
+                return simplejpeg.encode_jpeg_yuv_planes(Y, U, V, self.q)
+            if self.colour_space is None:
+                self.colour_space = self.FORMAT_TABLE[request.config[name]["format"]]
+                width, height = request.config[name]['size']
+                bgr_frame = m.array.reshape((height, width, 3))
+                r_frame = bgr_frame[:, :, 2]
+            return simplejpeg.encode_jpeg(r_frame, quality=self.q, colorspace="GRAY",
+                                          colorsubsampling="Gray")
+
+
+
 
 class Camera(AbstractCamera):
     """
@@ -71,7 +108,8 @@ class Camera(AbstractCamera):
                           "timelapse"     : self.__timelapse__,
                           "vid"           : self.__video__,
                           "vid_noprev"    : self.__video_noprev__,
-                          "vid_mjpeg_tpts": self.__vid_mjpeg_tpts__
+                          "vid_mjpeg_tpts": self.__vid_mjpeg_tpts__,
+                          "vid_mjpeg_tpts_multi":self.__vid_mjpeg_tpts_multi__
                         }
 
 
@@ -98,7 +136,7 @@ class Camera(AbstractCamera):
         log.info("TS::Camera::PiCamera2 Camera was opened.")
         self.cam = Picamera2()
         self.video_config = self.cam.create_video_configuration(buffer_count=6, 
-            main={"size":(self.config["res"][0], self.config["res"][1])},
+            main={"size":(self.config["res"][0], self.config["res"][1]), "format":"BGR888"},
             controls=self.controls, 
             encode="main", display="main")
         self.cam.configure(self.video_config)
@@ -264,7 +302,7 @@ class Camera(AbstractCamera):
         self.open()
         if show_preview:
             self.cam.start_preview(self.preview_type)
-        encoder = JpegEncoder(q=quality, colour_subsampling="Gray")
+        encoder = JpegEncoderGrayRedCh(q=quality)
 
         tpts_filename = filename.replace(".mjpeg", ".tpts")
         self.cam.start_recording(encoder, filename, pts=tpts_filename)
@@ -272,5 +310,28 @@ class Camera(AbstractCamera):
         self.cam.stop_recording()
         if show_preview:
             self.cam.stop_preview()
+        self.close()
+
+
+        def __vid_mjpeg_tpts_multi__(self, filename_prefix, filename_suffix_fn, no_iterations=1, tsec=30, show_preview=False, quality=100, **kwargs):
+        """
+        MJPEG encoded video using a software encoder.
+        """
+        #video_config = self.cam.create_video_configuration(main={"size": self.config.res})
+        #self.cam.configure(self.video_config)
+        self.open()
+        if show_preview:
+            self.cam.start_preview(self.preview_type)
+        encoder = JpegEncoderGrayRedCh(q=quality)
+
+        for file_no in range(no_iterations):
+            filename = filename_prefix + filename_suffix_fn(file_no)
+            tpts_filename = filename.replace(".mjpeg", ".tpts")
+            self.cam.start_recording(encoder, filename, pts=tpts_filename)
+            time.sleep(tsec)
+            self.cam.stop_recording()
+            if show_preview:
+                self.cam.stop_preview()
+        ## Finally close camera
         self.close()
 
