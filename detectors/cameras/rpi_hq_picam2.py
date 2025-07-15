@@ -265,7 +265,7 @@ class Camera(AbstractCamera):
         encoder = JpegEncoder(q=quality)
 
         tpts_filename = filename.replace(".mjpeg", ".tpts")
-        self.cam.start_recording(encoder, filename, pts=tpts_filename)
+        self.cam.start_recording(encoder, FileOutput(filename), pts=tpts_filename)
         time.sleep(tsec)
         self.cam.stop_recording()
         if show_preview:
