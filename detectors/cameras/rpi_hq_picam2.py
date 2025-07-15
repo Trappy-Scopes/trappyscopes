@@ -49,10 +49,8 @@ class Camera(AbstractCamera):
         self.controls = {"ExposureTime": self.config["exposure_ms"]*1000, "AnalogueGain": 1.0, "AwbEnable": False, "AeEnable":False, "ColourGains":(0,0), "Contrast":2.0, 
                          "NoiseReductionMode":controls.draft.NoiseReductionModeEnum.Off, 'FrameDurationLimits':(1e6/self.config["fps"], 1e6/self.config["fps"])}
 
+        self.cam = Picamera2()
         self.video_config = Picamera2.create_video_configuration(buffer_count=6, main={"size":(self.config["res"][0], self.config["res"][1])}, controls=self.controls, encode="main", display="main")
-         
-
-        self.open() 
         
 
         # Capture Modes for this implementation
@@ -102,7 +100,7 @@ class Camera(AbstractCamera):
 
 
     def open(self):
-        self.cam = Picamera2()
+        #self.cam = Picamera2()
         self.cam.configure(self.video_config)
 
         ## TODO -> Create main streams as well
