@@ -16,6 +16,7 @@ from picamera2.outputs import *
 from picamera2.encoders import *
 from libcamera import controls
 import simplejpeg
+from picamera2.request import MappedArray
 
 ## TS imports
 from core.bookkeeping.yamlprotocol import YamlProtocol
