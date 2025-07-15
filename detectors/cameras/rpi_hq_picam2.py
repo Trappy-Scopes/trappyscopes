@@ -91,11 +91,12 @@ class Camera(AbstractCamera):
 
 
     def open(self):
+        self.opentime_ns = time.perf_counter()
+        log.info("TS::Camera::PiCamera2 Camera was opened.")
         self.cam = Picamera2()
         self.video_config = self.cam.create_video_configuration(buffer_count=6, 
-            main={"size":(self.config["res"][0], self.config["res"][1])}, 
-            lores={"size":(self.config["res"][0], self.config["res"][1])},
-            controls=self.controls, encode="main", display="lores")
+            main={"size":(self.config["res"][0], self.config["res"][1]), 'format': 'YUV420'},
+            controls=self.controls, encode="main", display="main")
         self.cam.configure(self.video_config)
         #self.cam.video_config.enable_raw()
         #self.cam.video_config.enable_lores()
@@ -106,9 +107,6 @@ class Camera(AbstractCamera):
         #self.cam_fsaddr = None   ## TODO
         cam_manager_cleanup = lambda : self.cam.camera_manager.cleanup(self.cam.cam_num) 
         atexit.register(self.close)
-
-        self.opentime_ns = time.perf_counter()
-        log.info("TS::Camera::PiCamera2 Camera was opened.")
         #self.cam.open()
 
         
