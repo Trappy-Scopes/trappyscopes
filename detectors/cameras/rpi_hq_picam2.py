@@ -54,8 +54,6 @@ class Camera(AbstractCamera):
             main={"size":(self.config["res"][0], self.config["res"][1])}, 
             lores={"size":(self.config["res"][0], self.config["res"][1])},
             controls=self.controls, encode="main", display="lores")
-        self.video_config.enable_raw()
-        self.video_config.enable_lores()
         
 
         # Capture Modes for this implementation
@@ -110,6 +108,8 @@ class Camera(AbstractCamera):
         self.cam.configure(self.video_config)
         self.cam.options["quality"] = self.config["quality"]
         self.cam.options["compress_level"] = self.config["compression"]
+        self.cam.video_configuration.enable_raw()
+        self.cam.video_configuration.enable_lores()
         ## TODO -> Create main streams as well
         #self.cam.preview_configuration = self.create_preview_configuration()
         #self.cam.preview_configuration.enable_raw()  # causes the size to be reset to None
