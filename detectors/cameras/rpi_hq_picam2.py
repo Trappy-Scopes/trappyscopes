@@ -52,8 +52,8 @@ class Camera(AbstractCamera):
         self.cam = Picamera2()
         self.video_config = self.cam.create_video_configuration(buffer_count=6, 
             main={"size":(self.config["res"][0], self.config["res"][1])}, 
-            lowres={"size":(self.config["res"][0], self.config["res"][1])},
-            controls=self.controls, encode="main", display="lowres")
+            lores={"size":(self.config["res"][0], self.config["res"][1])},
+            controls=self.controls, encode="main", display="lores")
         
 
         # Capture Modes for this implementation
