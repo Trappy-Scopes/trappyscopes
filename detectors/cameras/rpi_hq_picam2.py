@@ -54,7 +54,7 @@ class Camera(AbstractCamera):
         self.controls = {"ExposureTime": self.config["exposure_ms"]*1000, "AnalogueGain": 1.0, "AwbEnable": False, "AeEnable":False, 
                          "ColourGains":(0.0,0.0), "Contrast":2.0, 
                          "NoiseReductionMode":controls.draft.NoiseReductionModeEnum.Fast, 
-                        # 'FrameDurationLimits':(1e6/self.config["fps"], 1e6/self.config["fps"])
+                         'FrameDurationLimits':(int(1e6/self.config["fps"]), int(1e6/self.config["fps"]))
                         }
 
         self.cam = None
