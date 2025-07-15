@@ -22,6 +22,7 @@ def create_exp():
 	exp.attribs["quality"] = 70
 	exp.attribs["no_chunks"] = 21*6
 	exp.attribs["light"] = (2,0,0)
+	exp.attribs["camera_mode"] = "vid_mjpeg_tpts"
 	exp.attribs["group"] = "red_light"
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
@@ -50,7 +51,7 @@ def capture():
 		c = exp.mstreams["acq"](filename=filename)
 		c.panel()
 		
-		scope.cam.read("vid_mjpeg_tpts", filename, tsec=exp.attribs["chunk_size_sec"], fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
+		scope.cam.read(exp.attribs["camera_mode"], filename, tsec=exp.attribs["chunk_size_sec"], fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
 		#scope.cam.read("video", filename, tsec=10)
 		
 		exp.sync_file_bg(filename, remove_source=True)
