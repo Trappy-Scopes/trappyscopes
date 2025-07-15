@@ -50,7 +50,10 @@ class Camera(AbstractCamera):
                          "NoiseReductionMode":controls.draft.NoiseReductionModeEnum.Off, 'FrameDurationLimits':(1e6/self.config["fps"], 1e6/self.config["fps"])}
 
         self.cam = Picamera2()
-        self.video_config = self.cam.create_video_configuration(buffer_count=6, main={"size":(self.config["res"][0], self.config["res"][1])}, controls=self.controls, encode="main", display="main")
+        self.video_config = self.cam.create_video_configuration(buffer_count=6, 
+            main={"size":(self.config["res"][0], self.config["res"][1])}, 
+            lowres={"size":(self.config["res"][0], self.config["res"][1])},
+            controls=self.controls, encode="main", display="lowres")
         
 
         # Capture Modes for this implementation
@@ -92,7 +95,7 @@ class Camera(AbstractCamera):
         self.cam.options["compress_level"] = self.config["compression"]
 
         ## 
-        video_config = self.cam.create_video_configuration(main={"size": (self.config.res[0], self.config.res[1]), "format": "RGB888"},)
+        ##video_config = self.cam.create_video_configuration(main={"size": (self.config.res[0], self.config.res[1]), "format": "RGB888"},)
 
         self.cam.configure(video_config)
         self.cam.set_controls(self.controls)
@@ -271,7 +274,7 @@ class Camera(AbstractCamera):
         MJPEG encoded video using a software encoder.
         """
         #video_config = self.cam.create_video_configuration(main={"size": self.config.res})
-        self.cam.configure(self.video_config)
+        #self.cam.configure(self.video_config)
         if show_preview:
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoder(q=quality)
