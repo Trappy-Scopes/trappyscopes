@@ -313,12 +313,13 @@ class Camera(AbstractCamera):
         self.close()
 
 
-        def __vid_mjpeg_tpts_multi__(self, filename_prefix, filename_suffix_fn, no_iterations=1, tsec=30, show_preview=False, quality=100, **kwargs):
+    def __vid_mjpeg_tpts_multi__(self, filename_prefix, filename_suffix_fn, no_iterations=1, tsec=30, show_preview=False, quality=100, **kwargs):
         """
         MJPEG encoded video using a software encoder.
-        """
+        
         #video_config = self.cam.create_video_configuration(main={"size": self.config.res})
         #self.cam.configure(self.video_config)
+        """
         self.open()
         if show_preview:
             self.cam.start_preview(self.preview_type)
