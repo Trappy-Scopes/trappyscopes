@@ -78,7 +78,7 @@ class Camera(AbstractCamera):
 
 
         # Preview Window Settings
-        self.preview_type = 1      #Preview.QT # Other options: Preview.DRM, Preview.QT, Preview.QTGL
+        self.preview_type = Preview.QT      #Preview.QT # Other options: Preview.DRM, Preview.QT, Preview.QTGL
         self.win_title_fields = ["ExposureTime", "FrameDuration"]
 
 
