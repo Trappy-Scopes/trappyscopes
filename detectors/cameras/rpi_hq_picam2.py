@@ -58,7 +58,7 @@ class JpegEncoderGrayRedCh(JpegEncoder):
                 #r_frame = bgr_frame
                 #r_frame = r_frame
                 r_frame = m.array.reshape(height, width, 3)[:, :, 2].reshape((height, width, 1), order='C')
-        return simplejpeg.encode_jpeg(deepcopy(r_frame),
+        return simplejpeg.encode_jpeg(np.ascontiguousarray(r_frame),
                         quality=self.q, colorspace="GRAY", colorsubsampling='Gray')
 
 
