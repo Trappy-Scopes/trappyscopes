@@ -137,7 +137,7 @@ class Camera(AbstractCamera):
 
 
     def preview(self, tsec=10):
-        self.cam.start_preview()
+        self.cam.start_preview(self.preview_type)
         time.sleep(tsec)
         self.cam.stop_preview()
         gc.collect()
@@ -270,10 +270,10 @@ class Camera(AbstractCamera):
         """
         MJPEG encoded video using a software encoder.
         """
-        video_config = self.cam.create_video_configuration(main={"size": self.config.res})
-        self.cam.configure(video_config)
+        #video_config = self.cam.create_video_configuration(main={"size": self.config.res})
+        self.cam.configure(self.video_config)
         if show_preview:
-            self.cam.start_preview()
+            self.cam.start_preview(self.preview_type)
         encoder = JpegEncoder(q=quality)
 
         tpts_filename = filename.replace(".mjpeg", ".tpts")
