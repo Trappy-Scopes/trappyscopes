@@ -105,11 +105,13 @@ class Camera(AbstractCamera):
 
     def open(self):
         #1self.cam = Picamera2()
-        self.cam.configure(self.video_config)
+        self.cam.video_configuration = self.video_config
         self.cam.options["quality"] = self.config["quality"]
         self.cam.options["compress_level"] = self.config["compression"]
         self.cam.video_configuration.enable_raw()
         self.cam.video_configuration.enable_lores()
+        self.cam.set_controls(self.controls)
+        self.cam.configure("video")
         ## TODO -> Create main streams as well
         #self.cam.preview_configuration = self.create_preview_configuration()
         #self.cam.preview_configuration.enable_raw()  # causes the size to be reset to None
