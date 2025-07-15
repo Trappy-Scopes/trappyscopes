@@ -96,8 +96,9 @@ class Camera(AbstractCamera):
             main={"size":(self.config["res"][0], self.config["res"][1])}, 
             lores={"size":(self.config["res"][0], self.config["res"][1])},
             controls=self.controls, encode="main", display="lores")
-        self.cam.video_config.enable_raw()
-        self.cam.video_config.enable_lores()
+        self.cam.configure(self.video_config)
+        #self.cam.video_config.enable_raw()
+        #self.cam.video_config.enable_lores()
         self.cam.options["quality"] = self.config["quality"]
         self.cam.options["compress_level"] = self.config["compression"]
         self.cam.title_fields = self.win_title_fields
