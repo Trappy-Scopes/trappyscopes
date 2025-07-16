@@ -36,7 +36,7 @@ class ExpSync:
 
 
 
-	def __init__(self, expname, sync_max_threads=2, destination_dir=None):
+	def __init__(self, expname, sync_max_threads=1, destination_dir=None):
 		"""
 		sync_max_threads: maximum number of processes/threads for synching files.
 		destination_dir: if not set, a directory is created using the destination
