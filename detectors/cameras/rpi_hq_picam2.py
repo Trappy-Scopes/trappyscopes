@@ -295,7 +295,7 @@ class Camera(AbstractCamera):
         self.open()
         if show_preview:
             self.cam.start_preview(self.preview_type)
-        encoder = JpegEncoderGrayRedCh(q=quality, num_threads=2)
+        encoder = JpegEncoderGrayRedCh(q=quality, num_threads=3)
 
         tpts_filename = filename.replace(".mjpeg", ".tpts")
         self.cam.start_recording(encoder, filename, pts=tpts_filename)
