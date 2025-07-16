@@ -48,7 +48,7 @@ class JpegEncoderGrayRedCh(JpegEncoder):
             self.colour_space = self.FORMAT_TABLE[request.config[name]["format"]]
             width, height = request.config[name]['size']
             r_frame = m.array.reshape(height, width, 3)[:, :, 0].reshape((height, width, 1)).copy(order='C')
-            return simplejpeg.encode_jpeg(r_frame,
+            return simplejpeg.encode_jpeg(np.invert(r_frame, inplace=True),
                 quality=self.q, colorspace="GRAY", colorsubsampling='Gray')
 
 
@@ -134,7 +134,7 @@ class Camera(AbstractCamera):
             encode="main", display="main")
         self.cam.configure(self.video_config)
         #self.cam.video_config.enable_raw()
-        #self.cam.video_config.enable_lores()
+        #self.cam.video_config.enable_rawe_lores()
         self.cam.options["quality"] = self.config["quality"]
         self.cam.options["compress_level"] = self.config["compression"]
         self.cam.title_fields = self.win_title_fields
