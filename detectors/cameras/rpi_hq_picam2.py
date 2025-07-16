@@ -47,7 +47,8 @@ class JpegEncoderGrayRedCh(JpegEncoder):
         with MappedArray(request, name) as m:
             self.colour_space = self.FORMAT_TABLE[request.config[name]["format"]]
             width, height = request.config[name]['size']
-            r_frame = m.array.reshape(height, width, 3)[..., 0:1].copy(order='C')
+            r_frame = np.empty((height, width, 1), dtype=m.array.dtype)
+            r_frame[:, :, 0] = m.array.reshape(height, width, 3)[..., 0:1]
             return simplejpeg.encode_jpeg(r_frame,
                 quality=self.q, colorspace="GRAY", colorsubsampling='Gray')
 
