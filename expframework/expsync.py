@@ -219,8 +219,10 @@ class ExpSync:
 			source_removal.append('--remove-source-files')
 		try:
 			# Running rsync command
+			#ionice -c1 -n0 rsync -aW --inplace --no-compress /source/ /mnt/nas/
+
 			command = [
-				'sudo', 'rsync', '-aW', '--no-compress', '--inplace', *source_removal,
+				'sudo', 'ionice', '-c1', '-n0', 'rsync', '-aW', '--no-compress', '--inplace', *source_removal,
 				os.path.join(os.getcwd(), file),
 				os.path.join(self.destination_dir, file)
 			]
