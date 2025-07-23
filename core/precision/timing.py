@@ -1,4 +1,8 @@
+import time
 
+
+def precise_sleep(tsec):
+	time.sleep(tsec)
 
 class DriftCorrected:
 	def monitored_sleep(self, name, seconds, steps=100):
