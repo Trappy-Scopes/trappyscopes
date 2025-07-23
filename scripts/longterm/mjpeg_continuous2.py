@@ -22,7 +22,7 @@ def create_exp():
 	exp.attribs["quality"] = 70
 	exp.attribs["no_chunks"] = 21*6
 	exp.attribs["light"] = (2,0,0)
-	exp.attribs["camera_mode"] = "vid_mjpeg_tpts"
+	exp.attribs["camera_mode"] = "vid_mjpeg_tpts_multi"
 	exp.attribs["group"] = "red_light"
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
@@ -41,21 +41,21 @@ def stop_cam():
 	global process
 	process.kill()
 
-def capture():
+
+def filename_suffix_fn(split_no):
 	global exp
-	for i in range(exp.attribs["no_chunks"]):
+	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{split_no}.mjpeg', abspath=False)
+
+def capture():
+	global exp, scope
 		
-		#filename = exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.avi', abspath=False)
-		filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{i}.mjpeg', abspath=False)
+	# Pending -> File record mechaanism
+	#c = exp.mstreams["acq"](filename=filename)
+	#c.panel()
 		
-		c = exp.mstreams["acq"](filename=filename)
-		c.panel()
-		
-		scope.cam.read(exp.attribs["camera_mode"], filename, tsec=exp.attribs["chunk_size_sec"], fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
-		#scope.cam.read("video", filename, tsec=10)
-		
-		#exp.sync_file_bg(filename, remove_source=True)
-	
+	scope.cam.read(exp.attribs["camera_mode"], filename_suffix_fn, no_iterations=exp.attribs["no_chunks"], tsec=exp.attribs["chunk_size_sec"], 
+					show_preview=False, quality=exp.attribs["quality"])
+
 	## Experiment is finishing - therefore sync the whole directory
 	exp.logs.update(scope.get_config())
 	exp.__save__()
