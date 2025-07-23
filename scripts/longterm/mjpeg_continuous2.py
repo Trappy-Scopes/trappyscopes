@@ -45,6 +45,7 @@ def stop_cam():
 def filename_suffix_fn(split_no):
 	global exp
 	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{split_no}.mjpeg', abspath=False)
+	return filename
 
 def capture():
 	global exp, scope
