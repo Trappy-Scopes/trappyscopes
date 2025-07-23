@@ -107,14 +107,17 @@ class Camera:
 		for it in range(no_iterations):
 
 			## Begin iteration
-			local_filename = self.__process_filename__(filename=filename, iteration=it, **kwargs)
+			try:
+				local_filename = self.__process_filename__(filename=filename, iteration=it, **kwargs)
+			except:
+				local_filename = filename()
 			#ScopeAssembly.current.set_status("acq")	
 			
 
 			try:
 				self.pre_action_callback(local_filename, iteration=it, **kwargs)
 				self.actions[action](local_filename, iteration=it, **kwargs)
-				Experiment.current.log(f"cam_acq_{action}", attribs={**kwargs, "iteration": it, "filename":filename})
+				#Experiment.current.log(f"cam_acq_{action}", attribs={**kwargs, "iteration": it, "filename":filename})
 				self.post_action_callback(local_filename, iteration=it, **kwargs)
 			except Exception as e:
 				Camera.console.print_exception(e)

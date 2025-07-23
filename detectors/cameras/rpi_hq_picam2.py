@@ -21,7 +21,7 @@ from picamera2.request import MappedArray
 ## TS imports
 from core.bookkeeping.yamlprotocol import YamlProtocol
 from core.permaconfig.sharing import Share
-
+from core.precision.timing import precise_sleep
 from detectors.cameras.abstractcamera import Camera as AbstractCamera
 
 from expframework.experiment import Experiment
@@ -306,23 +306,30 @@ class Camera(AbstractCamera):
         self.close()
 
 
-    def __vid_mjpeg_tpts_multi__(self, filename_prefix, filename_suffix_fn, no_iterations=1, tsec=30, show_preview=False, quality=100, **kwargs):
+    def __vid_mjpeg_tpts_multi__(self, filename_suffix_fn, no_iterations=1, tsec=30, show_preview=False, quality=100, **kwargs):
         """
         MJPEG encoded video using a software encoder.
         
         #video_config = self.cam.create_video_configuration(main={"size": self.config.res})
         #self.cam.configure(self.video_config)
+
+        Looks like the encoder can be reused.
         """
+        print("[red]Exp Syncing is not implemented!")
         self.open()
         if show_preview:
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoderGrayRedCh(q=quality)
 
         for file_no in range(no_iterations):
-            filename = filename_prefix + filename_suffix_fn(file_no)
+            filename = filename_suffix_fn(file_no)
             tpts_filename = filename.replace(".mjpeg", ".tpts")
+            if not self.is_open():
+                self.close()
+                self.open()
+                print("[red]Opps Camera fried!")
             self.cam.start_recording(encoder, filename, pts=tpts_filename)
-            time.sleep(tsec)
+            precise_sleep(tsec)
             self.cam.stop_recording()
             if show_preview:
                 self.cam.stop_preview()
