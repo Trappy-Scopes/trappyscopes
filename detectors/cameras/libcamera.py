@@ -51,7 +51,8 @@ class Camera(AbstractCamera):
     def __image__(self, filename, *args, tsec=5, **kwargs):
         print(f"Preview will last {tsec} seconds!")
         res = self.config["res"]
-        cmd_list = f"libcamera-still -t {tsec*1000} -o {filename} --width {res[0]} --height {res[1]}  --buffer-count 6"
+        self.config["exposure_ms"] = kwargs["exposure_ms"]
+        cmd_list = f"libcamera-still -t {tsec*1000} -o {filename} --width {res[0]} --height {res[1]}  --denoise off --awbgains 0,0 --analoggain 1  --shutter {kwargs['exposure_ms']*1000} -q {kwargs['quality']} --buffer-count 6"
         if filename.endswith(".png"):
             cmd_list += " -e png"
         return self.__process__(cmd_list)
