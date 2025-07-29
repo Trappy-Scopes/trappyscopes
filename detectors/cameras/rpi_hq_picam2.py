@@ -286,7 +286,7 @@ class Camera(AbstractCamera):
             time.sleep(sleep_time)
         self.cam.stop_preview()
 
-    def __image_fomatted__(self, tsec=3, show_preview=True, *args, **kwargs):
+    def __image_fomatted__(self, show_preview=True, *args, **kwargs):
         self.open()
         self.cam.start_and_capture_file(filename, delay=tsec, capture_mode="video", show_preview=show_preview)
         self.close()
