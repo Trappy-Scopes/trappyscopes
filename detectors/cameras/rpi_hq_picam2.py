@@ -102,7 +102,8 @@ class Camera(AbstractCamera):
                           "vid"           : self.__video__,
                           "vid_noprev"    : self.__video_noprev__,
                           "vid_mjpeg_tpts": self.__vid_mjpeg_tpts__,
-                          "vid_mjpeg_tpts_multi":self.__vid_mjpeg_tpts_multi__
+                          "vid_mjpeg_tpts_multi":self.__vid_mjpeg_tpts_multi__,
+                          "img_formatted":self.__image_fomatted__
                         }
 
 
@@ -284,6 +285,11 @@ class Camera(AbstractCamera):
             sleep_time = max(0, self.perf_counter(1.0/update_rate)-int_start_time)
             time.sleep(sleep_time)
         self.cam.stop_preview()
+
+    def __image_fomatted__(self, tsec=3, show_preview=True, *args, **kwargs):
+        self.open()
+        self.cam.start_and_capture_file(filename, delay=tsec, capture_mode="video", show_preview=show_preview)
+        self.close()
 
 
     def __vid_mjpeg_tpts__(self, filename, tsec=30, show_preview=False, quality=100, **kwargs):
