@@ -69,7 +69,7 @@ class Camera(AbstractCamera):
     """
 
 
-    def __init__(self, quality=100, compression=0, fps=20, res=[1520, 1520]):
+    def __init__(self, quality=100, compression=0, fps=25, res=[1520, 1520]):
          
         #Picamera2.set_logging(Share.logginglevel)
         self.cam = None
