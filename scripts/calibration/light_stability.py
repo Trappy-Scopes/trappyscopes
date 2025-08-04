@@ -34,10 +34,10 @@ def start():
 	def record_sensor():
 		global exp, scope
 		try:
-			value = scope.light_sensor.read()
+			value = scope.sensor.read()
 		except:
 			print("[red]:Light sensor reading failed![default]")
-			value =  {"light": None, "photon_count":None}
+			value =  {"light": None, "counts":None}
 		r = photon_counts(light=exp.attribs["light"], temp=scope.tandh.read()["temp"], **value)
 		r.panel()	
 	
