@@ -55,7 +55,7 @@ def measure_stream(channels, beacon=False):
 	scope.lit.setVs(0,0,0) ## Reset
 
 	name_stream = lambda chs :  '_'.join(chs)
-	ms = exp.new_measurementstream(name_stream(channels), monitors=["channels", "beacon"], measurements=["volts", "counts"])
+	ms = exp.new_measurementstream(name_stream(channels), monitors=["channels", "beacon", "temp"], measurements=["volts", "counts"])
 	
 	channel_limits = {ch: exp.params["volt_limits"][ch] for ch in  channels}
 	print("Measuring: ", channel_limits)
@@ -68,7 +68,7 @@ def measure_stream(channels, beacon=False):
 		time.sleep(exp.params["stabilization_delay_s"])
 		count_value = scope.sensor.read()
 
-		m = ms(channels=channels, counts=count_value, volts=list(volts), beacon=beacon)
+		m = ms(channels=channels, counts=count_value, volts=list(volts), beacon=beacon, temp=scope.tandh.read()["temp"])
 		print(m)
 
 		
