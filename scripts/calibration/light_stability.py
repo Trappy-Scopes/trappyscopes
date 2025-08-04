@@ -37,7 +37,7 @@ def start():
 			value = scope.sensor.read()
 		except:
 			print("[red]:Light sensor reading failed![default]")
-			value =  {"light": None, "counts":None}
+			value =  {"counts":None, "success":False}
 		r = photon_counts(light=exp.attribs["light"], temp=scope.tandh.read()["temp"], **value)
 		r.panel()	
 	
