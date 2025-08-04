@@ -66,7 +66,8 @@ def measure_stream(channels, beacon=False):
 		time.sleep(exp.params["stabilization_delay_s"])
 		count_value = scope.sensor.read()
 
-		ms(channels=channels, counts=count_value, volts=list(volts), beacon=beacon)
+		m = ms(channels=channels, counts=count_value, volts=list(volts), beacon=beacon)
+		print(m)
 
 		
 
