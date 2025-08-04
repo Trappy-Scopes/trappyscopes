@@ -11,14 +11,16 @@ from .abstractprocessorgroup import ProcessorGroup as AbstractProcessorGroup
 
 class MicropythonDevice(AbstractProcessorGroup):
 
-	def __init__(self, name=None, connect=True, port=None):
+	def __init__(self, name=None, connect=True, port=None, exec_main=False, handshake=False):
 		super().__init__(name)
 		self.connect_ = connect
 
 		self.device = None
-		
+		self.board_name = None
 		self.port = None
 		self.connected = False
+		self.exec_main_ = exec_main
+		self.handshake_ = True
 
 	def __getstate__(self):
 		return {}
@@ -56,10 +58,23 @@ class MicropythonDevice(AbstractProcessorGroup):
 
 
 class SerialMPDevice(MicropythonDevice):
+	exclusion_list = []
+	def __init__(self, name=None, connect=True, port=None, exec_main=False, handshake=False, search_name=False):
+		MicropythonDevice.__init__(self, name=name, connect=connect, port=port, exec_main=False, handshake=False,)
 
-	#def __init__(self, name=None, connect=True, port=None):
-	#	super().__init__(self, name=name, connect=connect, port=port)
-	
+		self.search_name = search_name
+		if self.connect_ == "autoconnect":
+			self.auto_connect()
+
+		if self.connected:
+			if exec_main:
+				self.exec_main()
+
+			if handshake:
+				self.handshake()
+		else:
+			log.error(f"SerialMPDevice construction failed: {name}")
+
 	# ---------- Serial utilities ------------------
 	def all_ports():
 		import serial.tools.list_ports as list_ports
@@ -103,11 +118,19 @@ class SerialMPDevice(MicropythonDevice):
 			self.port = port
 			self.connected = True
 			log.debug(f"Connected to port: {self.port}")
-		except:
+			self.device.enter_raw_repl()
+			self.board_name = self.device.exec("import board")
+			self.board_name = self.exec_cleanup("board.name")
+			log.debug(f"Board name: {self.board_name}")
+		except Exception as e:
 			log.debug(f"Connection failed - {port}!")
+			log.error(e)
 
 	def disconnect(self):
 		self.device.exit_raw_repl()
+		self.device.close()
+		if self.port in SerialMPDevice.exclusion_list:
+			SerialMPDevice.exclusion_list.remove(self.port)
 
 	def auto_connect(self, port=None):
 		"""
@@ -127,22 +150,45 @@ class SerialMPDevice(MicropythonDevice):
 		# Selective port connections based on system scan
 		all_ports = list(SerialMPDevice.potential_ports())
 		for pport in all_ports:
-			if "Board in FS mode" in str(pport):
+			port = pport.split(" ")[0]
+			if "Board in FS mode" in str(pport) and port not in SerialMPDevice.exclusion_list:
 				log.debug(f"Trying out -> {pport.split(' ')[0]}")
-				self.connect(port=pport.split(" ")[0])
+				self.connect(port=port)
 
 			if self.connected:
-				self.device.enter_raw_repl()
 				log.debug(f"{self.name} -connection-on-> {self.port}")
-				break
-	
+				
+				self.device.enter_raw_repl()
+				
+				if self.search_name != False:
+					if self.board_name != self.search_name:
+						log.debug('Not the correct deice. Closing.')
+						self.disconnect()
+					else:
+						log.debug("Correct decice found!")
+						SerialMPDevice.exclusion_list.append(self.port)
+						break
+				else:
+					break
+
+				
 		if not self.connected:
 			log.error("No SerialMP device found. Not connected.")
 			SerialMPDevice.print_all_ports()
 		else:
 			return True
 
-
+	def handshake(self):
+		from ..assembly import ScopeAssembly
+		scope = ScopeAssembly.current
+		try:
+			all_pico_devs = self.exec_cleanup("Handshake.obj_list(globals_=globals())")
+			for device in all_pico_devs:
+				proxy_device = self.emit_proxy(device)
+				scope.add_device(device, proxy_device, description="Micropython proxy peripheral.")
+		except Exception as e:
+			print(e)
+			log.error(f"{self.name} handshake failed!")
 
 	# -------------  Serial Utilities -----------------------
 
@@ -151,7 +197,7 @@ class SerialMPDevice(MicropythonDevice):
 		printed =  'print(' + str(command).replace('\'', '\"') + ')'
 		ret = self.device.exec(printed)
 		log.debug(f"{self.name} >> {ret.decode()}")
-		return resolve_type(ret.decode().strip("\r\n"))
+		return resolve_type(ret.decode().strip("\r\nNone").strip("\r\n"))
 
 	def sync_files(self, local_folder, target_folder):
 		try:

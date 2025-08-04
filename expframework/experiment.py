@@ -398,6 +398,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		## Patch
 		self.params = self.attribs
 
+		self.copy_payload()
 	
 	def __repr__(self):
 		return f"< Experiment: {self.name} :::: duration: {self.expclock.time_elapsed():.3f} s >"
@@ -423,6 +424,58 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 				f.write(yaml.dump(self.logs))
 		print(Align.right(Text("⬤   exp logs saved", style="green dim", justify="right")))
 
+
+	def copy_payload(self, payload=None, kind="scripts"):
+		"""
+		Copy a given payload inside the experiment folder. Copying is skipped if the payload already exists. If the version changes,
+
+		TODO: check versioned paths for directory comparisons.
+
+		For directories, each file stat is compared.
+		payload: list of files or directories.
+		kind: defaults to "scripts". A descriptor of the payload. The value is used to create a folder where the payload is appended.
+		"""
+		import shutil
+		import filecmp
+		if payload == None:
+			from .scriptengine import ScriptEngine
+			payload = ScriptEngine.payload
+		#payload = list(payload)
+		os.makedirs(kind, exist_ok=True)
+		
+		for file in payload:
+			script_shortname = os.path.basename(os.path.normpath(file))
+			potential_path = os.path.join(self.exp_dir, kind, script_shortname)
+			type_ = "file"
+			copy_fn = shutil.copy2
+			if os.path.isdir(file):
+				type_ = "dir"
+				copy_fn = shutil.copytree
+			
+			if os.path.exists(potential_path):
+				compare = None
+				if type_ == "file":
+					compare = filecmp.cmp(file, potential_path, shallow=False)
+				else: ## Assume its a directory
+					compare = filecmp.dircmp(file, potential_path) ## shallow was not defined before python 3.13
+				
+				if compare:
+					## Payload already exists
+					self.log_event("payload_skip", attribs={"path":file, "payload":os.path.join(kind, script_shortname), "payload_kind":kind})
+				else:
+					## Payload already exists but version has changed
+					ext = os.path.splitext(script_shortname)[1]
+					all_files = os.listdir(os.path.join(self.exp_dir, kind))
+					versions = [file for file in all_files if script_shortname.replace(ext, "") in file]
+					next_version = len(versions)
+					new_version_name = str(script_shortname).replace(ext, "") + f"_v{next_version}" + ext
+					self.log_event("payload_version_change", attribs={"path":file, "payload":os.path.join(kind, new_version_name), "version":next_version, "payload_kind":kind})
+					
+					copy_fn(file, os.path.join(kind, new_version_name))
+			else:
+				self.log_event("payload_added", attribs={"path":file, "payload":os.path.join(kind, script_shortname), "payload_kind":kind})
+				copy_fn(file, os.path.join(kind, script_shortname))
+
 	def __exit__(self):
 		self.close()
 
@@ -436,10 +489,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	def close(self):
 		self.schedule.end_thread = True
 
-		import shutil
-		from .scriptengine import ScriptEngine
-		for file in ScriptEngine.payload:
-			shutil.copy2(file, os.path.join(self.exp_dir, "scripts", os.path.basename(file)))
+
 
 		###
 		self.logs["attribs"] = self.attribs
@@ -546,10 +596,12 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	def events(self):
 		return list(self.logs.keys())
 
-	def log_event(self, string):
+	def log_event(self, string, attribs={}):
 		"""
 		Format -> Event: datetime. ### Obsolete
 		"""
+		self.log(string, attribs=attribs)
+		return
 		if self.active:
 			now = datetime.datetime.now() 
 			self.logs[str(now)] = string

@@ -103,6 +103,7 @@ file_server:
 
 #todo The `ExpGit` utility can be additionally enabled to track the changes in the experiment. The utility can be setup to exclude large data files (which it does by default). This could be used as an extra protection against poor event modelling.
 
+
 ### Measurement Streams
 
 #### Scheduler (`ExpScheduler`) #todo
@@ -120,6 +121,17 @@ exp.schedule.every(10).minutes.do(record_temp)
 Notes can be logged in the dataset as special `ExpEvent`: `user_note`. The functions `exp.note`, `exp.write` can be used to log specific notes.
 
 The `exp.notebook` property (implemented in the `ExpNotebook` class can be used to access the whole notebook at once.
+
+
+## ScriptEngine
+
+`ScriptEngine` is used to run a prefedined procedure in an `Experiment`. It can be used to create experiments, run code, and define special python fucntions. Currently,  it is necessary to pass `globals()` as the first parameter:
+
+```python
+ScriptEngine.run(globals(), scripts=["path/to/script1.py", "path/to/script2.py"])
+```
+
+General/recommended templates for writing scripts can be found in the `scripts\toyexps` folder. A `__description__` methods should ideally be defined. This text field is logged in the experiment events list to provide a meaningfull context for the script. Scripts are automatically copied in the experiments folder.
 
 
 

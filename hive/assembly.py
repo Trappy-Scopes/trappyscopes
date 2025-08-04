@@ -5,6 +5,7 @@ from copy import deepcopy
 
 from rich.tree import Tree
 from rich import print
+from importlib import import_module, __import__
 
 from core.exceptions import TSDeviceNotRegistered
 # API v1.0
@@ -91,61 +92,67 @@ class ScopeAssembly():
 		"""
 		self.start_rpycserver()
 
-	def open(self, scopeconfig, abstraction=None):
+	def open(self, scopeconfig, abstraction=None, raise_exceptions=True):
 		"""
 		Open the ScopeAssembly with a given scope configuration.
 		The scopeconfig provides "expectations" for the attached
 		peripherals.
+
+		This block expects configuration snippets of the form:
+		devices
+			...
+			- name
+				- kind: detectors.cameras.nullcamera.Camera
+				- args: ...
+				- kwargs ...
 		"""
-		print("Scanning scope configuration...")
-		print("[red] TODO: generalize this code.")
+		log.info("Scanning scope configuration...")
 
 
-		camera = "cam"
-		if "camera" in  scopeconfig["devices"].keys():
-			camera = "camera"
-		if camera in scopeconfig["devices"].keys():
-			try:
-				from detectors import cameras
-				cam = cameras.Selector(scopeconfig["devices"][camera])
-				self.add_device("cam", cam)
-				print(cam)
+		#	except Exception as e:
+		#		print(e)
+		#		log.error(f"Could not find a micropython device. Creating a null object.")
+		#		pico = None
+		#		log.info(pico)
+		#	if pico != None:
+		#		log.info("Executing main.py on MICROPYTHON device.")
+		#		try:
+		#			pico.exec_main()
+		#		except Exception as e:
+		#			log.error("Main execution on pico failed!")
+		#			print(e)
+		#	self.add_device("pico", pico, description="Main microcontroller on Serial.")
+		#	self.exchange = CodeExchange(pico)
+		#	
+		import sys
+		sys.path.append("'/Users/byatharth/code/Trappy-Scopes/scope-cli/")
+		for device, device_params in scopeconfig["devices"].items():
+			kind = device_params["kind"]
 			
-			except Exception as e:
-				log.error(f"Camera creation failed: {scopeconfig['camera']}")
-				print(e)
-
-		if "pico" in scopeconfig["devices"].keys():
+			## Try importing the constructor
 			try:
-				from .processorgroups.micropython import SerialMPDevice
-				pico = SerialMPDevice(name="pico", connect=False)
-				pico.auto_connect()
-				log.info(pico)
+				package = kind.rsplit(".", 1)[0]
+				object_ = kind.rsplit(".", 1)[1]
+				constructor = getattr(import_module(package), object_)
+			except ImportError as e:
+				log.error(f"Import failed for device: {kind}")
+				if raise_exceptions:
+					raise e
 
-			except Exception as e:
-				print(e)
-				log.error(f"Could not find a micropython device. Creating a null object.")
-				pico = None
-				log.info(pico)
-			if pico != None:
-				log.info("Executing main.py on MICROPYTHON device.")
-				try:
-					pico.exec_main()
-				except Exception as e:
-					log.error("Main execution on pico failed!")
-					print(e)
-			self.add_device("pico", pico, description="Main microcontroller on Serial.")
-			self.exchange = CodeExchange(pico)
+			## Instantiate constructor
 			try:
-				all_pico_devs = pico.exec_cleanup("Handshake.obj_list(globals_=globals())")
-				for d in all_pico_devs:
-					self.add_device(d, pico.emit_proxy(d, pico), description="Pico peripheral.")
-			except:
-				print("pico: handshake failed!")
+				build = constructor(*device_params["args"], **device_params["kwargs"])
+				self.add_device(device, build, description=device_params["description"])
+				log.info(f"Device mounted successfully: {device}")
+			except Exception as e:
+				log.error(f"Device mount failed: {device} :: {str(e)}")
+				if raise_exceptions:
+					raise e
 
-		self.abstractions = absent_key_false("abstraction", scopeconfig)
-		if abstraction:
-			return self.__abstraction__(abstraction)
+
+		#self.abstractions = absent_key_false("abstraction", scopeconfig)
+		#if abstraction:
+		#	return self.__abstraction__(abstraction)
 
 	def __abstraction__(self, abstract):
 		if abstract in self.abstractions:
