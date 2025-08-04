@@ -445,6 +445,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		
 		for file in payload:
 			script_shortname = os.path.basename(os.path.normpath(file))
+			#print(script_shortname)
 			potential_path = os.path.join(self.exp_dir, kind, script_shortname)
 			type_ = "file"
 			copy_fn = shutil.copy2

@@ -1,0 +1,2 @@
+https://zeiss-campus.magnet.fsu.edu/articles/basics/kohler.html
+https://www.scientifica.uk.com/learning-zone/a-6-step-guide-to-koehler-illumination#:~:text=Koehler%20Illumination%20is%20a%20process,use%20of%20the%20light%20source.

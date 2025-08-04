@@ -179,6 +179,7 @@ class MeasurementStream:
 		self.datapoint["sessiontime"] = Session.current.timer_elapsed()
 		self.datapoint["exptime"]     = Experiment_.current.expclock.time_elapsed()
 		self.datapoint["machinetime"] = time.time_ns()
+		self.datapoint["dt"] = datetime.datetime.now()
 		self.datapoint["measureidx"] = self.datapoint["measureidx"] + 1
 		return self.datapoint
 	
