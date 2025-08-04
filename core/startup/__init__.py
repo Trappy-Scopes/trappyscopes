@@ -201,5 +201,5 @@ from expframework.scriptengine import ScriptEngine
 if "startup_scripts" in device_metadata["config"]:
 	if device_metadata["config"]["startup_scripts"]:
 		ScriptEngine.execlist += device_metadata["config"]["startup_scripts"]
-ScriptEngine.run_all(globals())
+ScriptEngine.run(globals())
 Share.updateps1()
