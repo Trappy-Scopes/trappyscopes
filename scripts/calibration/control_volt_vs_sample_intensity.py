@@ -51,6 +51,8 @@ def measure_stream(channels, beacon=False):
 	else:
 		scope.beacon.off()
 		time.sleep(exp.params["stabilization_delay_s"])
+	
+	scope.lit.setVs(0,0,0) ## Reset
 
 	name_stream = lambda chs :  '_'.join(chs)
 	ms = exp.new_measurementstream(name_stream(channels), monitors=["channels", "beacon"], measurements=["volts", "counts"])
