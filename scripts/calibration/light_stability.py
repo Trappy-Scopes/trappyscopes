@@ -10,7 +10,11 @@ from rich.pretty import Pretty
 from hive.assembly import ScopeAssembly
 from expframework.experiment import Experiment 
 
-
+__description__ = \
+"""
+Test stability of light source at a set Voltages for long hours (O(days)). Correspondingly also
+monitor temperature to correlate its effects.
+"""
 
 def create_exp():
 	global exp, scope
@@ -21,11 +25,17 @@ def create_exp():
 	exp.attribs["light"] = (2,0,0)
 	exp.attribs["sample_period_s"] = 60
 	exp.attribs["total_time_hours"] = 24
+	exp.attribs["beacon_state"] = True
+
 	scope.beacon.blink()
 
 def start():
-	global exp, scope, capture
-	scope.beacon.on()
+	global exp, scope
+	
+	if exp.attribs["beacon_state"]:
+		scope.beacon.on()
+	else:
+		scope.beacon.off()
 
 
 	## Read tandh
@@ -50,7 +60,7 @@ def start():
 
 
 def stop():
-	global exp, scope, capture
+	global exp, scope
 	scope.beacon.blink()
 	exp.sync_dir()
 	exp.close()

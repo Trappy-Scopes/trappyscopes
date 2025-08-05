@@ -10,6 +10,8 @@ __description__ = \
 """
 Procedure to calibrate the control voltage of the LED by measuring the light intensity at the sample stage.
 Generates a measurement stream for each channel. And also generates sepearte streams for mixed modalities.
+
+This script takes hours (more than 12) with stabilization_delay_s=3 recommended and complete 3 channel scan.
 """
 
 
@@ -25,7 +27,7 @@ def create_exp():
 								  ["red", "green"], ["red", "blue"], ["green", "blue"],
 								  ["red", "green",  "blue"]
 								  ]
-	exp.params["stabilization_delay_s"] = 1
+	exp.params["stabilization_delay_s"] = 3
 
 
 

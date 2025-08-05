@@ -9,19 +9,22 @@ from rich.pretty import Pretty
 from expframework.experiment import Experiment
 
 
+__description__ = \
+"""
+Test stability of room temperature on a long timescale.
+"""
 
-## Create a calibration context
-dt = str(datetime.date.today()).replace("-", "_")
-t = time.localtime(time.time())
-time_str = f"{t.tm_hour}hh_{t.tm_min}mm"
-exp = Experiment(f"{scopeid}_{dt}_{time_str}_tandh_calibration", append_eid=True)
-tandh = exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
+def create_exp():
+	## Create a calibration context
+	global exp, scope
+	exp = Experiment.Construct(["tandh", "longterm", "calibration"])
+	tandh = exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
 
-## Define a light condition
-exp.attribs["light"] = (2,0,0)
-exp.attribs["sample_period_s"] = 60
-exp.attribs["total_time_hours"] = 24
-scope.beacon.blink()
+	## Define a light condition
+	exp.attribs["light"] = (2,0,0)
+	exp.attribs["sample_period_s"] = 60
+	exp.attribs["total_time_hours"] = 24
+	scope.beacon.blink()
 
 def start():
 
