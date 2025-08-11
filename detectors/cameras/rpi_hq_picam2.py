@@ -142,7 +142,9 @@ class Camera(AbstractCamera):
 
     def preview(self, tsec=10):
         self.cam.start_preview(self.preview_type)
+        self.cam.start()
         precise_sleep(tsec)
+        self.cam.stop()
         self.cam.stop_preview()
         gc.collect()
 
