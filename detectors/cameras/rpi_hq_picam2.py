@@ -92,7 +92,7 @@ class Camera(AbstractCamera):
         ## Controls are different than config in this API
         self.options = {"quality":100, "compression":0}
         self.controls = {"ExposureTime": 18*1000, "AnalogueGain": 1.0, "AwbEnable": False, "AeEnable":False, 
-                         "ColourGains":(4.0,0.0), "Contrast":2.0, 
+                         "ColourGains":(0.0,0.0), "Contrast":2.0, 
                          "NoiseReductionMode":controls.draft.NoiseReductionModeEnum.Fast, 
                          'FrameDurationLimits':(int(1e6/25), int(1e6/25))
                         }
