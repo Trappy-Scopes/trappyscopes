@@ -149,27 +149,26 @@ class Camera(AbstractCamera):
         gc.collect()
 
     ### ----------------------------- ACTION IMPLEMENTATIONS ---------------------------------------------
-    def __image__(self, filename, tsec=3, *args, **kwargs):
+    def __image__(self, filename, *args, tsec=3, show_preview= False, **kwargs):
         """
         Capture an image. 
         tsec : delay without capture.
         """
 
-        if "preveiw" in kwargs:
-            preview = kwargs["preview"]
-        else:
-            preview = True
-        
-        self.cam.start_and_capture_file(filename, delay=tsec, capture_mode="still", show_preview=preview)
+        if show_preview:
+            self.cam.start_preview()
+        precise_sleep(tsec)
+        self.cam.capture_file(filename)
         self.cam.stop_preview()
 
 
-    def __timelapse__(self, filename, *args, **kwargs):
+    def __timelapse__(self, filename, *args, show_preview=True, **kwargs):
         """
         Captures a timelapse sequence in jpeg format.
         filenames: is preceeded by the capture sequence number.
         frames: number of frames that must be captured.
         delay_s (optional) : Delay between images in seconds.
+        Preview seems to be stuck.
         """
         #if not all(["frames", "delay_s"]) in kwargs.keys():
         #    raise KeyError("Either arguments missing: frames and/or delay_s")
@@ -179,14 +178,25 @@ class Camera(AbstractCamera):
         
         filenames_ = "{:03d}" + f"_{filename.split('.')[0]}"*(filename.split(".")[0] != "") + \
                           f".{filename.split('.')[1]}"    
+        frames = kwargs["frames"]
+        delay_s = kwargs["delay_s"]
+        if show_preview:
+            self.cam.start_preview()
 
+        start_time = time.time()
+        for i in range(0, frames):
+            r = self.cam.capture_request()
+            r.save("main", filenames_[i])
+            r.release()
+            print(f"Captured image {i} of {frames} at {time.time() - start_time:.2f}s")
+            precise_sleep(delay_s)
         #self.cam.start_preview(self.preview_type)
         
-        self.cam.start_and_capture_files( \
-            name=filenames_,  \
-            num_files = kwargs["frames"], delay = kwargs["delay_s"], \
-            show_preview = True)
-        self.cam.stop_preview()
+        #self.cam.capture_files( \
+        #    name=filenames_,  \
+        #    num_files = kwargs["frames"], delay = kwargs["delay_s"], \
+        #    show_preview = True)
+        #self.cam.stop_preview()
 
     
 
