@@ -140,8 +140,8 @@ class Camera(AbstractCamera):
         atexit.unregister(self.close)
 
 
-    def preview(self, tsec=10, size=(1520, 1520)):
-        self.cam.start_preview(self.preview_type, height=size[0], width=size[1])
+    def preview(self, tsec=10, size=(1520, 1520), xy=[0,0]):
+        self.cam.start_preview(self.preview_type, height=size[0], width=size[1], x=xy[0], y=xy[1])
         self.cam.start()
         precise_sleep(tsec)
         self.cam.stop()
