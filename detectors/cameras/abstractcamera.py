@@ -15,15 +15,12 @@ from hive.detector import Detector
 # Used to print exceptions properly.
 
 
-class Camera:
+class Camera(Detector):
+	"""
+	Abstract specialisation for TrappyScope Cameras.
+	"""
 	console = Console()
 
-	def Selector():
-		"""
-		Mecahnism for camera selection.
-		"""
-		from core.idioms.generic_selector import Selector as GSelector
-		return GSelector(name, "/detectors/cameras", "Camera")
 
 	@abstractmethod
 	def pre_action_callback(self, *args, **kwargs):
@@ -39,43 +36,28 @@ class Camera:
 		"""
 		pass
 	
-	@abstractmethod
-	def __init__(self):
-		## A c
-		self.actions = {}
-		self.config = {}
 	
 	@abstractmethod
 	def open(self):
+		"""Open  the camera object."""
 		pass
 
 	
 	@abstractmethod
 	def close(self):
+		"""Close the camera object"""
 		pass
 
-	
-	@abstractmethod
-	def configure(self, config):
-		pass
 
 	@abstractmethod
 	def preview(self, tsec=30):
+		"""Create preview without writing to file."""
 		pass
-
-
-	@abstractmethod
-	def state(self):
-		pass
-
 
 	def read(self, action, filename, tsec=1,
-				no_iterations=1, itr_delay_s=0, init_delay_s=0, ts_frames=False, **kwargs):
+				no_iterations=1, itr_delay_s=0, **kwargs):
 		"""
 		Common capture protocol for cameras.
-
-		Optional kwargs: 
-		1. ts_frames [bool] : timestamp each frame.
 		"""
 		
 		## Pack all passed arguments
@@ -94,31 +76,22 @@ class Camera:
 			return False
 
 		
-
 		## ----- Indicate operation ----------
 		#ScopeAssembly.current.set_status("waiting")		
-
-
-		## ------ Init delays ----------------
-		if init_delay_s:
-			Experiment.current.delay("cam_acq_init_delay", init_delay_s)
-
 
 		for it in range(no_iterations):
 
 			## Begin iteration
-			try:
+			try: ## Only used for iteration.
 				local_filename = self.__process_filename__(filename=filename, iteration=it, **kwargs)
 			except:
 				local_filename = filename
-			#ScopeAssembly.current.set_status("acq")	
-			
 
 			try:
-				#self.pre_action_callback(local_filename, iteration=it, **kwargs)
+				self.pre_action_callback(local_filename, iteration=it, **kwargs)
 				self.actions[action](local_filename, iteration=it, **kwargs)
-				#Experiment.current.log(f"cam_acq_{action}", attribs={**kwargs, "iteration": it, "filename":filename})
-				#self.post_action_callback(local_filename, iteration=it, **kwargs)
+				Experiment.current.log(f"cam_acq_{action}", attribs={**kwargs, "iteration": it, "filename":local_filename})
+				self.post_action_callback(local_filename, iteration=it, **kwargs)
 			except Exception as e:
 				Camera.console.print_exception(e)
 				log.error("[green] EXCEPTION HANDLED [default] Exception caught in Camera.capture method.")
@@ -129,17 +102,15 @@ class Camera:
 			if itr_delay_s:
 				Experiment.current.delay("cam_acq_itr_delay", itr_delay_s)
 			#ScopeAssembly.current.set_status("waiting")
+			
 			gc.collect()
 			## End of iteration -----------------------------
-		
-		## End of Acquisition -------------------------------
-		#ScopeAssembly.current.set_status("standby")
-		gc.collect()		
+		gc.collect()
+		Experiment.current.log("cam_acq_finish", attribs={"filename": local_filename})
 
 	def __process_filename__(self, *args, **kwargs):
 		"""
 		Processes the given filename for specific modes of operation.
-		TODO: Add mechanisms for EID insertion.
 		"""
 		filename = kwargs["filename"]
 		if kwargs["no_iterations"] != 1:

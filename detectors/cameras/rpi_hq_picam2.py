@@ -69,32 +69,15 @@ class Camera(AbstractCamera):
     """
 
 
-    def __init__(self, quality=100, compression=0, fps=25, res=[1520, 1520]):
+    def __init__(self):
          
         #Picamera2.set_logging(Share.logginglevel)
         self.cam = None
         self.cam_fsaddr = None
-
-
         self.opentime_ns = None
-        ## Set of different configurations
-        self.configset = {}
+        self.cam_manager_cleanup = None
 
-        self.config  = {"res":res, "quality":quality, "fps":fps, "compression":compression, "exposure_ms":18}
-        self.controls = {"ExposureTime": self.config["exposure_ms"]*1000, "AnalogueGain": 1.0, "AwbEnable": False, "AeEnable":False, 
-                         "ColourGains":(4.0,0.0), "Contrast":2.0, 
-                         "NoiseReductionMode":controls.draft.NoiseReductionModeEnum.Fast, 
-                         'FrameDurationLimits':(int(1e6/self.config["fps"]), int(1e6/self.config["fps"]))
-                        }
-
-        self.cam = None
-        #self.video_config = self.cam.create_video_configuration(buffer_count=6, 
-        #    main={"size":(self.config["res"][0], self.config["res"][1])}, 
-        #    lores={"size":(self.config["res"][0], self.config["res"][1])},
-        #    controls=self.controls, encode="main", display="lores")
-        
-
-        # Capture Modes for this implementation
+        ## Detector actions are specified.
         self.actions = {
                           "preview"       : self.preview,
                           "img"           : self.__image__,
@@ -106,46 +89,40 @@ class Camera(AbstractCamera):
                           "img_formatted":self.__image_fomatted__
                         }
 
-
-
-
-        ## In the spirit of reproducability
-        self.encodermap= {"rawencoder" : lambda: Encoder(), 
-                          "jpegencoder": lambda: JpegEncoder(q=self.cam.options["quality"], num_threads=4), 
-                          "mjpegencoder": lambda: MJPEGEncoder(bitrate=int(50*(10**6))),  ## Very high bitrate
-                          "h264encoder": lambda: H264Encoder()} ## Let the algorithm choose the bitrate based on the quality factor.
-
-        
-
-        ## Extra things ------------------------------------------------------------------
-
+        ## Controls are different than config in this API
+        self.options = {"quality":100, "compression":0}
+        self.controls = {"ExposureTime": 18*1000, "AnalogueGain": 1.0, "AwbEnable": False, "AeEnable":False, 
+                         "ColourGains":(4.0,0.0), "Contrast":2.0, 
+                         "NoiseReductionMode":controls.draft.NoiseReductionModeEnum.Fast, 
+                         'FrameDurationLimits':(int(1e6/25), int(1e6/25))
+                        }
+        self.config = self.cam.create_video_configuration(buffer_count=6, 
+            main={"size":(1520, 1520), "format":"BGR888"}, queue=False,
+            controls=self.controls,
+            encode="main", display="main")
 
         # Preview Window Settings
         self.preview_type = Preview.QT      #Preview.QT # Other options: Preview.DRM, Preview.QT, Preview.QTGL
         self.win_title_fields = ["ExposureTime", "FrameDuration"]
 
+    def configure(self, *args, **kwargs):
+        self.cam.options.update(self.options) ## Set compression
+        self.cam.configure(self.config)
+        log.info("Camera configured.")
 
     def open(self):
         self.opentime_ns = time.perf_counter()
         log.info("TS::Camera::PiCamera2 Camera was opened.")
         self.cam = Picamera2()
-        self.video_config = self.cam.create_video_configuration(buffer_count=6, 
-            main={"size":(self.config["res"][0], self.config["res"][1]), "format":"BGR888"},
-            controls=self.controls, 
-            encode="main", display="main")
-        self.cam.configure(self.video_config)
-        #self.cam.video_config.enable_raw()
-        #self.cam.video_config.enable_rawe_lores()
-        self.cam.options["quality"] = self.config["quality"]
-        self.cam.options["compress_level"] = self.config["compression"]
+        
+        self.cam.configure()
         self.cam.title_fields = self.win_title_fields
         
         #self.cam_fsaddr = None   ## TODO
-        cam_manager_cleanup = lambda : self.cam.camera_manager.cleanup(self.cam.cam_num) 
+        self.cam_manager_cleanup = lambda : self.cam.camera_manager.cleanup(self.cam.cam_num) 
         atexit.register(self.close)
-        #self.cam.open()
 
-        
+
     def is_open(self):
         return self.cam.is_open
 
@@ -153,18 +130,22 @@ class Camera(AbstractCamera):
     def close(self):
         if self.cam.is_open:
             self.cam.close()
-            now = time.perf_counter()
-            log.info(f"PiCamera2 Camera was closed: {now} : duration {now-self.opentime_ns:.2f} s.")
+        now = time.perf_counter()
+        log.info(f"PiCamera2 Camera was closed: {now} : duration {now-self.opentime_ns:.2f} s.")
+        try:
+            self.cam_manager_cleanup()
+        except Exception as e:
+            log.error(e)
+        atexit.unregister(self.close)
 
 
     def preview(self, tsec=10):
         self.cam.start_preview(self.preview_type)
-        time.sleep(tsec)
+        precise_sleep(tsec)
         self.cam.stop_preview()
         gc.collect()
 
     ### ----------------------------- ACTION IMPLEMENTATIONS ---------------------------------------------
-
     def __image__(self, filename, tsec=3, *args, **kwargs):
         """
         Capture an image. 
