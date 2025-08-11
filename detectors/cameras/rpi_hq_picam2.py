@@ -96,6 +96,7 @@ class Camera(AbstractCamera):
                          "NoiseReductionMode":controls.draft.NoiseReductionModeEnum.Fast, 
                          'FrameDurationLimits':(int(1e6/25), int(1e6/25))
                         }
+        self.cam = Picamera2()
         self.config = self.cam.create_video_configuration(buffer_count=6, 
             main={"size":(1520, 1520), "format":"BGR888"}, queue=False,
             controls=self.controls,
@@ -104,7 +105,7 @@ class Camera(AbstractCamera):
         # Preview Window Settings
         self.preview_type = Preview.DRM      #Preview.QT # Other options: Preview.DRM, Preview.QT, Preview.QTGL
         self.win_title_fields = ["ExposureTime", "FrameDuration"]
-
+        self.cam.close()
     def configure(self, *args, **kwargs):
         self.cam.options.update(self.options) ## Set compression
         self.cam.configure(self.config)
