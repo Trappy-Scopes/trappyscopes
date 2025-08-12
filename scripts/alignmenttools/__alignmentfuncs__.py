@@ -317,7 +317,7 @@ def iterate_thresholds(image, min_diameter, max_diameter=np.inf,
     for guassian_blur_sigma in np.arange(1.0, guassian_blur_sigma_max+1, 1):
         for canny_sigma in np.arange(1.0, canny_sigma_max+1, 1):
             circles, regions = detect_circles(image, 2, min_diameter, guassian_blur_sigma=guassian_blur_sigma, canny_sigma=canny_sigma)
-            if circles:
+            if len(circles) == 2:
                 delx = (circles[1][0] - circles[0][0])
                 dely = (circles[1][1] - circles[0][1])
                 delr = (circles[1][2] - circles[0][2])
