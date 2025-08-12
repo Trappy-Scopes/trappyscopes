@@ -84,7 +84,7 @@ def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 
 
 	print("Step 3: Intensity centroid and illumination homogeneity")
-	fig, centroid_ = image_centroid(calib_image)
+	fig, centroid_ = image_centroid(calib_image, reff=reff)
 	print("Emitting: intensity_homogeneity.png")
 	fig.savefig("intensity_homogeneity.png")
 	if show:

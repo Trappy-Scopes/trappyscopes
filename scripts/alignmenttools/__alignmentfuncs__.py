@@ -22,7 +22,7 @@ from matplotlib.gridspec import GridSpec
 
 
 
-def image_centroid(frame, radius=100, disk_thickness=10, rolling_window=20, reff=None, margin=75):
+def image_centroid(frame, radius=50, disk_thickness=10, rolling_window=20, reff=None, margin=75):
     """
     Calculate the image centroid for a given grayscale frame.
     """
