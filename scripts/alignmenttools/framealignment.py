@@ -24,7 +24,7 @@ def take_calib_image():
 	scope.cam.read("img", "calib_image.png", tsec=3, show_preview=True)
 	print(f"Calibration image taken: \"calib_image.png\"")
 
-def load_calib_image(path=SAMPLE_IMAGE_PATH, channel_no=2):
+def load_calib_image(path=SAMPLE_IMAGE_PATH, channel_no=0):
 	from PIL import Image
 	calib_path = "calib_image.png"
 	if os.path.exists(calib_path):
@@ -85,7 +85,7 @@ def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 
 
 	print("Step 3: Intensity centroid and illumination homogeneity")
-	fig, centroid_ = image_centroid(calib_image, reff=reff)
+	fig, centroid_ = image_centroid(calib_image, reff=int(reff))
 	print("Emitting: intensity_homogeneity.png")
 	fig.savefig("intensity_homogeneity.png")
 	if show:
