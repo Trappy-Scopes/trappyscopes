@@ -48,7 +48,7 @@ def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 	reff = (radii[0]+radii[1])/2
 	xc = circles[0][0]
 	yc = circles[0][1]
-	ax.set_title(fr"Trap radii: {radii[0]}px to {radii[1]}px; $r_e$ : {reff:.1f}{'\n'}Thresholds: {str(thresholds)}")
+	ax.set_title(fr"Trap radii: {radii[0]}px to {radii[1]}px; $r_e$ : {reff:.1f}\nThresholds: {str(thresholds)}")
 	center_dev_x = np.abs(xc - calib_image.shape[0]/2)
 	center_dev_y = np.abs(yc - calib_image.shape[1]/2)
 
