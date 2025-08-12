@@ -104,7 +104,7 @@ class Camera(AbstractCamera):
 
         # Preview Window Settings
         self.preview_type = Preview.DRM      #Preview.QT # Other options: Preview.DRM, Preview.QT, Preview.QTGL
-        self.preview_options = ["height":1080, "width":1080, "x":0, "y":0]
+        self.preview_options = {"height":1080, "width":1080, "x":0, "y":0}
         self.win_title_fields = ["ExposureTime", "FrameDuration"]
         self.cam.close()
     def configure(self, *args, **kwargs):
