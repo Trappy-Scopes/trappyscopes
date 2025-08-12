@@ -104,6 +104,7 @@ class Camera(AbstractCamera):
 
         # Preview Window Settings
         self.preview_type = Preview.DRM      #Preview.QT # Other options: Preview.DRM, Preview.QT, Preview.QTGL
+        self.preview_options = ["height":1080, "width":1080, "x":0, "y":0]
         self.win_title_fields = ["ExposureTime", "FrameDuration"]
         self.cam.close()
     def configure(self, *args, **kwargs):
@@ -140,8 +141,8 @@ class Camera(AbstractCamera):
         atexit.unregister(self.close)
 
 
-    def preview(self, tsec=10, size=(1520, 1520), xy=[0,0]):
-        self.cam.start_preview(self.preview_type, height=size[0], width=size[1], x=xy[0], y=xy[1])
+    def preview(self, tsec=10):
+        self.cam.start_preview(self.preview_type, **self.preview_options)
         self.cam.start()
         precise_sleep(tsec)
         self.cam.stop()
@@ -157,8 +158,10 @@ class Camera(AbstractCamera):
 
         if show_preview:
             self.cam.start_preview()
+        self.cam.start()
         precise_sleep(tsec)
         self.cam.capture_file(filename)
+        self.cam.stop()
         self.cam.stop_preview()
 
 
