@@ -150,7 +150,7 @@ class Camera(AbstractCamera):
         gc.collect()
 
     ### ----------------------------- ACTION IMPLEMENTATIONS ---------------------------------------------
-    def __image__(self, filename, *args, tsec=3, show_preview= False, **kwargs):
+    def __image__(self, filename, *args, tsec=3, show_preview=False, **kwargs):
         """
         Capture an image. 
         tsec : delay without capture.
@@ -158,6 +158,7 @@ class Camera(AbstractCamera):
 
         if show_preview:
             self.cam.start_preview()
+        precise_sleep(1)
         self.cam.start()
         precise_sleep(tsec)
         self.cam.capture_file(filename)

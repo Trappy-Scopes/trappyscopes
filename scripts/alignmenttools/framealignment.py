@@ -24,7 +24,7 @@ def take_calib_image():
 	scope.cam.read("img", "calib_image.png", tsec=3, show_preview=True)
 	print(f"Calibration image taken: \"calib_image.png\"")
 
-def load_calib_image(path=SAMPLE_IMAGE_PATH, channel_no=0):
+def load_calib_image(path=SAMPLE_IMAGE_PATH, channel_no=2):
 	from PIL import Image
 	calib_path = "calib_image.png"
 	if os.path.exists(calib_path):
@@ -43,6 +43,7 @@ def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 	print("Step 1: Trap detection")
 	thresholds = iterate_thresholds(calib_image, 400)
 	circles, regions = detect_circles(calib_image, 2, min_diameter=400, **thresholds)
+	print(circles)
 	fig, ax = trap_detection_plot(calib_image, circles, regions)
 	radii = [circles[1][2], circles[0][2]]
 	reff = (radii[0]+radii[1])/2
