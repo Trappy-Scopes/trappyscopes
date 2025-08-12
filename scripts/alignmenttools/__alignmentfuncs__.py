@@ -22,7 +22,7 @@ from matplotlib.gridspec import GridSpec
 
 
 
-def image_centroid(frame, radius=50, disk_thickness=10, rolling_window=20, reff=None, margin=75):
+def image_centroid(frame, radius=50, disk_thickness=10, rolling_window=20, reff=None, margin=75, average_over=100):
     """
     Calculate the image centroid for a given grayscale frame.
     """
@@ -43,8 +43,8 @@ def image_centroid(frame, radius=50, disk_thickness=10, rolling_window=20, reff=
     ax = fig.add_subplot(gs[0, 0])
     img = ax.imshow(frame, aspect='equal', origin='lower', interpolation=None)
     ax.add_patch(dev_circle)
-    xprof = frame[int(centroid_[1]):int(centroid_[1])+1,:].squeeze()
-    yprof = frame[:, int(centroid_[0]):int(centroid_[0])+1].squeeze()
+    xprof = frame[int(centroid_[1]-int(average_over/2)):int(centroid_[1])+int(average_over/2),:].mean(axis=0).squeeze()
+    yprof = frame[:, int(centroid_[0]-int(average_over/2)):int(centroid_[0])+int(average_over/2)].mean(axis=1).squeeze()
 
     rolling_xprof = pd.Series(xprof).rolling(rolling_window, center=True, min_periods=5).mean()
     rolling_yprof = pd.Series(yprof).rolling(rolling_window, center=True, min_periods=5).mean()
