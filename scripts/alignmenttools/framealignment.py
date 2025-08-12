@@ -42,6 +42,7 @@ def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 
 	print("Step 1: Trap detection")
 	thresholds = iterate_thresholds(calib_image, 400)
+	print(thresholds)
 	circles, regions = detect_circles(calib_image, 2, min_diameter=400, **thresholds)
 	print(circles)
 	fig, ax = trap_detection_plot(calib_image, circles, regions)
