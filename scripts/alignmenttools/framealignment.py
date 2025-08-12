@@ -65,7 +65,7 @@ def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 	ax.add_patch(dev_circle)
 
 	ax.legend(loc='upper right')
-	fig.suptitle(fr"Trap centring errors: $\Delta_x$:{center_dev_x}; $\Delta_y$:{center_dev_y}{'\n'}Magnification:{magnification:.2f}X;  Centering-threshold-radius:{deviation_threshold}px")
+	fig.suptitle(fr"Trap centring errors: $\Delta_x$:{center_dev_x}; $\Delta_y$:{center_dev_y}\nMagnification:{magnification:.2f}X;  Centering-threshold-radius:{deviation_threshold}px")
 	print("Emitting: centroids_plot.png")
 	fig.savefig("centroids_plot.png")
 	if show:
