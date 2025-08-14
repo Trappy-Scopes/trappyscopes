@@ -22,7 +22,7 @@ def create_exp():
 	exp.attribs["chunk_size_sec"] = 10*60
 	exp.attribs["fps"] = 25
 	exp.attribs["exposure_ms"] = 18
-	exp.attribs["quality"] = 70
+	exp.attribs["quality"] = 100
 	exp.attribs["no_chunks"] = 92
 	exp.attribs["light"] = (0.4,0,0)
 	exp.attribs["camera_mode"] = "vid_mjpeg_tpts_multi"

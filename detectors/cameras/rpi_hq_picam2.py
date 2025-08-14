@@ -142,6 +142,14 @@ class Camera(AbstractCamera):
         self.preview_options = {"height":1080, "width":1080, "x":504, "y":0}
         self.win_title_fields = ["ExposureTime", "FrameDuration"]
         self.cam.close()
+
+    def __getstate__(self):
+        """Removes what cannot be pickled"""
+        from copy import deepcopy
+        state = deepcopy(self.config)
+        state.pop("transform")
+        state.pop("colour_space")
+
     def configure(self, *args, **kwargs):
         self.cam.options.update(self.options) ## Set compression
         self.cam.configure(self.config)
