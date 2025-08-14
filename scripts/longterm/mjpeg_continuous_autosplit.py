@@ -6,12 +6,15 @@ import ast
 from rich.panel import Panel
 from rich.pretty import Pretty
 
+from experiment.experiment import Experiment
+from hive.assembly import ScopeAssembly
+
 def create_exp():
-	global exp
+	global exp, scopeid, scope
 	dt = str(datetime.date.today()).replace("-", "_")
 	t = time.localtime(time.time())
 	time_str = f"{t.tm_hour}hh_{t.tm_min}mm"
-	exp = Experiment(f"{scopeid}_{dt}_{time_str}_longterm_traj", append_eid=True)
+	exp = Experiment.Construct(["longterm_traj"])
 
 	exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
 	exp.new_measurementstream("acq", monitors=["acq"])
@@ -29,8 +32,7 @@ def create_exp():
 print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
 print("Use start_acq() to start acquiring.")
 print("Use stop_cam() to kill the capture thread.")
-global scope
-scope.beacon.blink()
+
 
 
 
@@ -120,8 +122,10 @@ def test_fov(tsec):
 
 
 if __name__ == "__main__":
-	global scope
+	scope = ScopeAssembly.current
 	scope.lit.setVs(0.4,0,0)
 	print("Lights ready...")
 	scope.cam.open()
 	scope.cam.configure()
+	global scope
+	scope.beacon.blink()
