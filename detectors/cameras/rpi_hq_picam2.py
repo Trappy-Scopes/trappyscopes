@@ -403,11 +403,11 @@ class Camera(AbstractCamera):
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoderGrayRedCh(q=self.options["quality"])
         output = SplittableOutput(output=FileOutput("prerec.mjpeg"))
-        
+        print("Beginning recording...")
         self.cam.start_recording(encoder, output)
         print("Beginning iterations...")
         try:
-            print("Beginning iterations...")
+            print("Trying splitting...")
             for file_no in range(no_iterations):
                 
                 ## Geenrate splitname
