@@ -51,10 +51,6 @@ class JpegEncoderGrayRedCh(JpegEncoder):
             return simplejpeg.encode_jpeg(r_frame,
                 quality=self.q, colorspace="GRAY", colorsubsampling='Gray')
 
-from threading import Event
-
-from .output import Output
-
 
 class SplittableOutput(Output):
     """
