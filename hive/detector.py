@@ -1,4 +1,5 @@
-from rich import print
+import abc
+
 from .basedevice import BaseDevice
 
 
@@ -19,10 +20,18 @@ class Detector():
 							 (self.__class__, detector.__class__),
 							  {})
 
-		self.__dict__.update(detector.__dict__)
+		#self.__dict__.update(detector.__dict__)
 
-		if "read" not in self.__dict__.keys():
-			self.read = lambda: print(f"{self.__repr__()} :: read: operation undefined.")
-		if "configure" not in self.__dict__.keys():
-			self.configure = lambda: print(f"{self.__repr__()} :: configure: operation undefined.")
+		#if "read" not in self.__dict__.keys():
+		#	self.read = lambda: print(f"{self.__repr__()} :: read: operation undefined.")
+		#if "configure" not in self.__dict__.keys():
+		#	self.configure = lambda: print(f"{self.__repr__()} :: configure: operation undefined.")
+
+		@abc.abstracmethod
+		def configure(self, *arg, **kwargs):
+			pass
+			
+		@abc.abstracmethod
+		def read(self, *args, **kwargs):
+			pass
 		

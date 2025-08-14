@@ -108,22 +108,6 @@ class ScopeAssembly():
 		"""
 		log.info("Scanning scope configuration...")
 
-
-		#	except Exception as e:
-		#		print(e)
-		#		log.error(f"Could not find a micropython device. Creating a null object.")
-		#		pico = None
-		#		log.info(pico)
-		#	if pico != None:
-		#		log.info("Executing main.py on MICROPYTHON device.")
-		#		try:
-		#			pico.exec_main()
-		#		except Exception as e:
-		#			log.error("Main execution on pico failed!")
-		#			print(e)
-		#	self.add_device("pico", pico, description="Main microcontroller on Serial.")
-		#	self.exchange = CodeExchange(pico)
-		#	
 		import sys
 		sys.path.append("'/Users/byatharth/code/Trappy-Scopes/scope-cli/")
 		for device, device_params in scopeconfig["devices"].items():
@@ -133,7 +117,7 @@ class ScopeAssembly():
 			try:
 				package = kind.rsplit(".", 1)[0]
 				object_ = kind.rsplit(".", 1)[1]
-				constructor = getattr(import_module(package), object_)
+				constructor = getattr(import_module(package),object_)
 			except ImportError as e:
 				log.error(f"Import failed for device: {kind}")
 				if raise_exceptions:
@@ -148,11 +132,6 @@ class ScopeAssembly():
 				log.error(f"Device mount failed: {device} :: {str(e)}")
 				if raise_exceptions:
 					raise e
-
-
-		#self.abstractions = absent_key_false("abstraction", scopeconfig)
-		#if abstraction:
-		#	return self.__abstraction__(abstraction)
 
 	def __abstraction__(self, abstract):
 		if abstract in self.abstractions:

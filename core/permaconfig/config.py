@@ -3,6 +3,7 @@ import confuse
 import logging
 from copy import deepcopy
 from rich import print
+import logging as log
 
 from ..exceptions import TS_ConfigNotFound
 
@@ -57,7 +58,13 @@ class TrappyConfig(confuse.Configuration):
 		except Exception as e:
 			print(e)
 			print(f"[red][NOK] [bold cyan]Trappy-Scopes[default] config: rich configuration failed. Try importing core.permaconfig.richsettings as it is.")
-		
+
+		## Remove unactive blocks
+		#for key, device in self["devices"].items():
+		#	if "active" in device.keys():
+		#		if device["active"].get() == False:
+		#			#self.get().pop('devices', key)
+		#			#log.info(f"Inactive device: {key}")
 
 
 		## Singelton template

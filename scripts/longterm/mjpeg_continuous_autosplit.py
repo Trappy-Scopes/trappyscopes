@@ -17,11 +17,11 @@ def create_exp():
 	exp.new_measurementstream("acq", monitors=["acq"])
 
 	exp.attribs["chunk_size_sec"] = 10*60
-	exp.attribs["fps"] = 20
+	exp.attribs["fps"] = 25
 	exp.attribs["exposure_ms"] = 18
 	exp.attribs["quality"] = 70
-	exp.attribs["no_chunks"] = 21*6
-	exp.attribs["light"] = (2,0,0)
+	exp.attribs["no_chunks"] = 95
+	exp.attribs["light"] = (0.4,0,0)
 	exp.attribs["camera_mode"] = "vid_mjpeg_tpts_multi"
 	exp.attribs["group"] = "red_light"
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
@@ -38,13 +38,16 @@ global process
 process = None
 
 def stop_cam():
-	global process
+	global process, scope
+	print(f"Killing: {process}")
 	process.kill()
+	print(f"Killed: {process}")
+	scope.beacon.blink()
 
 
 def filename_suffix_fn(split_no):
 	global exp
-	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__split_{split_no}.mjpeg', abspath=False)
+	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__{time.time_ns()}__split_{split_no}.mjpeg', abspath=False)
 	return filename
 
 def capture():
@@ -90,7 +93,6 @@ def start_acq():
 	print("All jobs: ", exp.schedule.get_jobs())
 
 	## Set lights and capture
-
 	scope.lit.setVs(*exp.attribs["light"])
 	
 
@@ -101,5 +103,13 @@ def start_acq():
 	#capture()
 
 def test_fov(tsec):
+	print("[red]This function is obselete!")
 	scope.cam.read("prev_formatted", None, tsec=tsec, fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
 
+
+if __name__ == "__main__":
+	global scope
+	scope.lit.setVs(0.4,0,0)
+	print("Lights ready...")
+	scope.cam.open()
+	scope.cam.configure()

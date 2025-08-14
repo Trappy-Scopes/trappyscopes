@@ -1,4 +1,66 @@
 
+
+
+from rayoptics.environment import *
+import matplotlib.pyplot as plt
+
+def draw_lens_system(lenses, distances):
+    # Create optical model
+    opm = OpticalModel()
+    sm = opm['seq_model']
+    
+    # Set system properties
+    opm.optical_spec.pupil = PupilSpec(opm.optical_spec, value=10, 
+                                      key=['object', 'pupil'], 
+                                      type=DimensionType.Radius)
+    
+    # Add object plane
+    sm.add_surface()
+    sm.ifcs[0].label = "Object"
+    sm.gaps[0].thi = 0  # Start immediately after object
+    
+    # Add lenses and distances
+    z = 0
+    for i, (lens, distance) in enumerate(zip(lenses, distances)):
+        # Add distance before lens
+        if i > 0:
+            sm.gaps[i].thi = distance
+            z += distance
+        
+        # Add lens surface
+        s = sm.add_surface()
+        s.label = lens
+        s.profile = Spherical(c=0)  # Flat surface for simplicity
+        s.interact_mode = 'reflect' if 'M' in lens else 'transmit'
+        
+        # Set aperture size
+        sm.ifcs[i+1].max_aperture = 10
+    
+    # Add image plane
+    sm.add_surface()
+    sm.ifcs[-1].label = "Image"
+    sm.gaps[-1].thi = 0
+    
+    # Update model
+    opm.update_model()
+    
+    # Create diagram
+    plt.figure(FigureClass=InteractiveLayout, opt_model=opm,
+               do_draw_rays=False, do_paraxial_layout=True,
+               is_dark=False)
+    plt.title('Lens System Diagram')
+    plt.tight_layout()
+    plt.show()
+
+# Example usage
+lenses = ['L1', 'M1', 'L2', 'L3']  # Lens names (M for mirrors)
+distances = [20, 30, 40]            # Distances between elements
+draw_lens_system(lenses, distances)
+
+raise KeyboardInterrupt
+
+
+
 destination= "yatharth.bhasin@gimm.pt"
 server= "smtp.mailersend.net"
 port= 587

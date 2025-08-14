@@ -117,37 +117,4 @@ config:
     password: Chlamy_123
   startup_scripts:
   #  - scripts/external/yeast_stuff.py
-assembly:
-- pico
-- (0mm)
-- topplate
-- (0mm)
-- led
-- (0mm)
-- diffuser1
-- (0mm)
-- asphere
-- (0mm)
-- sample
-- (0mm)
-- samplestage
-- (0mm)
-- midplate
-- (0mm)
-- zoomlens_upper_plate
-- (0mm)
-- zoomlens
-- (0mm)
-- zoomlens_lower_plate
-- (0mm)
-- camera
-- (0mm)
-- baseplate
-optics:
-- diffuser: lens120deg plastic asphere
-- asphere: ThorLabs ACL2520U
-- zoomlens
-frame:
-- packages:
-  - https://github.com/Trappy-Scopes/trappyframe/tree/main/frame
-- baseplate: Base Plate 6.3mm (FSSBTv3) v2.stl
+

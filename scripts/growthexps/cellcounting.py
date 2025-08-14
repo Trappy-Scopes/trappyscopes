@@ -41,3 +41,7 @@ def measure_size(strain, no_fovs):
 	pass
 
 
+
+def take_count():
+	global exp
+	

@@ -1,13 +1,35 @@
 # mkdocs.yml
 site_name: Trappy-Scopes cli (scope-cli)
-docs_dir: _docs_     # Source files here
-site_dir: .    # Output goes here
+site_url: https://trappy-scopes.github.io/scope-cli
+repo_url: https://github.com/Trappy-Scopes/scope-cli
+
+nav:
+  - Home: index.md
+  - core:
+      - Overview: core/index.md
+      - API Reference: core/api.md
+  - expframework:
+      - Overview: expframework/index.md
+      - API Reference: expframework/api.md
+  
+
+plugins:
+  - autorefs
+  - gen-files:
+      scripts:
+        - generate_docs.py
+
+
 theme:
   name: material
   features:
     - navigation.tabs
     - navigation.indexes
-repo_url: https://github.com/Trappy-Scopes/scope_cli
+    - content.tabs
 
-nav:
-  - Home: index.md
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - attr_list
+  - md_in_html

@@ -12,8 +12,8 @@ import gc
 
 ## picamera2 imports
 from picamera2 import Picamera2, Preview
-from picamera2.outputs import *
-from picamera2.encoders import *
+from picamera2.outputs import FileOutput
+from picamera2.encoders import JpegEncoder
 from libcamera import controls
 import simplejpeg
 from picamera2.request import MappedArray
@@ -51,6 +51,41 @@ class JpegEncoderGrayRedCh(JpegEncoder):
             return simplejpeg.encode_jpeg(r_frame,
                 quality=self.q, colorspace="GRAY", colorsubsampling='Gray')
 
+class SplittableOutput(Output):
+    """
+    Allows splitting of FileOutputs from a stream.
+    Adopted from: https://github.com/raspberrypi/picamera2/discussions/569#discussioncomment-11717202
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.output = None
+        self.new_output = None
+        self.split_done = Event()
+
+    def split_output(self, new_output):
+        old_output = self.output
+        # Start the new outoput in this thread, then schedule outputframe to make the switch.
+        new_output.start()
+        self.new_output = new_output
+        # Wait for the switch-over to happen, and close the old output in this thread too.
+        self.split_done.wait()
+        self.split_done.clear()
+        if old_output:
+            old_output.stop()
+        
+    def outputframe(self, frame, keyframe=True, timestamp=None, packet=None, audio=False):
+        if keyframe and self.new_output:
+            self.split_done.set()
+            # split_output will close the old output.
+            self.output = self.new_output
+            self.new_output = None
+        if self.output:
+            self.output.outputframe(frame, keyframe, timestamp)
+
+    def stop(self):
+        super().stop()
+        if self.output:
+            self.output.stop()
 
 
 
@@ -97,14 +132,14 @@ class Camera(AbstractCamera):
                          'FrameDurationLimits':(int(1e6/25), int(1e6/25))
                         }
         self.cam = Picamera2()
-        self.config = self.cam.create_video_configuration(buffer_count=6, 
+        self.config = self.cam.create_video_configuration(buffer_count=10, 
             main={"size":(1520, 1520), "format":"BGR888"}, queue=False,
             controls=self.controls,
             encode="main", display="main")
 
         # Preview Window Settings
         self.preview_type = Preview.DRM      #Preview.QT # Other options: Preview.DRM, Preview.QT, Preview.QTGL
-        self.preview_options = {"height":1080, "width":1080, "x":0, "y":0}
+        self.preview_options = {"height":1080, "width":1080, "x":504, "y":0}
         self.win_title_fields = ["ExposureTime", "FrameDuration"]
         self.cam.close()
     def configure(self, *args, **kwargs):
@@ -143,11 +178,15 @@ class Camera(AbstractCamera):
 
     def preview(self, tsec=10):
         self.cam.start_preview(self.preview_type, **self.preview_options)
-        self.cam.start()
-        precise_sleep(tsec)
-        self.cam.stop()
-        self.cam.stop_preview()
-        gc.collect()
+        try:
+            self.cam.start()
+            precise_sleep(tsec)
+        except KeyboardInterrupt:
+            print("Preview has ended...")
+        finally:
+            self.cam.stop()
+            self.cam.stop_preview()
+            gc.collect()
 
     ### ----------------------------- ACTION IMPLEMENTATIONS ---------------------------------------------
     def __image__(self, filename, *args, tsec=3, show_preview=False, **kwargs):
@@ -310,7 +349,7 @@ class Camera(AbstractCamera):
         self.close()
 
 
-    def __vid_mjpeg_tpts_multi__(self, filename_suffix_fn, no_iterations=1, tsec=30, show_preview=False, quality=100, **kwargs):
+    def __vid_mjpeg_tpts_multi__(self, filename_suffix_fn, no_iterations=1, tsec=30, show_preview=False, **kwargs):
         """
         MJPEG encoded video using a software encoder.
         
@@ -323,20 +362,36 @@ class Camera(AbstractCamera):
         self.open()
         if show_preview:
             self.cam.start_preview(self.preview_type)
-        encoder = JpegEncoderGrayRedCh(q=quality)
+        encoder = JpegEncoderGrayRedCh(q=self.options["quality"])
+        output = SplittableOutput()
+        
+        self.cam.start_recording(encoder, output)
+        
+        try:
+            for file_no in range(no_iterations):
+                
+                ## Geenrate splitname
+                filename = filename_suffix_fn(file_no)
+                tpts_filename = filename.replace(".mjpeg", ".tpts")
+                output.split_output(FileOutput(filename, pts=tpts_filename))
 
-        for file_no in range(no_iterations):
-            filename = filename_suffix_fn(file_no)
-            tpts_filename = filename.replace(".mjpeg", ".tpts")
-            if not self.is_open():
-                self.close()
-                self.open()
-                print("[red]Opps Camera fried!")
-            self.cam.start_recording(encoder, filename, pts=tpts_filename)
-            precise_sleep(tsec)
-            self.cam.stop_recording()
+                if not self.is_open():
+                    self.close()
+                    self.open()
+                    self.configure()
+                    print("[red]Opps Camera fried! Reopening camera")
+
+                ## Wait for the recording time
+                precise_sleep(tsec)
+                gc.collect()      
+        ## Stop
+        except KeyboardInterrupt:
+            print("Recording interrupted!")
+        
+        finally:    
+            self.cam.stop_recording() 
             if show_preview:
                 self.cam.stop_preview()
-        ## Finally close camera
-        self.close()
+            self.close()
+            gc.collect()
 
