@@ -145,7 +145,7 @@ class Camera(AbstractCamera):
 
     def __getstate__(self):
         """Removes what cannot be pickled"""
-        state = {**self.config, 'transform': str(self.config["transfrom"]), "colour_space":str(self.config["colour_space"])}
+        state = {**self.config, 'transform': str(self.config["transform"]), "colour_space":str(self.config["colour_space"])}
         state["controls"]["NoiseReductionMode"] = str(state["controls"]["NoiseReductionMode"])
         return 
 
