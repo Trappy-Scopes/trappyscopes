@@ -9,10 +9,11 @@ import atexit
 import numpy as np
 import os
 import gc
+import logging as log
 
 ## picamera2 imports
 from picamera2 import Picamera2, Preview
-from picamera2.outputs import FileOutput, Output
+from picamera2.outputs import FileOutput, Output, SplittableOutput
 from picamera2.encoders import JpegEncoder
 from libcamera import controls
 import simplejpeg
@@ -52,7 +53,7 @@ class JpegEncoderGrayRedCh(JpegEncoder):
                 quality=self.q, colorspace="GRAY", colorsubsampling='Gray')
 
 
-class SplittableOutput(Output):
+class SplittableOutput_(Output):
     """
     The SplittableOutput passes the encoded bitstream to another output (or drops them if there isn't one).
 
@@ -398,14 +399,14 @@ class Camera(AbstractCamera):
 
         Looks like the encoder can be reused.
         """
-        print(f"Iterations: {no_iterations}")
+        log.info(f"Iterations: {no_iterations}")
         if show_preview:
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoderGrayRedCh(q=self.options["quality"])
         output = SplittableOutput(output=FileOutput("prerec.mjpeg", pts="prerec.tpts"))
-        print("Beginning recording...")
+        log.info("Beginning recording...")
         self.cam.start_recording(encoder, output)
-        print("Beginning iterations...")
+        log.info("Beginning iterations...")
         try:
             print("Trying splitting...")
             for file_no in range(no_iterations):
@@ -414,12 +415,12 @@ class Camera(AbstractCamera):
                 filename = filename_fn(file_no)
                 tpts_filename = filename.replace(".mjpeg", ".tpts")
                 output.split_output(FileOutput(filename, pts=tpts_filename), wait_for_keyframe=False)
-                print(f"Acquiring: {filename}")
+                log.info(f"Acquiring: {filename}")
                 if not self.is_open():
                     self.close()
                     self.open()
                     self.configure()
-                    print("[red]Opps Camera fried! Reopening camera")
+                    log.error("[red]Opps Camera fried! Reopening camera")
 
                 ## Wait for the recording time
                 precise_sleep(tsec)
