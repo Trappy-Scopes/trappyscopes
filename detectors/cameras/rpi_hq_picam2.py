@@ -12,7 +12,7 @@ import gc
 
 ## picamera2 imports
 from picamera2 import Picamera2, Preview
-from picamera2.outputs import FileOutput
+from picamera2.outputs import FileOutput, Output
 from picamera2.encoders import JpegEncoder
 from libcamera import controls
 import simplejpeg
