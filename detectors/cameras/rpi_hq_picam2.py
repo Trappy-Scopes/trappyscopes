@@ -402,7 +402,7 @@ class Camera(AbstractCamera):
         if show_preview:
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoderGrayRedCh(q=self.options["quality"])
-        output = SplittableOutput(output=FileOutput("prerec.mjpeg"))
+        output = SplittableOutput(output=FileOutput("prerec.mjpeg", tpts="prerec.tpts"))
         print("Beginning recording...")
         self.cam.start_recording(encoder, output)
         print("Beginning iterations...")
@@ -413,7 +413,7 @@ class Camera(AbstractCamera):
                 ## Geenrate splitname
                 filename = filename_fn(file_no)
                 tpts_filename = filename.replace(".mjpeg", ".tpts")
-                output.split_output(FileOutput(filename, pts=tpts_filename))
+                output.split_output(FileOutput(filename, pts=tpts_filename), wait_for_keyframe=True)
                 print(f"Acquiring: {filename}")
                 if not self.is_open():
                     self.close()
