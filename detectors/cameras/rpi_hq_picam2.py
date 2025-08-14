@@ -12,7 +12,7 @@ import gc
 
 ## picamera2 imports
 from picamera2 import Picamera2, Preview
-from picamera2.outputs import FileOutput, Output
+from picamera2.outputs import FileOutput, Output, SplittableOutput
 from picamera2.encoders import JpegEncoder
 from libcamera import controls
 import simplejpeg
@@ -51,7 +51,7 @@ class JpegEncoderGrayRedCh(JpegEncoder):
             return simplejpeg.encode_jpeg(r_frame,
                 quality=self.q, colorspace="GRAY", colorsubsampling='Gray')
 
-class SplittableOutput(Output):
+class SplittableOutputX(Output):
     """
     Allows splitting of FileOutputs from a stream.
     Adopted from: https://github.com/raspberrypi/picamera2/discussions/569#discussioncomment-11717202
@@ -369,7 +369,7 @@ class Camera(AbstractCamera):
         if show_preview:
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoderGrayRedCh(q=self.options["quality"])
-        output = SplittableOutput()
+        output = SplittableOutput(output=FileOutput("prerec.mjpeg"))
         
         self.cam.start_recording(encoder, output)
         
