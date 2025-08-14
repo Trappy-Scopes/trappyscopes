@@ -407,6 +407,7 @@ class Camera(AbstractCamera):
         self.cam.start_recording(encoder, output)
         
         try:
+            print("Beginning iterations...")
             for file_no in range(no_iterations):
                 
                 ## Geenrate splitname
