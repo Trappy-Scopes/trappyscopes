@@ -398,7 +398,7 @@ class Camera(AbstractCamera):
 
         Looks like the encoder can be reused.
         """
-        print("[red]Exp Syncing is not implemented!")
+        print(f"Iterations: {no_iterations}")
         if show_preview:
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoderGrayRedCh(q=self.options["quality"])
@@ -410,10 +410,10 @@ class Camera(AbstractCamera):
             print("Trying splitting...")
             for file_no in range(no_iterations):
                 
-                ## Geenrate splitname
+                ## Genrate splitname
                 filename = filename_fn(file_no)
                 tpts_filename = filename.replace(".mjpeg", ".tpts")
-                output.split_output(FileOutput(filename, pts=tpts_filename), wait_for_keyframe=True)
+                output.split_output(FileOutput(filename, pts=tpts_filename), wait_for_keyframe=False)
                 print(f"Acquiring: {filename}")
                 if not self.is_open():
                     self.close()
