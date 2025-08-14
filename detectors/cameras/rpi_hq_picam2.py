@@ -145,10 +145,7 @@ class Camera(AbstractCamera):
 
     def __getstate__(self):
         """Removes what cannot be pickled"""
-        from copy import deepcopy
-        state = deepcopy(self.config)
-        state.pop("transform")
-        state.pop("colour_space")
+        return {**self.config, 'transform': None, "colour_space":None}
 
     def configure(self, *args, **kwargs):
         self.cam.options.update(self.options) ## Set compression
