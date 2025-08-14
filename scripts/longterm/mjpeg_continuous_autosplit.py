@@ -6,7 +6,7 @@ import ast
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-from experiment.experiment import Experiment
+from expframework.experiment import Experiment
 from hive.assembly import ScopeAssembly
 
 def create_exp():
