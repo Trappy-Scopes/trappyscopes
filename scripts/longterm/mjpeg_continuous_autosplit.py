@@ -20,7 +20,7 @@ def create_exp():
 	exp.attribs["fps"] = 25
 	exp.attribs["exposure_ms"] = 18
 	exp.attribs["quality"] = 70
-	exp.attribs["no_chunks"] = 95
+	exp.attribs["no_chunks"] = 92
 	exp.attribs["light"] = (0.4,0,0)
 	exp.attribs["camera_mode"] = "vid_mjpeg_tpts_multi"
 	exp.attribs["group"] = "red_light"
@@ -44,11 +44,22 @@ def stop_cam():
 	print(f"Killed: {process}")
 	scope.beacon.blink()
 
-
-def filename_suffix_fn(split_no):
+global capturefilelist, syncidx
+capturefilelistcapturefilelist = 0
+capturefilelist = []
+def filename_fn(split_no):
 	global exp
 	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__{time.time_ns()}__split_{split_no}.mjpeg', abspath=False)
+	capturefilelist.append(filename)
 	return filename
+
+
+def sync_file():
+	global exp, capturefilelist, syncidx
+	if len(capturefilelist) > 1:
+		exp.sync_file_bg(capturefilelist[syncidx], remove_source=True)
+		syncidx = syncidx + 1
+
 
 def capture():
 	global exp, scope
@@ -57,7 +68,7 @@ def capture():
 	#c = exp.mstreams["acq"](filename=filename)
 	#c.panel()
 		
-	scope.cam.read(exp.attribs["camera_mode"], filename_suffix_fn, no_iterations=exp.attribs["no_chunks"], tsec=exp.attribs["chunk_size_sec"], 
+	scope.cam.read(exp.attribs["camera_mode"], filename_fn, no_iterations=exp.attribs["no_chunks"], tsec=exp.attribs["chunk_size_sec"], 
 					show_preview=False, quality=exp.attribs["quality"])
 
 	## Experiment is finishing - therefore sync the whole directory

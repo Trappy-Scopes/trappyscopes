@@ -349,7 +349,7 @@ class Camera(AbstractCamera):
         self.close()
 
 
-    def __vid_mjpeg_tpts_multi__(self, filename_suffix_fn, no_iterations=1, tsec=30, show_preview=False, **kwargs):
+    def __vid_mjpeg_tpts_multi__(self, filename_fn, no_iterations=1, tsec=30, show_preview=False, **kwargs):
         """
         MJPEG encoded video using a software encoder.
         
@@ -371,7 +371,7 @@ class Camera(AbstractCamera):
             for file_no in range(no_iterations):
                 
                 ## Geenrate splitname
-                filename = filename_suffix_fn(file_no)
+                filename = filename_fn(file_no)
                 tpts_filename = filename.replace(".mjpeg", ".tpts")
                 output.split_output(FileOutput(filename, pts=tpts_filename))
 
