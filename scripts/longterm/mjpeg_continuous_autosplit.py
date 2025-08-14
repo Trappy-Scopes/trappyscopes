@@ -117,15 +117,16 @@ def start_acq():
 	#capture()
 
 def test_fov(tsec):
+	global scope
 	print("[red]This function is obselete!")
 	scope.cam.read("prev_formatted", None, tsec=tsec, fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
 
 
 if __name__ == "__main__":
+	global scope
 	scope = ScopeAssembly.current
 	scope.lit.setVs(0.4,0,0)
 	print("Lights ready...")
 	scope.cam.open()
 	scope.cam.configure()
-	global scope
 	scope.beacon.blink()
