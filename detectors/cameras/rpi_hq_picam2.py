@@ -405,7 +405,7 @@ class Camera(AbstractCamera):
         output = SplittableOutput(output=FileOutput("prerec.mjpeg"))
         
         self.cam.start_recording(encoder, output)
-        
+        print("Beginning iterations...")
         try:
             print("Beginning iterations...")
             for file_no in range(no_iterations):
