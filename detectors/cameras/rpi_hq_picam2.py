@@ -145,7 +145,9 @@ class Camera(AbstractCamera):
 
     def __getstate__(self):
         """Removes what cannot be pickled"""
-        return {**self.config, 'transform': None, "colour_space":None}
+        state = {**self.config, 'transform': str(self.config["transfrom"]), "colour_space":str(self.config["colour_space"])}
+        state["controls"]["NoiseReductionMode"] = str(state["controls"]["NoiseReductionMode"])
+        return 
 
     def configure(self, *args, **kwargs):
         self.cam.options.update(self.options) ## Set compression
