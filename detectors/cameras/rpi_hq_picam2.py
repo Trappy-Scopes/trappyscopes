@@ -17,7 +17,7 @@ from picamera2.encoders import JpegEncoder
 from libcamera import controls
 import simplejpeg
 from picamera2.request import MappedArray
-
+from threading import Event
 ## TS imports
 from core.bookkeeping.yamlprotocol import YamlProtocol
 from core.permaconfig.sharing import Share
