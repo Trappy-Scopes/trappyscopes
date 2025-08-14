@@ -70,7 +70,7 @@ def capture():
 	# Pending -> File record mechaanism
 	#c = exp.mstreams["acq"](filename=filename)
 	#c.panel()
-		
+	scope = ScopeAssembly.current
 	scope.cam.read(exp.attribs["camera_mode"], filename_fn, no_iterations=exp.attribs["no_chunks"], tsec=exp.attribs["chunk_size_sec"], 
 					show_preview=False, quality=exp.attribs["quality"])
 
@@ -85,7 +85,7 @@ def start_acq():
 
 	global exp, scope, capture
 	
-
+	scope = ScopeAssembly.current
 	scope.beacon.on()
 
 
