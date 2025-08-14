@@ -380,7 +380,7 @@ class Camera(AbstractCamera):
                 filename = filename_fn(file_no)
                 tpts_filename = filename.replace(".mjpeg", ".tpts")
                 output.split_output(FileOutput(filename, pts=tpts_filename))
-
+                print(f"Acquiring: {filename}")
                 if not self.is_open():
                     self.close()
                     self.open()
