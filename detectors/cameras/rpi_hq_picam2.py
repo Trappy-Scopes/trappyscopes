@@ -402,7 +402,7 @@ class Camera(AbstractCamera):
         if show_preview:
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoderGrayRedCh(q=self.options["quality"])
-        output = SplittableOutput(output=FileOutput("prerec.mjpeg", tpts="prerec.tpts"))
+        output = SplittableOutput(output=FileOutput("prerec.mjpeg", pts="prerec.tpts"))
         print("Beginning recording...")
         self.cam.start_recording(encoder, output)
         print("Beginning iterations...")
