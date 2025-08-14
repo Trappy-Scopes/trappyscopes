@@ -364,7 +364,6 @@ class Camera(AbstractCamera):
         Looks like the encoder can be reused.
         """
         print("[red]Exp Syncing is not implemented!")
-        self.open()
         if show_preview:
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoderGrayRedCh(q=self.options["quality"])
