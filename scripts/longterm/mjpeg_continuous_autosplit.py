@@ -29,6 +29,7 @@ def create_exp():
 print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
 print("Use start_acq() to start acquiring.")
 print("Use stop_cam() to kill the capture thread.")
+global scope
 scope.beacon.blink()
 
 
