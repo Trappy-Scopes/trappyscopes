@@ -6,7 +6,7 @@ import ast
 from rich.panel import Panel
 from rich.pretty import Pretty
 
-from experiment import Experiment
+from expframework.experiment import Experiment
 
 def create_exp():
 	global exp

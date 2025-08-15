@@ -70,6 +70,7 @@ def capture():
 	# Pending -> File record mechaanism
 	#c = exp.mstreams["acq"](filename=filename)
 	#c.panel()
+	exp = Experiment.current
 	scope = ScopeAssembly.current
 	scope.cam.read(exp.attribs["camera_mode"], filename_fn, no_iterations=exp.attribs["no_chunks"], tsec=exp.attribs["chunk_size_sec"], 
 					show_preview=False, quality=exp.attribs["quality"])
@@ -115,6 +116,40 @@ def start_acq():
 	process = Process(target=capture)
 	process.start()
 	#capture()
+def start_acq_blocking():
+
+	global exp, scope, capture
+	
+	scope = ScopeAssembly.current
+	scope.beacon.on()
+
+
+	## Read tandh
+	tandh = exp.mstreams["tandh"]
+	def record_sensor():
+		try:
+			value = scope.tandh.read()
+		except:
+			print("[red]TandH reading failed![default]")
+			value =  {"temp": 0, "humidity":0}
+		r = tandh(**value)
+		r.panel()	
+	
+	record_sensor()
+	exp.schedule.every(5).minutes.until(timedelta(seconds=exp.attribs["chunk_size_sec"]*exp.attribs["no_chunks"])).do(record_sensor)
+	exp.logs.update(scope.get_config())
+	exp.__save__()
+	print("All jobs: ", exp.schedule.get_jobs())
+
+	## Set lights and capture
+	scope.lit.setVs(*exp.attribs["light"])
+	
+
+	#from multiprocessing import Process
+	#global process
+	#process = Process(target=capture)
+	#process.start()
+	capture()
 
 def test_fov(tsec):
 	global scope
