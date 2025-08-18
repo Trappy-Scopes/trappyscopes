@@ -1,28 +1,30 @@
-name: Deploy Docs
+name: Deploy MkDocs
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main   # or your default branch
+
+permissions:
+  contents: write   # required for GitHub Pages deploy
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.x
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
-    - name: Install Dependencies
-      run: |
-        pip install sphinx ghp-import
+      - name: Install dependencies
+        run: |
+          pip install mkdocs mkdocs-material
 
-    - name: Build Docs
-      run: |
-        make html
-
-    - name: Deploy to gh-pages
-      run: |
-        ghp-import -n -p -f docs
+      - name: Build and Deploy MkDocs
+        run: |
+          mkdocs gh-deploy --force
