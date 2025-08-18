@@ -972,6 +972,17 @@ docs = ["sphinx (>=5,<7)", "sphinx-autodoc-typehints", "sphinx-rtd-theme"]
 test = ["coverage", "pytest (>=7,<8.1)", "pytest-cov", "pytest-mock (>=3)"]
 
 [[package]]
+name = "html2rml"
+version = "0.3.2"
+description = "Simple HTML to RML converter"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "html2rml-0.3.2.tar.gz", hash = "sha256:5bf99d4ccaecdb8e8bc4446f3d279ebe7a6d3a37ef8e1b72d9e83dd0e6349164"},
+]
+
+[[package]]
 name = "identify"
 version = "2.6.13"
 description = "File identification library for Python"
@@ -2976,6 +2987,29 @@ packaging = "*"
 test = ["pytest (>=6,!=7.0.0,!=7.0.1)", "pytest-cov (>=3.0.0)", "pytest-qt"]
 
 [[package]]
+name = "reportlab"
+version = "4.4.3"
+description = "The Reportlab Toolkit"
+optional = false
+python-versions = "<4,>=3.7"
+groups = ["main"]
+files = [
+    {file = "reportlab-4.4.3-py3-none-any.whl", hash = "sha256:df905dc5ec5ddaae91fc9cb3371af863311271d555236410954961c5ee6ee1b5"},
+    {file = "reportlab-4.4.3.tar.gz", hash = "sha256:073b0975dab69536acd3251858e6b0524ed3e087e71f1d0d1895acb50acf9c7b"},
+]
+
+[package.dependencies]
+charset-normalizer = "*"
+pillow = ">=9.0.0"
+
+[package.extras]
+accel = ["rl_accel (>=0.9.0,<1.1)"]
+bidi = ["rlbidi"]
+pycairo = ["freetype-py (>=2.3.0,<2.4)", "rlPyCairo (>=0.2.0,<1)"]
+renderpm = ["rl_renderPM (>=4.0.3,<4.1)"]
+shaping = ["uharfbuzz"]
+
+[[package]]
 name = "requests"
 version = "2.32.4"
 description = "Python HTTP for Humans."
@@ -3703,4 +3737,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "987bec540f4a5f81bcd37a1de7f157a531f77696db039280cf456e2cb60488fa"
+content-hash = "1643c5299684219226d8a2f5ea2b71aebac6e6b7b600037edb3bf447fa8ed478"
