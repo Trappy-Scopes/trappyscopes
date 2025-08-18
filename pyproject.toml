@@ -1,5 +1,5 @@
 [project]
-name = "trappyscope"
+name = "trappyscopes"
 version = "0.1.0"
 description = "Control Layer Interface for parallel microscopy system."
 authors = [
