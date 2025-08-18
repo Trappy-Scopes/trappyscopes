@@ -1,5 +1,5 @@
 # mkdocs.yml
-site_name: Trappy-Scopes cli (scope-cli)
+site_name: Trappy-Scopes (scope-cli)
 site_url: https://trappy-scopes.github.io/scope-cli
 repo_url: https://github.com/Trappy-Scopes/scope-cli
 
@@ -15,7 +15,7 @@ nav:
 
 plugins:
   - search
-  - autorefs
+#  - autorefs
   - redirects
 #      scripts:
 #        - generate_docs.py
