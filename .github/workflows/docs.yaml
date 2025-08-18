@@ -24,6 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install mkdocs mkdocs-material
+          pip install mkdocs-blogging-plugin
 
       - name: Build and Deploy MkDocs
         run: |
