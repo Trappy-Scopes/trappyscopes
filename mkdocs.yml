@@ -14,10 +14,11 @@ nav:
   
 
 plugins:
+  - search
   - autorefs
-  - gen-files:
-      scripts:
-        - generate_docs.py
+  - redirects
+#      scripts:
+#        - generate_docs.py
 
 
 theme:
