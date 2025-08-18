@@ -11,7 +11,9 @@ nav:
   - expframework:
       - Overview: expframework/index.md
       - API Reference: expframework/api.md
-  
+
+
+
 
 plugins:
   - search
@@ -20,17 +22,43 @@ plugins:
 #      scripts:
 #        - generate_docs.py
 
+extra:
+  homepage: https://trappy-scopes.github.io/trappyscopes/
 
 theme:
+  logo: assets/tsicon.png
   name: material
+  palette:
+    # Dark mode as default
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    # Light mode option
+    - scheme: default
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
   features:
     - navigation.tabs
+    - navigation.top
     - navigation.indexes
-    - content.tabs
+    - toc.integrate
+    - search.highlight
+    - content.code.annotate
+    - content.code.copy
 
 markdown_extensions:
+  - toc:
+      permalink: true
   - admonition
   - pymdownx.superfences
   - pymdownx.highlight
   - attr_list
   - md_in_html
+  - tables
+  - pymdownx.superfences
