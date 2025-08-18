@@ -9,9 +9,9 @@ nav:
       - Overview: expframework/index.md
       - API Reference: expframework/api.md
   - hive:
-      - Overview: core/index.md
-      - API Reference: core/hive.md
-    - core:
+      - Overview: hive/index.md
+      - API Reference: hive/hive.md
+  - core:
       - Overview: core/index.md
       - API Reference: core/api.md
 
