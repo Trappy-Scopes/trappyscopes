@@ -16,7 +16,7 @@ nav:
 plugins:
   - search
 #  - autorefs
-  - redirects
+#  - redirects
 #      scripts:
 #        - generate_docs.py
 
