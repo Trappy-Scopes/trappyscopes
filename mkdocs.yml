@@ -5,12 +5,15 @@ repo_url: https://github.com/Trappy-Scopes/scope-cli
 
 nav:
   - Home: index.md
-  - core:
-      - Overview: core/index.md
-      - API Reference: core/api.md
   - expframework:
       - Overview: expframework/index.md
       - API Reference: expframework/api.md
+  - hive:
+      - Overview: core/index.md
+      - API Reference: core/hive.md
+    - core:
+      - Overview: core/index.md
+      - API Reference: core/api.md
 
 
 
