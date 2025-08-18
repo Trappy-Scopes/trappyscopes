@@ -3,7 +3,7 @@
 ### Distribution
 import os
 import sys
-from .fammods import Fammods
+#from .fammods import Fammods
 
 class Installer:
 	pylibs = ["rich", "pyyaml", "colorama", "nanoid", "art",
