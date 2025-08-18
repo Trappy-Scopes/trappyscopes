@@ -5,15 +5,27 @@ repo_url: https://github.com/Trappy-Scopes/scope-cli
 
 nav:
   - Home: index.md
-  - expframework:
-      - Overview: expframework/index.md
-      - API Reference: expframework/api.md
+  - Introduction: notes/intro.md
   - hive:
       - Overview: hive/index.md
       - API Reference: hive/hive.md
+  - expframework:
+      - Overview: expframework/index.md
+      - API Reference: expframework/api.md
   - core:
       - Overview: core/index.md
       - API Reference: core/api.md
+  - optics:
+      - Overview: optics/index.md
+      - API Reference: optics/api.md
+  - Notes:
+      - Introduction: notes/assmble_trappy_scopes.md
+      - Hive: notes/hive.md       
+      - Optics: notes/optics.md
+      - Project Management: notes/projectman.md
+      - Devices: notes/devices.md            
+      - picamera2 API: notes/picamera2.md
+  - All Trappy-Scopes Projects: https://trappy-scopes.github.io
 
 
 
@@ -23,6 +35,7 @@ nav:
 
 plugins:
   - search
+  - blogging
 #  - autorefs
 #  - redirects
 #      scripts:
