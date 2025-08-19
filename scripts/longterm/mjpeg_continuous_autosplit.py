@@ -74,6 +74,8 @@ def capture():
 	#c.panel()
 	exp = Experiment.current
 	scope = ScopeAssembly.current
+	print(exp)
+	print(scope)
 	scope.cam.read(exp.attribs["camera_mode"], filename_fn, no_iterations=exp.attribs["no_chunks"], tsec=exp.attribs["chunk_size_sec"], 
 					show_preview=False, quality=exp.attribs["quality"])
 
@@ -120,7 +122,7 @@ def start_acq():
 	global process
 	process = Process(target=capture)
 	process.start()
-	#capture()
+
 def start_acq_blocking():
 
 	global exp, scope, capture
