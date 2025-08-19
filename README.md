@@ -27,12 +27,150 @@ Control Layer Interface for parallel microscopy system.
 	python main.py --install
 	```
 
-## Get to this library
-
-1. Basic information about application startup
+3. Basic information about application startup
 	```bash
 	python main.py -h
 	```
+
+4. `python main.py` can be replaced by `./ts`, which is a bash script that does the same (plus some extra things). You might have to run `chmod +x ts` or `sudo +x ts` to provide executable priviledges to the script.
+
+
+## Configuring a scope
+
+1. `trappyscopes` cli is configured through a `YAML` configuration file. Let´s start by generating a configurartion file.
+
+	```bash
+	python main.py --new_config
+	```
+
+	This generate the following files in the home directory:
+	```
+	 (~)
+	  |-trappyverse
+	  .	|- trappyconfig.yaml
+	 		.
+	```
+2. `trappyverse/trappyconfig.yaml` is the default configuration file name and should be unchanged. We can have more than one configuration file on a system. To start the software with a custom configuration file:
+
+	```bash
+	python main.py --config ~/parallelverse/customconfig.yaml
+	```
+3. Now let's look at the configuration file!
+	1. The first two lines are these:
+		```yaml
+		name: <hostname>          # Name of the scope, which defaults to hostname. The is defined as the global variable `scopeid` with the defaul startup recipie. 
+		kind: mystery-device      # A signle word descriptor for the device.
+    description: The functionally has not been described yet # A short description of the functionality of the device.
+		```
+
+		These fields can be edited as such and are of little consequence in terms of programming. The `name` must be chosen with care, and it's recommened that it is also the hostname of the machine. This makes remote access easy and preventss conflicts. 
+
+
+		`name: MDev` is a special name, which defines any device as a "Development Scope" and has some special priveledges. For more information, check the [`MDev`](notes/mdev.md) entry in the notes.
+
+	2. Now let's set check some configuration options and learn what they do:
+
+		```yaml
+		config:
+		  trappydir: ~/trappyverse   # Directory where the configuration of the scope is stored.
+		  ui_mode: interactive       # User interaction mode
+		  venv: 										 # Whether to use a virtual environment for 
+		    active: true								# Config block is active. The function is turned on.
+		    command: source ~/opt/miniconda3/bin/activate 
+		    name: trappy                # Name of the virtual environment that will be called after the command
+		  git_sync:									 # Automatically git-sync certain repositories
+		  	active: true							  # Config block is active. The function is turned on.
+		  	command: git pull						# Exact command to use for git syncronisation
+		  	repos:											# List of local repositories, where the command will be called
+		  		- ~/lab_protocols/
+		  		- ~/lab_scripts/										 
+		  set_wallpaper: false			 # This option will set a "information" panel as the wallpaper. This helps to id the device, incase of multiplexing.
+		  log_level: 20              # Log level of the root logger. Use 10 for debug. 20 is info and higher.
+		  config_server:             # Configuration files are synchronised with this server, when changed.         
+		    active: true
+		    server: <ip>/<address>
+		    share: <name-of-server-share>
+		    destination: "{date}"   # Sub folder inside the share. This will create a folder with the "current date" opon operation.
+		    username: <username>
+		    password: <password>
+		  config_redact_fields:     # Fields that will be redacted, if the config file is copied
+		  	- username
+		  	- password
+		  startup_recipie: core.startup  # Startup procedure that defines how the CLI environment is created. `core.startup.__init__.py` defines the default one.
+		  startup_scripts:          # Scripts to run by default when the CLI is started.   
+  		  - ./scripts/script1.py
+  		  - ./scripts/script2.py
+		```
+		Note some key features here: 
+		1. Any mapping can be turned off by defining a field `active: false` inside it. If this argument is skipped, then it's assumed to be `true`.
+		2. Custom addresses (like the `destination` in `config_server`) can be defined with an "effifible" string (inspired by the f-strings in python):
+			```yaml
+			config_server:
+				destination: "{date}_{scopeid}_{user}" # -> 2025_05_01_microscope1_User1
+			```
+
+			The following terms can be used: `scopeid`, `user`, `date`, and `time`.
+
+	3. Now let's look at the default `ScopeAssembly` block below:
+		```yaml
+		ScopeAssembly:
+			<hostname>: 
+		    description: "Host processorgroup."
+		    kind: hive.processorgroups.linux.LinuxMachine
+		    args: []
+		    kwargs: {}
+		```
+		The device that we see here is the host computing machine that is detected and mounted. It is one of the devices under the `ScopeAssembly`, which is identified as the global variable `scope`. Within the scope assembly, we can define an arbitrary number of devices with the follwing schema:
+		```yaml
+		ScopeAssembly:
+			device_name:
+				active: true
+				description: Provide a meaningful description of the device.
+				kind: <path.to.object.Constructor>
+				args: []   # Arguments that are passed to the object constructor.
+				kwargs: {} # Keyword arguments passed to the object constructor.
+				# Optional configuration
+				metaclass: hive.detector.Detector  # Define the object as a detector and extend its functionality
+				read_method: capture  # Method of the origianl object that is interpreted as the "read" method.
+					args: []						# These will be wrapped in a `functools.partial` instance.
+					kwargs: {}  				# These will also be wrapped in a `functools.partial` instance.
+				write_method: set # Similar to the "read_method" option.
+					args: []						# These will be wrapped in a `functools.partial` instance.
+					kwargs: {}  				# These will also be wrapped in a `functools.partial` instance.
+		```
+		For more information regarding the optional configuration options, refer to: [notes/devices.md](notes/devices.md).
+
+	4. For now, we can leave the previous block as it was and quickly gloss over the `Experiment` configuration block:
+		TODO: Git auth for protocols.
+		```yaml
+		Experiment:
+			exp_dir: ~/experiments              # Default directory where experiments are stored
+ 			protocols_dir: ~/lab_protocols      # Directory where protocols are stored, This can also be a git-address.
+ 			calibration_dir: ~/calibration_dir  # Directory where calibrations are stored.
+ 			exp_dir_structure:                  # This is the directory structure, that will be created within every experiment.
+ 				- scripts
+ 				- postprocess
+ 				- converted
+ 				- analysis
+ 			exp_report: false                   # Whether the pdf report functionality is turned on or not.
+ 			eid_generator: core.uid.uid         # This is the funtion that will be called to generate experiment IDs. By default is calls `nanoid.generate('1234567890abcdef', 10)`
+			file_server:                        # File server for synchronisation of experiments
+		    active: true
+		    server: <ip>/<address>
+		    share: <name-of-server-share>
+		    destination: "{date}"
+		    username: <username>
+		    password: <password>
+		```
+	5. The configuration is defined in `core.permaconfig.config.py` as `TrappyConfig`. It uses the [Confuse](https://confuse.readthedocs.io/en/latest/usage.html#confuse-painless-configuration) library as a base.
+
+
+
+
+ ---
+ # Depreciated
+
+
 
 2. A little introduction can be summoned by calling `intro()`.
 
