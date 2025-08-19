@@ -8,6 +8,8 @@ from rich.pretty import Pretty
 
 from expframework.experiment import Experiment
 from hive.assembly import ScopeAssembly
+import logging as log
+
 
 def create_exp():
 	global exp, scopeid, scope
@@ -110,6 +112,9 @@ def start_acq():
 	## Set lights and capture
 	scope.lit.setVs(*exp.attribs["light"])
 	
+	scope.cam.close()
+	time.sleep(1)
+	log.info("Camera closed for process forking.")
 
 	from multiprocessing import Process
 	global process

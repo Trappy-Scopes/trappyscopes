@@ -3,7 +3,9 @@
 *.mp4
 *.png
 *.jpg
-
+.DS_Store*
+*.DS_Store
+*.DS_Store*
 # Device specific config
 #deviceid.yaml
 ./config/deviceid.yaml
