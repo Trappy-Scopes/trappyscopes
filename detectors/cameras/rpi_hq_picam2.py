@@ -400,8 +400,8 @@ class Camera(AbstractCamera):
         Looks like the encoder can be reused.
         """
         log.info("Reopening camera...")
-        self.cam.open()
-        self.cam.configure()
+        self.open()
+        self.configure()
         time.sleep(1)
 
         log.info(f"Iterations: {no_iterations}")

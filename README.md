@@ -5,36 +5,29 @@ Control Layer Interface for parallel microscopy system.
 ![](https://github.com/Trappy-Scopes/scope-cli/workflows/docs/badge.svg)
 
 
+## What is Trappy/Scopes?
 
-## Introduction
 
-1. What is Trappy-Scopes?
-2. How to use it?
-3. Why you should use it?
+## Trappy-Scopes command line interface (trappyscopes)
+
 
 ## Installation
 
-1. Install through conda or pip #todo
+1. Install through `pip`
 
-	```
+	```bash
 	pip install trappyscopes
-	conda install trappyscopes
+	```
 
-2. You can install directly from the source and install the environment using the inbuilt installer that uses `pip`.
+2. You can install directly from the source and install the environment using the inbuilt command to build the environment.
 
 	```bash
 	git clone -r <repo_link>
-	cd <scope-cli>
+	cd <trappyscopes>
 	python main.py --install
 	```
 
-## Configure the Scope
-
-1. 
-
-
-
-## Get to know Trappy-Scope
+## Get to this library
 
 1. Basic information about application startup
 	```bash
