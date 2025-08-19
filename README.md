@@ -1,14 +1,4 @@
-# scope-cli
-
-Control Layer Interface for parallel microscopy system.
-
-![](https://github.com/Trappy-Scopes/scope-cli/workflows/docs/badge.svg)
-
-
-## What is Trappy/Scopes?
-
-
-## Trappy-Scopes command line interface (trappyscopes)
+# trappyscopes-cli (Trappy-Scopes command line interface)
 
 
 ## Installation
