@@ -25,6 +25,7 @@ jobs:
         run: |
           pip install mkdocs mkdocs-material
           pip install mkdocs-blogging-plugin
+          pip install mkdocs-embed-external-markdown
 
       - name: Build and Deploy MkDocs
         run: |

@@ -36,6 +36,7 @@ nav:
 plugins:
   - search
   - blogging
+  - external-markdown
 #  - autorefs
 #  - redirects
 #      scripts:
