@@ -983,6 +983,25 @@ files = [
 ]
 
 [[package]]
+name = "icalendar"
+version = "6.3.1"
+description = "iCalendar parser/generator"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "icalendar-6.3.1-py3-none-any.whl", hash = "sha256:7ea1d1b212df685353f74cdc6ec9646bf42fa557d1746ea645ce8779fdfbecdd"},
+    {file = "icalendar-6.3.1.tar.gz", hash = "sha256:a697ce7b678072941e519f2745704fc29d78ef92a2dc53d9108ba6a04aeba466"},
+]
+
+[package.dependencies]
+python-dateutil = "*"
+tzdata = "*"
+
+[package.extras]
+test = ["coverage", "hypothesis", "pytest", "pytz"]
+
+[[package]]
 name = "identify"
 version = "2.6.13"
 description = "File identification library for Python"
@@ -3433,6 +3452,23 @@ xml = ["defusedxml", "lxml"]
 zarr = ["fsspec", "kerchunk", "zarr (>=3)"]
 
 [[package]]
+name = "timeboard"
+version = "0.2.4"
+description = "Calendar calculations over business days and work shifts"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "timeboard-0.2.4.tar.gz", hash = "sha256:b267fd758779ccd8c22a2921c10e6263f29acea4612462ae5b2c7a8f39f1f707"},
+]
+
+[package.dependencies]
+numpy = {version = ">=1.16", markers = "python_version >= \"3.6\""}
+pandas = {version = ">=0.22", markers = "python_full_version >= \"3.6.1\""}
+python-dateutil = ">=2.6.1"
+six = "*"
+
+[[package]]
 name = "tornado"
 version = "6.5.2"
 description = "Tornado is a Python web framework and asynchronous networking library, originally developed at FriendFeed."
@@ -3737,4 +3773,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "1643c5299684219226d8a2f5ea2b71aebac6e6b7b600037edb3bf447fa8ed478"
+content-hash = "638ceba7f9c86ca57c963cef106baf143461e035541bcd19f98a5bb42f9f583c"
