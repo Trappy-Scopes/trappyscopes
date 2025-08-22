@@ -37,6 +37,8 @@ plugins:
   - search
   - blogging
   - external-markdown
+  - mermaid2
+
 #  - autorefs
 #  - redirects
 #      scripts:

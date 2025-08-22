@@ -2,11 +2,25 @@
 
 `trappyscopes` is a python framework for building and controlling laboratory instruments. It facillitates the creation of highly heterogenous instrument assemblies by integration any existing python package. The aim of  `trappyscopes` is to enable fast deployment of paralel measurement systems that are software defined.
 
-The base model of this library imagines instruments as an arbitrary tree of python enabled computers and "pythonic" microcontrollers (micropython or circuitpython). With this base model, the control layer enables plug and play interfacing with minimal configuration.
+The base model of this library imagines instruments as an arbitrary tree of python enabled computers and "pythonic" microcontrollers (micropython or circuitpython). With this base model, the control layer enables plug and play interfacing with minimal configuration. The key idea is to have the following workflow while building instruments.
+
+1. Connect all components with their respective interfaces (serial, ethernet, over wifi etc)
+2. Install this library and all required 3rd party packages for the components.
+3. Define the structure of the instrument in a configuraion file.
+4. You are done! Launch the cli to acquire data.
 
 
 
-## A quick example
+### Some other salient features of the framework
+
+1. Pythonic interfacing
+2. Software defined infrastructure is at the core of lab management.
+3. Made to support parallelization and open-source instrumentation.
+4. Seemlessly interfaces with any existing python pacakge.
+
+
+
+### A quick example
 
 Given the following configuration of instruments, where M1 and M2 are separate machines connected by a network:
 
@@ -97,6 +111,7 @@ ScopeAssembly:
   ```
 3. Now let's look at the configuration file!
   1. The first two lines are these:
+
     ```yaml
     name: <hostname>          # Name of the scope, which defaults to hostname. The is defined as the global variable `scopeid` with the defaul startup recipie. 
     kind: mystery-device      # A signle word descriptor for the device.
@@ -106,9 +121,9 @@ ScopeAssembly:
     These fields can be edited as such and are of little consequence in terms of programming. The `name` must be chosen with care, and it's recommened that it is also the hostname of the machine. This makes remote access easy and preventss conflicts. 
     
     `name: MDev` is a special name, which defines any device as a "Development Scope" and has some special priveledges. For more information, check the [`MDev`](notes/mdev.md) entry in the notes.
-    
+
   2. Now let's set check some configuration options and learn what they do:
-    
+
     ```yaml
     config:
       trappydir: ~/trappyverse   # Directory where the configuration of the scope is stored.
@@ -141,16 +156,20 @@ ScopeAssembly:
       - ./scripts/script2.py
     
     ```
+    
     Note some key features here: 
       1. Any mapping can be turned off by defining a field `active: false` inside it. If this argument is skipped, then it's assumed to be `true`.
       2. Custom addresses (like the `destination` in `config_server`) can be defined with an "effifible" string (inspired by the f-strings in python):
+    
       ```yaml
       config_server:
       destination: "{date}_{scopeid}_{user}" # -> 2025_05_01_microscope1_User1
       ```
-      The following terms can be used: `scopeid`, `user`, `date`, and `time`.
     
+      The following terms can be used: `scopeid`, `user`, `date`, and `time`.
+
   3. Now let's look at the default `ScopeAssembly` block below:
+
     ```yaml
     ScopeAssembly:
       <hostname>: 
@@ -159,7 +178,9 @@ ScopeAssembly:
         args: []
         kwargs: {}
     ```
+    
     The device that we see here is the host computing machine that is detected and mounted. It is one of the devices under the `ScopeAssembly`, which is identified as the global variable `scope`. Within the scope assembly, we can define an arbitrary number of devices with the follwing schema:
+    
     ```yaml
     ScopeAssembly:
       device_name:
@@ -177,10 +198,13 @@ ScopeAssembly:
           args: []            # These will be wrapped in a `functools.partial` instance.
           kwargs: {}          # These will also be wrapped in a `functools.partial` instance.
     ```
-    For more information regarding the optional configuration options, refer to: [notes/devices.md](notes/devices.md).
     
+    For more information regarding the optional configuration options, refer to: [notes/devices.md](notes/devices.md).
+
   4. For now, we can leave the previous block as it was and quickly gloss over the `Experiment` configuration block:
+
     TODO: Git auth for protocols.
+    
     ```yaml
     Experiment:
       exp_dir: ~/experiments              # Default directory where experiments are stored
@@ -201,6 +225,7 @@ ScopeAssembly:
         username: <username>
         password: <password>
     ```
+
   5. The configuration is defined in `core.permaconfig.config.py` as `TrappyConfig`. It uses the [Confuse](https://confuse.readthedocs.io/en/latest/usage.html#confuse-painless-configuration) library as a base.
 
  
