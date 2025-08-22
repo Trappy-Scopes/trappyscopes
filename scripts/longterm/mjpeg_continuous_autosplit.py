@@ -50,7 +50,7 @@ def stop_cam():
 	scope.beacon.blink()
 
 global capturefilelist, syncidx
-capturefilelistcapturefilelist = 0
+syncidx = 0
 capturefilelist = []
 
 def sync_file():
