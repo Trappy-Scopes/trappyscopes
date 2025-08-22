@@ -52,18 +52,23 @@ def stop_cam():
 global capturefilelist, syncidx
 capturefilelistcapturefilelist = 0
 capturefilelist = []
-def filename_fn(split_no):
-	global exp
-	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__{time.time_ns()}__split_{split_no}.mjpeg', abspath=False)
-	capturefilelist.append(filename)
-	return filename
-
 
 def sync_file():
 	global exp, capturefilelist, syncidx
 	if len(capturefilelist) > 1:
 		exp.sync_file_bg(capturefilelist[syncidx], remove_source=True)
 		syncidx = syncidx + 1
+
+def filename_fn(split_no):
+	global exp
+	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__{time.time_ns()}__split_{split_no}.mjpeg', abspath=False)
+	capturefilelist.append(filename)
+	if split_no > 1:
+		sync_file()
+	return filename
+
+
+
 
 
 def capture():
@@ -74,17 +79,14 @@ def capture():
 	#c.panel()
 	exp = Experiment.current
 	scope = ScopeAssembly.current
-	print(exp)
-	print(scope)
 	scope.cam.read(exp.attribs["camera_mode"], filename_fn, no_iterations=exp.attribs["no_chunks"], tsec=exp.attribs["chunk_size_sec"], 
 					show_preview=False, quality=exp.attribs["quality"])
 
 	## Experiment is finishing - therefore sync the whole directory
-	exp.logs.update(scope.get_config())
-	exp.__save__()
-	exp.sync_dir()
-	scope.beacon.blink()
-	exp.close()
+	
+	#exp.__save__()
+	#exp.sync_dir()
+	#exp.close()
 
 def start_acq():
 
@@ -125,8 +127,8 @@ def start_acq():
 
 def start_acq_blocking():
 
-	global exp, scope, capture
-	
+	global capture
+	exp = Experiment.current
 	scope = ScopeAssembly.current
 	scope.beacon.on()
 
@@ -157,6 +159,14 @@ def start_acq_blocking():
 	#process = Process(target=capture)
 	#process.start()
 	capture()
+	exp.__save__()
+	exp.logs.update(scope.get_config())
+	scope.beacon.blink()
+	exp.logs.update(scope.get_config())
+	exp.sync_dir(remove_source=True)
+	exp.sync_dir()
+
+
 
 def test_fov(tsec):
 	global scope

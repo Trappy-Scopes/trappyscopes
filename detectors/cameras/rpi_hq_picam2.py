@@ -387,7 +387,7 @@ class Camera(AbstractCamera):
         self.cam.stop_recording()
         if show_preview:
             self.cam.stop_preview()
-        self.close()
+        #self.close()
 
 
     def __vid_mjpeg_tpts_multi__(self, filename_fn, no_iterations=1, tsec=30, show_preview=False, **kwargs):
