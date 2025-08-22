@@ -49,9 +49,10 @@
 		```yaml
 		name: <hostname>          # Name of the scope, which defaults to hostname. The is defined as the global variable `scopeid` with the defaul startup recipie. 
 		kind: mystery-device      # A signle word descriptor for the device.
-   	 description: The functionally has not been described yet # A short description of the functionality of the device.
+   	description: The functionally has not been described yet # A short description of the functionality of the device.
 		```
 
+		
 		These fields can be edited as such and are of little consequence in terms of programming. The `name` must be chosen with care, and it's recommened that it is also the hostname of the machine. This makes remote access easy and preventss conflicts. 
 		
 		`name: MDev` is a special name, which defines any device as a "Development Scope" and has some special priveledges. For more information, check the [`MDev`](notes/mdev.md) entry in the notes.
