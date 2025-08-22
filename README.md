@@ -1,6 +1,8 @@
-# trappyscopes-cli (Trappy-Scopes command line interface)
+# trappyscopes-cli 
 
-`trappyscopes` is a python framework for building and controlling laboratory instruments. It facillitates the creation of highly heterogenous instrument assemblies by integration any existing python package. The aim of  `trappyscopes` is to enable fast deployment of paralel measurement systems that are software defined.
+## (Trappy-Scopes command line interface)
+
+trappyscopes is a python framework for building and controlling laboratory instruments. It facillitates the creation of highly heterogenous instrument assemblies by integration any existing python package. The aim of  `trappyscopes` is to enable fast deployment of paralel measurement systems that are software defined.
 
 The base model of this library imagines instruments as an arbitrary tree of python enabled computers and "pythonic" microcontrollers (micropython or circuitpython). With this base model, the control layer enables plug and play interfacing with minimal configuration. The key idea is to have the following workflow while building instruments.
 
