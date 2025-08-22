@@ -222,7 +222,7 @@ class ExpSync:
 			#ionice -c1 -n0 rsync -aW --inplace --no-compress /source/ /mnt/nas/
 
 			command = [
-				'sudo', 'ionice', '-c1', '-n2', 'rsync', '-aW', '--no-compress', '--inplace', *source_removal,
+				'sudo', 'ionice', '-c2', '-n4', 'rsync', '-aW', '--no-compress', '--inplace', *source_removal,
 				os.path.join(os.getcwd(), file),
 				os.path.join(self.destination_dir, file)
 			]
