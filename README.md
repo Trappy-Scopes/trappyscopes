@@ -113,23 +113,23 @@ ScopeAssembly:
 3. Now let's look at the configuration file!
   1. The first two lines are these:
 
-    ```yaml
+  ```yaml
     name: <hostname>          # Name of the scope, which defaults to hostname. The is defined as the global variable `scopeid` with the defaul startup recipie. 
     kind: mystery-device      # A signle word descriptor for the device.
     description: The functionally has not been described yet # A short description of the functionality of the device.
-    ```
-    
-    These fields can be edited as such and are of little consequence in terms of programming. The `name` must be chosen with care, and it's recommened that it is also the hostname of the machine. This makes remote access easy and preventss conflicts. 
-    
-    `name: MDev` is a special name, which defines any device as a "Development Scope" and has some special priveledges. For more information, check the [`MDev`](notes/mdev.md) entry in the notes.
+  ```
+
+  These fields can be edited as such and are of little consequence in terms of programming. The `name` must be chosen with care, and it's recommened that it is also the hostname of the machine. This makes remote access easy and preventss conflicts. 
+
+  `name: MDev` is a special name, which defines any device as a "Development Scope" and has some special priveledges. For more information, check the [`MDev`](notes/mdev.md) entry in the notes.
 
   2. Now let's set check some configuration options and learn what they do:
 
-    ```yaml
-    config:
-      trappydir: ~/trappyverse   # Directory where the configuration of the scope is stored.
-      ui_mode: interactive       # User interaction mode
-      venv:                      # Whether to use a virtual environment for 
+  ```yaml
+  config:
+    trappydir: ~/trappyverse   # Directory where the configuration of the scope is stored.
+    ui_mode: interactive       # User interaction mode
+    venv:                      # Whether to use a virtual environment for 
         active: true                # Config block is active. The function is turned on.
         command: source ~/opt/miniconda3/bin/activate 
         name: trappy                # Name of the virtual environment that will be called after the command
@@ -156,33 +156,36 @@ ScopeAssembly:
       - ./scripts/script1.py
       - ./scripts/script2.py
     
-    ```
-    
-    Note some key features here: 
-      1. Any mapping can be turned off by defining a field `active: false` inside it. If this argument is skipped, then it's assumed to be `true`.
-      2. Custom addresses (like the `destination` in `config_server`) can be defined with an "effifible" string (inspired by the f-strings in python):
-    
-      ```yaml
-      config_server:
-      destination: "{date}_{scopeid}_{user}" # -> 2025_05_01_microscope1_User1
-      ```
-    
-      The following terms can be used: `scopeid`, `user`, `date`, and `time`.
+  ```
 
-  3. Now let's look at the default `ScopeAssembly` block below:
+  Note some key features here: 
+    1. Any mapping can be turned off by defining a field `active: false` inside it. If this argument is skipped, then it's assumed to be `true`.
+    2. Custom addresses (like the `destination` in `config_server`) can be defined with an "effifible" string (inspired by the f-strings in python):
+    
+~~~yaml
+```
+  config_server:
+  destination: "{date}_{scopeid}_{user}" # -> 2025_05_01_microscope1_User1
+```
+~~~
 
-    ```yaml
+
+  The following terms can be used: `scopeid`, `user`, `date`, and `time`.
+
+    3. Now let's look at the default `ScopeAssembly` block below:
+
+  ```yaml
     ScopeAssembly:
       <hostname>: 
         description: "Host processorgroup."
         kind: hive.processorgroups.linux.LinuxMachine
         args: []
         kwargs: {}
-    ```
-    
-    The device that we see here is the host computing machine that is detected and mounted. It is one of the devices under the `ScopeAssembly`, which is identified as the global variable `scope`. Within the scope assembly, we can define an arbitrary number of devices with the follwing schema:
-    
-    ```yaml
+  ```
+
+  The device that we see here is the host computing machine that is detected and mounted. It is one of the devices under the `ScopeAssembly`, which is identified as the global variable `scope`. Within the scope assembly, we can define an arbitrary number of devices with the follwing schema:
+
+  ```yaml
     ScopeAssembly:
       device_name:
         active: true
@@ -198,15 +201,15 @@ ScopeAssembly:
         write_method: set # Similar to the "read_method" option.
           args: []            # These will be wrapped in a `functools.partial` instance.
           kwargs: {}          # These will also be wrapped in a `functools.partial` instance.
-    ```
-    
-    For more information regarding the optional configuration options, refer to: [notes/devices.md](notes/devices.md).
+  ```
+
+  For more information regarding the optional configuration options, refer to: [notes/devices.md](notes/devices.md).
 
   4. For now, we can leave the previous block as it was and quickly gloss over the `Experiment` configuration block:
 
-    TODO: Git auth for protocols.
+  TODO: Git auth for protocols.
     
-    ```yaml
+  ```yaml
     Experiment:
       exp_dir: ~/experiments              # Default directory where experiments are stored
       protocols_dir: ~/lab_protocols      # Directory where protocols are stored, This can also be a git-address.
@@ -225,7 +228,7 @@ ScopeAssembly:
         destination: "{date}"
         username: <username>
         password: <password>
-    ```
+  ```
 
   5. The configuration is defined in `core.permaconfig.config.py` as `TrappyConfig`. It uses the [Confuse](https://confuse.readthedocs.io/en/latest/usage.html#confuse-painless-configuration) library as a base.
 
