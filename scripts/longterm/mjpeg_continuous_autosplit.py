@@ -26,7 +26,7 @@ def create_exp():
 	exp.attribs["exposure_ms"] = 18
 	exp.attribs["quality"] = 100
 	exp.attribs["no_chunks"] = 92
-	exp.attribs["light"] = (0.4,0,0)
+	exp.attribs["light"] = (0.5,0,0)
 	exp.attribs["camera_mode"] = "vid_mjpeg_tpts_multi"
 	exp.attribs["group"] = "red_light"
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
@@ -176,7 +176,7 @@ def test_fov(tsec):
 if __name__ == "__main__":
 	global scope
 	scope = ScopeAssembly.current
-	scope.lit.setVs(0.4,0,0)
+	scope.lit.setVs(0.50,0,0)
 	print("Lights ready...")
 	scope.cam.open()
 	scope.cam.configure()
