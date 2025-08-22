@@ -390,7 +390,7 @@ class Camera(AbstractCamera):
         #self.close()
 
 
-    def __vid_mjpeg_tpts_multi__(self, filename_fn, no_iterations=1, tsec=30, show_preview=False, **kwargs):
+    def __vid_mjpeg_tpts_multi__(self, filename_fn, no_splits=1, tsec=30, show_preview=False, **kwargs):
         """
         MJPEG encoded video using a software encoder.
         
@@ -404,17 +404,16 @@ class Camera(AbstractCamera):
         #self.configure()
         time.sleep(1)
 
-        log.info(f"Iterations: {no_iterations}")
+        log.info(f"Splits: {no_splits}")
         if show_preview:
             self.cam.start_preview(self.preview_type)
-        encoder = JpegEncoderGrayRedCh(q=self.options["quality"])
+        encoder = JpegEncoderGrayRedCh(q=self.options["quality"], num_threads=4)
         output = SplittableOutput(output=FileOutput("prerec.mjpeg", pts="prerec.tpts"))
         log.info("Beginning recording...")
         self.cam.start_recording(encoder, output)
-        log.info("Beginning iterations...")
+        log.info("Beginning splitting...")
         try:
-            print("Trying splitting...")
-            for file_no in range(no_iterations):
+            for file_no in range(no_splits):
                 
                 ## Genrate splitname
                 filename = filename_fn(file_no)

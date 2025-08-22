@@ -79,7 +79,7 @@ def capture():
 	#c.panel()
 	exp = Experiment.current
 	scope = ScopeAssembly.current
-	scope.cam.read(exp.attribs["camera_mode"], filename_fn, no_iterations=exp.attribs["no_chunks"], tsec=exp.attribs["chunk_size_sec"], 
+	scope.cam.read(exp.attribs["camera_mode"], filename_fn, no_splits=exp.attribs["no_chunks"], tsec=exp.attribs["chunk_size_sec"], 
 					show_preview=False, quality=exp.attribs["quality"])
 
 	## Experiment is finishing - therefore sync the whole directory
@@ -162,7 +162,6 @@ def start_acq_blocking():
 	exp.__save__()
 	exp.logs.update(scope.get_config())
 	scope.beacon.blink()
-	exp.logs.update(scope.get_config())
 	exp.sync_dir(remove_source=True)
 	exp.sync_dir()
 
