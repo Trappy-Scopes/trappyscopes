@@ -376,7 +376,7 @@ class Camera(AbstractCamera):
         """
         #video_config = self.cam.create_video_configuration(main={"size": self.config.res})
         #self.cam.configure(self.video_config)
-        self.open()
+        #self.open()
         if show_preview:
             self.cam.start_preview(self.preview_type)
         encoder = JpegEncoderGrayRedCh(q=quality, num_threads=3)
