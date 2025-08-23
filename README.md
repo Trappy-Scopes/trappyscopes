@@ -1,5 +1,8 @@
 # trappyscopes-cli
 
+![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) [![Licence](https://img.shields.io/github/license/Ileriayo/markdown-badges?style=for-the-badge)](./LICENSE)
+
+
 ## (Trappy-Scopes command line interface)
 
 trappyscopes is a python framework for building and controlling laboratory instruments. It facillitates the creation of highly heterogenous instrument assemblies by integration any existing python package. The aim of  `trappyscopes` is to enable fast deployment of paralel measurement systems that are software defined.
@@ -322,7 +325,7 @@ ScopeAssembly:
   ```python
   ## Find and open an existing experiment
   exp = findexp() ## Press enter to open a prompt with available experiments
-
+  
   ## Find an delete an existing experiment
   ## Warning: this is an irreversible deletion
   delexp()
