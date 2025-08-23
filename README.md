@@ -1,4 +1,4 @@
-# trappyscopes-cli 
+# trappyscopes-cli
 
 ## (Trappy-Scopes command line interface)
 
