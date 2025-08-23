@@ -120,9 +120,9 @@ ScopeAssembly:
   1. The first two lines are these:
 
     ```yaml
-      name: <hostname>          # Name of the scope, which defaults to hostname. The is defined as the global variable `scopeid` with the defaul startup recipie. 
-      kind: mystery-device      # A signle word descriptor for the device.
-      description: The functionally has not been described yet # A short description of the functionality of the device.
+    name: <hostname>          # Name of the scope, which defaults to hostname. The is defined as the global variable `scopeid` with the defaul startup recipie. 
+    kind: mystery-device      # A signle word descriptor for the device.
+    description: The functionally has not been described yet # A short description of the functionality of the device.
     ```
     
     These fields can be edited as such and are of little consequence in terms of programming. The `name` must be chosen with care, and it's recommened that it is also the hostname of the machine. This makes remote access easy and preventss conflicts. 
@@ -168,12 +168,11 @@ ScopeAssembly:
       1. Any mapping can be turned off by defining a field `active: false` inside it. If this argument is skipped, then it's assumed to be `true`.
       2. Custom addresses (like the `destination` in `config_server`) can be defined with an "effifible" string (inspired by the f-strings in python):
 
-  ~~~yaml
+
+  ```yaml
+  config_server:
+  destination: "{date}_{scopeid}_{user}" # -> 2025_05_01_microscope1_User1
   ```
-    config_server:
-    destination: "{date}_{scopeid}_{user}" # -> 2025_05_01_microscope1_User1
-  ```
-  ~~~
 
 
     The following terms can be used: `scopeid`, `user`, `date`, and `time`.
@@ -181,32 +180,32 @@ ScopeAssembly:
     3. Now let's look at the default `ScopeAssembly` block below:
     
     ```yaml
-      ScopeAssembly:
-        <hostname>: 
-          description: "Host processorgroup."
-          kind: hive.processorgroups.linux.LinuxMachine
-          args: []
-          kwargs: {}
+    ScopeAssembly:
+      <hostname>: 
+        description: "Host processorgroup."
+        kind: hive.processorgroups.linux.LinuxMachine
+        args: []
+        kwargs: {}
     ```
     
     The device that we see here is the host computing machine that is detected and mounted. It is one of the devices under the `ScopeAssembly`, which is identified as the global variable `scope`. Within the scope assembly, we can define an arbitrary number of devices with the follwing schema:
     
     ```yaml
-      ScopeAssembly:
-        device_name:
-          active: true
-          description: Provide a meaningful description of the device.
-          kind: <path.to.object.Constructor>
-          args: []   # Arguments that are passed to the object constructor.
-          kwargs: {} # Keyword arguments passed to the object constructor.
-          # Optional configuration
-          metaclass: hive.detector.Detector  # Define the object as a detector and extend its functionality
-          read_method: capture  # Method of the origianl object that is interpreted as the "read" method.
-            args: []            # These will be wrapped in a `functools.partial` instance.
-            kwargs: {}          # These will also be wrapped in a `functools.partial` instance.
-          write_method: set # Similar to the "read_method" option.
-            args: []            # These will be wrapped in a `functools.partial` instance.
-            kwargs: {}          # These will also be wrapped in a `functools.partial` instance.
+    ScopeAssembly:
+      device_name:
+        active: true
+        description: Provide a meaningful description of the device.
+        kind: <path.to.object.Constructor>
+        args: []   # Arguments that are passed to the object constructor.
+        kwargs: {} # Keyword arguments passed to the object constructor.
+        # Optional configuration
+        metaclass: hive.detector.Detector  # Define the object as a detector and extend its functionality
+        read_method: capture  # Method of the origianl object that is interpreted as the "read" method.
+          args: []            # These will be wrapped in a `functools.partial` instance.
+          kwargs: {}          # These will also be wrapped in a `functools.partial` instance.
+        write_method: set # Similar to the "read_method" option.
+          args: []            # These will be wrapped in a `functools.partial` instance.
+          kwargs: {}          # These will also be wrapped in a `functools.partial` instance.
     ```
     
     For more information regarding the optional configuration options, refer to: [notes/devices.md](notes/devices.md).
@@ -216,24 +215,24 @@ ScopeAssembly:
     TODO: Git auth for protocols.
       
     ```yaml
-      Experiment:
-        exp_dir: ~/experiments              # Default directory where experiments are stored
-        protocols_dir: ~/lab_protocols      # Directory where protocols are stored, This can also be a git-address.
-        calibration_dir: ~/calibration_dir  # Directory where calibrations are stored.
-        exp_dir_structure:                  # This is the directory structure, that will be created within every experiment.
-          - scripts
-          - postprocess
-          - converted
-          - analysis
-        exp_report: false                   # Whether the pdf report functionality is turned on or not.
-        eid_generator: core.uid.uid         # This is the funtion that will be called to generate experiment IDs. By default is calls `nanoid.generate('1234567890abcdef', 10)`
-        file_server:                        # File server for synchronisation of experiments
-          active: true
-          server: <ip>/<address>
-          share: <name-of-server-share>
-          destination: "{date}"
-          username: <username>
-          password: <password>
+    Experiment:
+      exp_dir: ~/experiments              # Default directory where experiments are stored
+      protocols_dir: ~/lab_protocols      # Directory where protocols are stored, This can also be a git-address.
+      calibration_dir: ~/calibration_dir  # Directory where calibrations are stored.
+      exp_dir_structure:                  # This is the directory structure, that will be created within every experiment.
+        - scripts
+        - postprocess
+        - converted
+        - analysis
+      exp_report: false                   # Whether the pdf report functionality is turned on or not.
+      eid_generator: core.uid.uid         # This is the funtion that will be called to generate experiment IDs. By default is calls `nanoid.generate('1234567890abcdef', 10)`
+      file_server:                        # File server for synchronisation of experiments
+        active: true
+        server: <ip>/<address>
+        share: <name-of-server-share>
+        destination: "{date}"
+        username: <username>
+        password: <password>
     ```
 
   5. The configuration is defined in `core.permaconfig.config.py` as `TrappyConfig`. It uses the [Confuse](https://confuse.readthedocs.io/en/latest/usage.html#confuse-painless-configuration) library as a base.
@@ -280,40 +279,39 @@ ScopeAssembly:
 + Creation of an instance immediately changes the working directory to the experiment one. You should get the following output:
 
   ```bash
->>> exp = Experiment.Construct(["test", "experiment"])
-{
-    'name': 'MDev__YB__2025_08_23__5hh_55mm__test_experiment__6a092b60dc',
-    'eid': '6a092b60dc',
-    'created': datetime.datetime(2025, 8, 23, 5, 55, 12, 771720),
-    'syspermastate': {
-        'mac_address': <MAC:ADDRESS>,
-        'ip_address': <IP:ADDRESS>,
-        'hostname': <HOSTNAME>,
-        'os': ['Darwin', '21.6.0']
-    }
-}
-──────────────────────────────────── <Session: 6a092b60dc> ────────────────────────────────────
-[05:55:13] INFO     Creating new experiment:                                  experiment.py:296
-                    MDev__YB__2025_08_23__5hh_55mm__test_experiment__6a092b60dc
-─────────────────────────────────────── Experiment open ───────────────────────────────────────
-           INFO     Loading Experiment:                                        experiment.py:305
-                    MDev__YB__2025_08_23__5hh_55mm__test_experiment__6a092b60dc
-           WARNING  Experiment state not found. Not a problem if this is a new experiment.      experiment.py:338
-Working directory changed to:
-/Users/byatharth/experiments/MDev__YB__2025_08_23__5hh_55mm__test_experiment__6a092b60dc
-.
-├── .experiment
-├── analysis
-├── converted
-├── experiment.yaml
-├── postprocess
-├── scripts
-└── sessions.yaml
+  >>> exp = Experiment.Construct(["test", "experiment"])
+  {
+      'name': 'MDev__YB__2025_08_23__5hh_55mm__test_experiment__6a092b60dc',
+      'eid': '6a092b60dc',
+      'created': datetime.datetime(2025, 8, 23, 5, 55, 12, 771720),
+      'syspermastate': {
+          'mac_address': <MAC:ADDRESS>,
+          'ip_address': <IP:ADDRESS>,
+          'hostname': <HOSTNAME>,
+          'os': ['Darwin', '21.6.0']
+      }
+  }
+  ──────────────────────────────────── <Session: 6a092b60dc> ────────────────────────────────────
+  [05:55:13] INFO     Creating new experiment:                                  experiment.py:296
+                      MDev__YB__2025_08_23__5hh_55mm__test_experiment__6a092b60dc
+  ─────────────────────────────────────── Experiment open ───────────────────────────────────────
+             INFO     Loading Experiment:                                        experiment.py:305
+                      MDev__YB__2025_08_23__5hh_55mm__test_experiment__6a092b60dc
+             WARNING  Experiment state not found. Not a problem if this is a new experiment.      experiment.py:338
+  Working directory changed to:
+  /Users/byatharth/experiments/MDev__YB__2025_08_23__5hh_55mm__test_experiment__6a092b60dc
+  .
+  ├── .experiment
+  ├── analysis
+  ├── converted
+  ├── experiment.yaml
+  ├── postprocess
+  ├── scripts
+  └── sessions.yaml
 
-4 directories, 3 files
+  4 directories, 3 files
 
-user:YB || ‹‹MDev›› Experiment: MDev__YB__2025_08_23__5hh_55mm__test_experiment__6a092b60dc
->>>
+  user:YB || ‹‹MDev›› Experiment: MDev__YB__2025_08_23__5hh_55mm__test_experiment__6a092b60dc
   ```
 
 +  The `Experiment` class manages the saving of data in  specific folders and logs experiement events. 
@@ -321,14 +319,14 @@ user:YB || ‹‹MDev›› Experiment: MDev__YB__2025_08_23__5hh_55mm__test_exp
 + Each time an experiment is open, a new session is created. An `Experiment` is a composed of an arbitrary number of sessions. The `sessions.yaml` contains the environment information (list of packages, version control number, etc) for each session.
 
 + Additionally, you can use the following utility functions:
-```python
-## Find and open an existing experiment
-exp = findexp() ## Press enter to open a prompt with available experiments
+  ```python
+  ## Find and open an existing experiment
+  exp = findexp() ## Press enter to open a prompt with available experiments
 
-## Find an delete an existing experiment
-## Warning: this is an irreversible deletion
-delexp()
-```
+  ## Find an delete an existing experiment
+  ## Warning: this is an irreversible deletion
+  delexp()
+  ```
 
 + The `Experiment` philosophy is defined in the [expframework](expframework/README.md) submodule.
 
