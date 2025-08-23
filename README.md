@@ -251,13 +251,13 @@ ScopeAssembly:
   ```
 
 2. Scripts are an important part of running experimental procedures:
+
++ The scripts are executed in sequence and can be used to load pre-defined experimental protocols:
   ```bash
   ts <script1> <script2> <script3>
   ts <script1> <script2> <script3>
   ts --iterate 3 <script1> ## Run Script1 three times
   ```
-
-+ The scripts are executed in sequence and can be used to load pre-defined experimental protocols.
 
 + Alternatively, to load a script/execute a script from the interactive session:
   ```bash
