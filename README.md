@@ -89,6 +89,7 @@ ScopeAssembly:
     ```bash
     pip install .
     ```
+ + Please check [trappyscopes environment](notes/trappyscopesenv.md) to learn more about building an environment for this utility.
 
 3. Basic information about application startup
    ```bash
@@ -101,15 +102,15 @@ ScopeAssembly:
 4. Once the installation is complete, `python main.py` can be replaced by `trappyscopes`. If the package was not installed on the system (exists locally in a subdirectory), the bash script `.\trappyscopes` can be used. You might have to run `chmod +x trappyscopes` or `sudo +x trappyscopes` to provide executable priviledges to the script.
 
 
-## Configuring a scope
+## Configuring the scope
 
 1. `trappyscopes` cli is configured through a `YAML` configuration file. Let´s start by generating a configurartion file.
 
-  ```bash
-  python main.py --new_config
-  ```
+   ```bash
+   python main.py --new_config
+   ```
 
-  This generate the following files in the home directory:
+  + This generate the following files in the home directory:
   ```
    (~)
     |-trappyverse
@@ -118,28 +119,27 @@ ScopeAssembly:
   ```
 2. `trappyverse/trappyconfig.yaml` is the default configuration file name and should be unchanged. We can have more than one configuration file on a system. To start the software with a custom configuration file:
 
-  ```bash
-  python main.py --config ~/parallelverse/customconfig.yaml
-  
-  ## Override default configuration options with this file (useful when more than one scope 
-  ## configurations need to be defined)
-  python main.py --add_config ~/parallelverse/customconfig.yaml
-  ```
+   ```bash
+   python main.py --config ~/parallelverse/customconfig.yaml
+   
+   ## Override default configuration options with this file (useful when more than one scope 
+   ## configurations need to be defined)
+   python main.py --add_config ~/parallelverse/customconfig.yaml
+   ```
 3. Now let's look at the configuration file!
-  1. The first two lines are these:
+  + **Naming the scope** The first two lines are these:
 
     ```yaml
     name: <hostname>          # Name of the scope, which defaults to hostname. The is defined as the global variable `scopeid` with the defaul startup recipie. 
     kind: mystery-device      # A signle word descriptor for the device.
     description: The functionally has not been described yet # A short description of the functionality of the device.
     ```
+  + These fields can be edited as such and are of little consequence in terms of programming. The `name` must be chosen with care, and it's recommened that it is also the hostname of the machine. This makes remote access easy and preventss conflicts. 
     
-    These fields can be edited as such and are of little consequence in terms of programming. The `name` must be chosen with care, and it's recommened that it is also the hostname of the machine. This makes remote access easy and preventss conflicts. 
+  + `name: MDev` is a special name, which defines any device as a "Development Scope" and has some special priveledges. For more information, check the [`MDev`](notes/mdev.md) entry in the notes.
+
+  + **Scope configuration options** Now let's set check some configuration options and learn what they do:
     
-    `name: MDev` is a special name, which defines any device as a "Development Scope" and has some special priveledges. For more information, check the [`MDev`](notes/mdev.md) entry in the notes.
-
-  2. Now let's set check some configuration options and learn what they do:
-
     ```yaml
     config:
       trappydir: ~/trappyverse   # Directory where the configuration of the scope is stored.
@@ -170,24 +170,19 @@ ScopeAssembly:
         startup_scripts:          # Scripts to run by default when the CLI is started.   
         - ./scripts/script1.py
         - ./scripts/script2.py
-      
     ```
     
-    Note some key features here: 
+    + Note some key features here: 
       1. Any mapping can be turned off by defining a field `active: false` inside it. If this argument is skipped, then it's assumed to be `true`.
       2. Custom addresses (like the `destination` in `config_server`) can be defined with an "effifible" string (inspired by the f-strings in python):
-
-
-  ```yaml
-  config_server:
-  destination: "{date}_{scopeid}_{user}" # -> 2025_05_01_microscope1_User1
-  ```
-
-
-    The following terms can be used: `scopeid`, `user`, `date`, and `time`.
+         ```yaml
+         config_server:
+         destination: "{date}_{scopeid}_{user}" # -> 2025_05_01_microscope1_User1
+         ```
+      + The following terms can be used: `scopeid`, `user`, `date`, and `time`.
     
-    3. Now let's look at the default `ScopeAssembly` block below:
-    
+  + **Define devices** Now let's look at the default `ScopeAssembly` block below:
+
     ```yaml
     ScopeAssembly:
       <hostname>: 
@@ -197,7 +192,7 @@ ScopeAssembly:
         kwargs: {}
     ```
     
-    The device that we see here is the host computing machine that is detected and mounted. It is one of the devices under the `ScopeAssembly`, which is identified as the global variable `scope`. Within the scope assembly, we can define an arbitrary number of devices with the follwing schema:
+    + The device that we see here is the host computing machine that is detected and mounted. It is one of the devices under the `ScopeAssembly`, which is identified as the global variable `scope`. Within the scope assembly, we can define an arbitrary number of devices with the follwing schema:
     
     ```yaml
     ScopeAssembly:
@@ -217,12 +212,10 @@ ScopeAssembly:
           kwargs: {}          # These will also be wrapped in a `functools.partial` instance.
     ```
     
-    For more information regarding the optional configuration options, refer to: [notes/devices.md](notes/devices.md).
+    + For more information regarding the optional configuration options, refer to: [notes/devices.md](notes/devices.md).
 
-  4. For now, we can leave the previous block as it was and quickly gloss over the `Experiment` configuration block:
+  + **Experiment settings** For now, we can leave the previous block as it was and quickly gloss over the `Experiment` configuration block:     TODO: Git auth for protocols.      
 
-    TODO: Git auth for protocols.
-      
     ```yaml
     Experiment:
       exp_dir: ~/experiments              # Default directory where experiments are stored
@@ -244,9 +237,7 @@ ScopeAssembly:
         password: <password>
     ```
 
-  5. The configuration is defined in `core.permaconfig.config.py` as `TrappyConfig`. It uses the [Confuse](https://confuse.readthedocs.io/en/latest/usage.html#confuse-painless-configuration) library as a base.
-
- 
+  + The configuration is defined in `core.permaconfig.config.py` as `TrappyConfig`. It uses the [Confuse](https://confuse.readthedocs.io/en/latest/usage.html#confuse-painless-configuration) library as a base.
 
 
 ##  Basic Usage
