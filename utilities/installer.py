@@ -7,8 +7,8 @@ import sys
 class Installer:
 	pylibs = ["rich", "pyyaml", "colorama", "nanoid", "art",
 			  "plotext", "asciichartpy", "prompt_toolkit", 
-			  "GitPython", "schedule", "paho-mqtt", "websockets", 
-			  "pandas", "textual", "pyserial"]
+			  "GitPython", "schedule", "websockets", 
+			  "pandas", "textual", "pyserial", "pypandoc"]
 	
 	binlibs = []
 	gitclones = ["https://github.com/Trappy-Scopes/network.git", 
@@ -57,7 +57,7 @@ class Installer:
 				print(f"{i}. {lib} : already exists!")
 			except ImportError:
 				#pip.main(['install', lib, "--break-system-packages"])
-				os.system(f"sudo pip install {lib}")
+				os.system(f"sudo pip install {lib} --break-system-packages")
 				print(f"{i}. {lib} : was installed!")
 
 	def install_bin_libs(required_libs):
