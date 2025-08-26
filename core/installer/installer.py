@@ -12,7 +12,8 @@ class Installer:
 			  "pandas", "textual", "pyserial", "sounddevice", "requests", 
 			  "beautifulsoup4", "rpyc", "pypandoc", "reportlab"]
 	
-	binlibs = []
+	binlibs = ["fim", # Frame Image Manager (Improved frame image buffer), for viewing images on the command line.
+			  ]
 	gitclones = ["https://github.com/Trappy-Scopes/network.git", 
 				"https://github.com/Trappy-Scopes/secrets.git"]
 	
@@ -30,12 +31,31 @@ class Installer:
 
 	def do_all():
 		"""
+		Install all
+		"""
+		platform = sys.platform.startswith('linux')*"linux" + \
+		           sys.platform.startswith('darwin')*"darwin"
+		if not platform:
+			print("We don't do Windows! For now!! Sorry!")
+			exit()
+
+		print("Building python packages. Please make sure that `pip` exists.\n\
+			  Otherwise use your own buildsystem and install the binaries by yourself!")
+		os.system("pip install .")
+
+		print("Installing binaries.")
+
+
+		Installer.install_bin_libs(Installer.binlibs):
+
+	def do_all__():
+		"""
 		Update all.
 		"""
 		platform = sys.platform.startswith('linux')*"linux" + \
 		           sys.platform.startswith('darwin')*"darwin"
 		if not platform:
-			print("We don't do Windows! Sorry!")
+			print("We don't do Windows! For now!! Sorry!")
 			exit()
 
 		print(f"Plateform is: {platform}.")
@@ -54,20 +74,7 @@ class Installer:
 
 
 
-		## Pull all family modules
-		print("Pulling all family modules...")
-		Fammods.gitpull("ts")
-		
-
-		#Installer.install_bin_libs(Installer.binlibs)
-		#Installer.gitclone(Installer.gitclones)
-		#Installer.check_submodules()
-
-		
-		## Also check if the submodules are properly installed here
-
-		### -----
-
+		### ----
 		print("\n\nIf everyhting went well, we are ready to go!\n\n")
 
 		
@@ -99,7 +106,13 @@ class Installer:
 
 
 	def install_bin_libs(required_libs):
-		pass
+		"""Install system librairs using external pakage managers
+		   Linux: Uses `sudo apt-get -y`
+		   Darwin: 
+		"""
+		print(f"Installing binary libraries (sudo previledges will be required): {required_libs}")
+		for lib in required_libs:
+			os.system(f"sudo apt-get -y {lib}")
 
 	def gitclone(dir_="../"):
 
