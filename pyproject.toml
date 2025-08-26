@@ -6,6 +6,17 @@ authors = [
     {name = "Yatharth Bhasin",email = "yatharth1997@gmail.com"}
 ]
 readme = "README.md"
+
+[project.scripts]
+trappyscope = "trappyscopes.main"
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+
 requires-python = ">=3.12,<4.0"
 dependencies = [
     "asciichartpy (>=1.5.25,<2.0.0)",
@@ -63,6 +74,4 @@ dependencies = [
 ]
 
 
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+

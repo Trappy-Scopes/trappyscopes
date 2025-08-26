@@ -75,24 +75,30 @@ ScopeAssembly:
 
 1. Install through `pip`
 
-  ```bash
-  pip install trappyscopes
-  ```
+   ```bash
+   pip install trappyscopes
+   ```
+2. You can install directly from the source and install the environment using the inbuilt command to build the environment. This is the recomended method because it also installs some required binary packages.
 
-2. You can install directly from the source and install the environment using the inbuilt command to build the environment.
-
-  ```bash
-  git clone -r <repo_link>
-  cd <trappyscopes>
-  python main.py --install
-  ```
+   ```bash
+   git clone -r <repo_link>
+   cd <trappyscopes>
+   python main.py --install
+   ```
+ + To simply skip the binaries:
+    ```bash
+    pip install .
+    ```
 
 3. Basic information about application startup
-  ```bash
-  python main.py -h
-  ```
+   ```bash
+   python main.py -h
+   
+   ## Or
+   python main.py --help
+   ```
 
-4. `python main.py` can be replaced by `./ts`, which is a bash script that does the same (plus some extra things). You might have to run `chmod +x ts` or `sudo +x ts` to provide executable priviledges to the script.
+4. Once the installation is complete, `python main.py` can be replaced by `trappyscopes`. If the package was not installed on the system (exists locally in a subdirectory), the bash script `.\trappyscopes` can be used. You might have to run `chmod +x trappyscopes` or `sudo +x trappyscopes` to provide executable priviledges to the script.
 
 
 ## Configuring a scope
