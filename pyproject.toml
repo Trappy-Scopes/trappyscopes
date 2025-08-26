@@ -8,7 +8,7 @@ authors = [
 readme = "README.md"
 
 [project.scripts]
-trappyscope = "trappyscopes.main"
+trappyscope = "trappyscopes.main:main"
 
 
 [build-system]

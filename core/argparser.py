@@ -155,7 +155,7 @@ if args.tomp4_exp:
     exit()
 
 if args.install:
-    from utilities.installer import Installer
+    from core.installer.installer import Installer
     Installer.do_all()
     exit(0)
 

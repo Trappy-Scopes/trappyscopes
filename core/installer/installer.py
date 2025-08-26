@@ -46,7 +46,7 @@ class Installer:
 		print("Installing binaries.")
 
 
-		Installer.install_bin_libs(Installer.binlibs):
+		Installer.install_bin_libs(Installer.binlibs)
 
 	def do_all__():
 		"""
