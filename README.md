@@ -177,7 +177,7 @@ ScopeAssembly:
       2. Custom addresses (like the `destination` in `config_server`) can be defined with an "effifible" string (inspired by the f-strings in python):
          ```yaml
          config_server:
-         destination: "{date}_{scopeid}_{user}" # -> 2025_05_01_microscope1_User1
+           destination: "{date}_{scopeid}_{user}" # -> 2025_05_01_microscope1_User1
          ```
       + The following terms can be used: `scopeid`, `user`, `date`, and `time`.
     
