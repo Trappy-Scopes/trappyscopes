@@ -15,7 +15,7 @@ devices:
         handshake: True
   cam:
     description: Microscope main camera.
-    kind: detectors.cameras.nullcamera.Camera
+    kind: detectors.cameras.rpi_hq_picam2.Camera
     args: []
     kwargs: {}
 
@@ -116,5 +116,6 @@ config:
     username: TS
     password: Chlamy_123
   startup_scripts:
-  #  - scripts/external/yeast_stuff.py
+    - scripts/alignmenttools/framealignmnet.py
+    - scripts/longterm/mjpeg_continuous_autosplit.py
 
