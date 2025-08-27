@@ -11,7 +11,7 @@ class Installer:
 			  "pandas", "textual", "pyserial", "pypandoc",
 			  "confuse", "matplotlib", "scikit-image", "html2rml",
 			  "rpyc", 
-			  "numpy>2.0.0"]
+			  "numpy<2.0.0"]
 	
 	binlibs = []
 	gitclones = ["https://github.com/Trappy-Scopes/network.git", 

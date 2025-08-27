@@ -29,6 +29,7 @@ def create_exp():
 	exp.attribs["light"] = (0.5,0,0)
 	exp.attribs["camera_mode"] = "vid_mjpeg_tpts_multi"
 	exp.attribs["group"] = "red_light"
+	exp.attribs["sync_files"] = True
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
 print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
@@ -63,7 +64,7 @@ def filename_fn(split_no):
 	global exp
 	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__{time.time_ns()}__split_{split_no}.mjpeg', abspath=False)
 	capturefilelist.append(filename)
-	if split_no > 1:
+	if split_no > 1 and exp.params["sync_files"]:
 		sync_file()
 	return filename
 
