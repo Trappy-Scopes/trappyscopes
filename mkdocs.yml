@@ -1,5 +1,5 @@
 # mkdocs.yml
-site_name: Trappy-Scopes (scope-cli)
+site_name: Trappy-Scopes Control Layer Interface
 site_url: https://trappy-scopes.github.io/scope-cli
 repo_url: https://github.com/Trappy-Scopes/scope-cli
 
@@ -50,17 +50,18 @@ extra:
 theme:
   logo: assets/tsicon.png
   name: material
+  primary: trappytheme
   palette:
     # Dark mode as default
     - scheme: slate
-      primary: deep purple
+      primary: cyan
       accent: amber
       toggle:
         icon: material/weather-night
         name: Switch to light mode
     # Light mode option
     - scheme: default
-      primary: indigo
+      primary: cyan
       accent: teal
       toggle:
         icon: material/weather-sunny
@@ -73,6 +74,10 @@ theme:
     - search.highlight
     - content.code.annotate
     - content.code.copy
+
+extra_css:
+  - stylesheets/extra.css
+
 
 markdown_extensions:
   - toc:
