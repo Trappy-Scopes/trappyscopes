@@ -43,7 +43,7 @@ class ProcessorGroup:
 
 			## Check if the object is made to persist - delete the database otherwise.
 			if os.path.exists(os.path.join(os.path.expanduser("~"), f"{self.obj}.db")):
-				self.params = PhysicalObject(self.obj)
+				self.params = PhysicalObject(self.obj, persistent=True)
 
 		def make_persist(self):
 			self.params = PhysicalObject(self.obj, persistent=True)
