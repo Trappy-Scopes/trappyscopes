@@ -124,7 +124,7 @@ def single_channel_calibration():
 	## For each measurement stream, calculate pfd for the given counts
 	for ch in ["red", "blue", "green"]:
 		ch_obj = scope[ch]
-		wavelength = scope[ch].params.lambda_nm
+		wavelength = scope[ch].params["lambda_nm"]
 		stream = exp.mstreams[ch]
 		stream.df["pfd"] = stream.df.apply(convert_pfd, Ga=sensor_gain, lambda_nm=wavelength, phi=phi_map[wavelength])
 
