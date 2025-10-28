@@ -34,7 +34,7 @@ class ProcessorGroup:
 
 	class Proxy:
 		def __init__(self, object_, device):
-			self.obj = object_
+			self.obj = object_ ## Name of the object
 			self.device = device
 			self.config = {}
 			self.params = None
@@ -42,11 +42,11 @@ class ProcessorGroup:
 			log.debug(f"Created ProcessorGroup.Proxy: {self.obj}")
 
 			## Check if the object is made to persist - delete the database otherwise.
-			if os.path.exists(os.path.join(os.path.expanduser("~"), f"{device}.db")):
-				self.params = PhysicalObject(self.device, persist=True)
+			if os.path.exists(os.path.join(os.path.expanduser("~"), f"{self.obj_}.db")):
+				self.params = PhysicalObject(self.obj_)
 
 		def make_persist(self):
-			self.params = PhysicalObject(self.device, persist=True)
+			self.params = PhysicalObject(self.obj_, persistent=True)
 			self.params["created"] = datetime.datetime.now()
 			print(self.params)
 
