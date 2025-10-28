@@ -558,6 +558,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 
 	@autosave
 	def dirstat(self):
+		"""Does not stat the sub-folders"""
 		stat = {file:os.stat(file) for file in os.listdir(".")}
 		self.log("files_stat", attribs=stat)
 

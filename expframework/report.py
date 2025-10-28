@@ -6,7 +6,7 @@ from rich.pretty import Pretty
 from rich import print
 from utilities import fluff
 import datetime
-
+import os
 from core.bookkeeping.session import Session
 
 from reportlab.lib.pagesizes import A4
@@ -15,6 +15,9 @@ from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Image, Paragraph, Spacer
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.utils import ImageReader
 
 from markdown_it import MarkdownIt
 
@@ -37,12 +40,13 @@ class ExpReport:
 		self.eid__ = eid
 		self.report_str = ""
 
-		self.premble = ""
-		self.summary = ""
-		self.notes = ""
+		self.premble = ""  # An introduction to the experiment.
+		self.summary = ""  # Number of events, sessions, measurement streams, etc.
+		self.notes = ""    # User notes.
 
-		self.appendix = ""
-		self.events = ""
+		self.appendix = "" # Additional information
+		self.events = ""   # Table of events and the event attributes
+		self.elements = [] # Actual content elements like images
 
 		#self.df = pd.DataFrame(exp.logs["events"])
 		#self.df["elapsed"] = self.df["dt"] - self.df.loc[0]["dt"]
@@ -92,8 +96,9 @@ class ExpReport:
 		self.__header__(canvas, doc)
 		self.__footer__(canvas, doc)
 
-	def generate_report(self, exp):
+	def generate_report(self):
 	
+		exp = self
 		# Styles for content
 		styles = getSampleStyleSheet()
 		style_normal = styles["BodyText"]
@@ -110,17 +115,15 @@ class ExpReport:
 		)
 
 		# Add the header and footer to each page using a PageTemplate
-		self.template = PageTemplate(id="MainTemplate", frames=self.frame, onPage=self.__header_footer__)
+		self.template = PageTemplate(id="MainTemplate", 
+			frames=self.frame, 
+			onPage=self.__header_footer__)
 		self.doc.addPageTemplates([self.template])
 
-		#content = self.report_str
-		# Content to paginate
-		#content = []
-		#for i in range(1, 51):  # Example: Add 50 paragraphs
-		#	text = f"This is paragraph number {i}."
-		#	content.append(Paragraph(text, style_normal))
 
 		self.generate_(exp)
+		
+		## Report string
 		content = self.report_str
 		md = MarkdownIt("commonmark").enable("strikethrough").enable("table")
 		html = md.render(content)
@@ -129,7 +132,8 @@ class ExpReport:
 		styles = getSampleStyleSheet()
 		style_normal = styles["BodyText"]
 		# Build the document with the content
-		self.doc.build([Paragraph(rml, style_normal)])
+
+		self.doc.build([Paragraph(rml, style_normal), Spacer(1, 12), Spacer(1, 12), *self.elements])
 		#self.pdf.save()
 
 	def __summary__(self, exp):
@@ -173,8 +177,9 @@ class ExpReport:
 		#self.report_str += f"![Header](/Users/byatharth/code/Trappy-Scopes/scope-cli/utilities/trappyscopes.png)"
 		#self.report_str += f"> {fluff.pageheader_plain().replace('\n', '\n> ')}"
 		#self.report_str += "\n\n"
-		self.report_str += f"# Experiment Report\n\n"
-		#self.report_str += f"## {exp.name} :: {exp.eid}\n\n"
+		self.report_str += f"\n# Experiment Report\n\n"
+		self.report_str += f"## {exp.name}\n\n\n\n\n"
+		#self.report_str += f"EID :: {exp.eid}\n\n"
 
 		#self.report_str += self.__premble__(exp)
 		#self.report_str += "\n\n\n"
@@ -185,13 +190,54 @@ class ExpReport:
 
 		#self.report_str += "## All events\n\n"
 		#self.report_str += self.__events__(exp)
-		#output = pypandoc.convert_text(self.report_str, 'pdf', \
-		#							   format='md', outputfile=exp.newfile('report.pdf'))
+
+		#self.report_str += str(self.notebook)
+		output = pypandoc.convert_text(self.report_str, 'pdf', \
+									   format='md', outputfile=exp.newfile('report.pdf'))
 
 
-	def add_plot(fig, caption=None):
+	def add_image(self, imgpath, caption="", width=None, height=None, figno=""):
+		"""Add an image like png, etc to the elements"""
+		if not os.path.exists(imgpath):
+			raise FileNotFoundError(imgpath)
+
+		if height is None and width is None:
+			# 3. Compute scale factor to fit within page margins
+			max_width = self.pdf_width * 0.8
+			max_height = self.pdf_height * 0.4
+
+			## Open original size to read
+			img_ = ImageReader(imgpath)
+			orig_width, orig_height = img_.getSize()
+			print(f"Original size: {orig_width}, {orig_height}")
+			scale = min(max_width / orig_width, max_height / orig_height)
+
+			# 4. Apply scaled dimensions
+			width = orig_width * scale
+			height = orig_height * scale
+		img = Image(imgpath, width=width, height=height)
+		self.elements.append(img)
+		self.elements
+
+		# 3. Add caption
+		#caption_style = ParagraphStyle('Caption', parent=styles['Normal'], fontSize=8, italic=True, alignment=1)
+		caption = Paragraph(f"Figure {figno}: {caption}")
+		self.elements.append(caption)
+
+		## Add a spacer
+		self.elements.append(Spacer(1, 12))
+
+	def add_paragraph(self, text):
+		"""Add a paragraph to the report"""
+		styles = getSampleStyleSheet()
+		self.elements.append(Paragraph(text, styles["Normal"]))
+		self.elements.append(Spacer(1, 12))
+
+
+
+	def add_fig(self, fig, caption=None):
 		from reportlab.lib.utils import ImageReader
-		from io import cStringIO
+		from io import StringIO
 		imgdata = cStringIO.StringIO()
 		fig.savefig(imgdata, format='png')
 		imgdata.seek(0)  # rewind the data
