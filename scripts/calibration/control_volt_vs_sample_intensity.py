@@ -161,10 +161,11 @@ def generate_single_point_calibration_report(exp):
 		ch_obj = scope[ch]
 		ax.plot(ch_obj.params["calib_volts"], ch_obj.params["calib_pfd"], ".-", color=ch, label=ch)
 		ax.plot(ch_obj.params["calib_volts"], ch_obj.params["calib_pfd"], "-", color=ch, label=f'PFD={ch_obj.params["calib_slope"]:.3f}V + {ch_obj.params["calib_intercept"]:.3f}')
+	plt.legend()
 	plotpng = "control_volt_vs_intensity_calibration_plot.png"
 	fig.savefig(plotpng)
-	exp.add_image(plotpng, caption="Light calibration plots. PFD is photon flux density in units of umol per square meter per second.")
-	exp.generate_report()
+	#exp.add_image(plotpng, caption="Light calibration plots. PFD is photon flux density in units of umol per square meter per second.")
+	#exp.generate_report()
 	return fig, ax
 
 
