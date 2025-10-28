@@ -149,23 +149,23 @@ def single_channel_calibration():
 		print(f"Calibration done for channel: {ch}")
 		print(ch_obj.params)
 
-	def generate_single_point_calibration_report(exp):
-		global scope
-		import matplotlib.pyplot as plt
+def generate_single_point_calibration_report(exp):
+	global scope
+	import matplotlib.pyplot as plt
 
-		fig, ax = plt.subplots(figsize=(12,4))
-		ax.set_ylabel("PFD (umol/m2/s)")
-		ax.set_xlabel("Control Voltage(V)")
-		ax.set_title("Illumination source:: control volt vs intensity (PFD) calibration plot")
-		for ch in ['red', 'green', 'blue']:
-			ch_obj = scope[ch]
-			ax.plot(ch_obj.params["calib_volts"], ch_obj.params["calib_pfd"], ".-", color=ch, label=ch)
-			ax.plot(ch_obj.params["calib_volts"], ch_obj.params["calib_pfd"], "-", color=ch, label=f'PFD={ch_obj.params["calib_slope"]:.3f}V + {ch_obj.params["calib_intercept"]:.3f}')
-		plotpng = "control_volt_vs_intensity_calibration_plot.png"
-		fig.savefig(plotpng)
-		exp.add_image(plotpng, caption="Light calibration plots. PFD is photon flux density in units of umol per square meter per second.")
-		exp.generate_report()
-		return fig, ax
+	fig, ax = plt.subplots(figsize=(12,4))
+	ax.set_ylabel("PFD (umol/m2/s)")
+	ax.set_xlabel("Control Voltage(V)")
+	ax.set_title("Illumination source:: control volt vs intensity (PFD) calibration plot")
+	for ch in ['red', 'green', 'blue']:
+		ch_obj = scope[ch]
+		ax.plot(ch_obj.params["calib_volts"], ch_obj.params["calib_pfd"], ".-", color=ch, label=ch)
+		ax.plot(ch_obj.params["calib_volts"], ch_obj.params["calib_pfd"], "-", color=ch, label=f'PFD={ch_obj.params["calib_slope"]:.3f}V + {ch_obj.params["calib_intercept"]:.3f}')
+	plotpng = "control_volt_vs_intensity_calibration_plot.png"
+	fig.savefig(plotpng)
+	exp.add_image(plotpng, caption="Light calibration plots. PFD is photon flux density in units of umol per square meter per second.")
+	exp.generate_report()
+	return fig, ax
 
 
 
