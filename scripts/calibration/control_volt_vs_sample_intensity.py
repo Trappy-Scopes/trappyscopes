@@ -131,13 +131,14 @@ def single_channel_calibration():
 		## Because volts is a list (planned for multichannel calibrations)
 		stream.df["volts"] = stream.df["volts"].apply(lambda vlist: vlist[0])
 
+		## Fitting
+		coefficients, cov_matrix = np.polyfit(stream.df["volts"].to_numpy(), stream.df["pfd"].to_numpy(), 1, cov=True)
+		slope = coefficients[0]
+		intercept = coefficients[1]
 
-		model = LinearRegression()
-		model.fit(stream.df["volts"].to_numpy(), stream.df["pfd"].to_numpy())
-
-		ch_obj.params["calib_r_sq"] = model.score(stream.df["volts"].to_numpy(), stream.df["pfd"].to_numpy())
-		ch_obj.params["calib_coeff"] = model.coef_
-		ch_obj.params["calib_intercept"] = model.intercept_
+		ch_obj.params["calib_cov_matrix"] = cov_matrix
+		ch_obj.params["calib_slope"] = slope
+		ch_obj.params["calib_intercept"] = intercept
 		ch_obj.params["calib_sensor_gain"] = sensor_gain
 		ch_obj.params["volts"] = stream.df["volts"].to_list()
 		ch_obj.params["pfd"] = stream.df["pfd"].to_list()
