@@ -3,7 +3,7 @@ from expframework.experiment import Experiment
 from hive.assembly import ScopeAssembly
 import numpy as np
 import time
-from sklearn.linear_model import LinearRegression
+#from sklearn.linear_model import LinearRegression
 
 
 __description__ = \
