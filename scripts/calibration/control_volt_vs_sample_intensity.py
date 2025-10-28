@@ -97,7 +97,7 @@ def single_channel_calibration():
 	print("Phi map: ", phi_map)
 	print("Wavelengths (nm): ", wavelengths)
 
-	if not set(phi_map.keys()).issubset(wavelengths):
+	if not set(phi_map.keys()).issubset(set(wavelengths)):
 		raise Exception(f"Calibration constant is not defined for all wavelengths. Please check.")
 
 	
