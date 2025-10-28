@@ -91,7 +91,8 @@ def single_channel_calibration():
 	global scope
 	## Maps wavelength in nanometers to Conversion constant of the sensor.
 	phi_map = {627.5:1.2, 630:1.2, 850:0.7, 627.5:1.2, 525:1.1, 467.5:0.4}
-	if not all(x in [ch["lambda_nm"] for ch in [scope.red.params, scope.blue.params, scope.green.params]]  for x in list(phi_map.keys())):
+	print("Phi map: ", phi_map)
+	if not all(x in [x in [scope.red.params['lambda_nm'], scope.blue.params['lambda_nm'], scope.green.params['lambda_nm']]] for x in list(phi_map.keys())):
 		raise Exception(f"Calibration constant is not defined for all wavelengths. Please check.")
 
 	
