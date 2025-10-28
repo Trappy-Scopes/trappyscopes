@@ -126,7 +126,7 @@ def single_channel_calibration():
 		ch_obj = scope[ch]
 		wavelength = scope[ch].params["lambda_nm"]
 		stream = exp.mstreams[ch]
-		stream.df["pfd"] = stream.df.apply(convert_pfd, Ga=sensor_gain, lambda_nm=wavelength, phi=phi_map[wavelength])
+		stream.df["pfd"] = stream.df["counts"].apply(convert_pfd, Ga=sensor_gain, lambda_nm=wavelength, phi=phi_map[wavelength])
 
 		## Because volts is a list (planned for multichannel calibrations)
 		stream.df["volts"] = stream.df["volts"].apply(lambda vlist: vlist[0])
