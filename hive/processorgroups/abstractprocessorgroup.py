@@ -96,5 +96,12 @@ class ProcessorGroup:
 		def __repr__(self):
 			return f"< {self.device} :: ProcessorGroup.Proxy on {self.device} >"
 
+		def __getstate__(self):
+			if self.params is not None:
+				return {"config":self.config, "params":self.params.__getstate__()} ## If it is indeed defined
+			else:
+				return {"config":self.config, "params":self.params}
+
+
 		def close(self):
 			log.debug(f"Proxy device closed: {self}.")
