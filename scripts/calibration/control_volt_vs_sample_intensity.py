@@ -133,9 +133,9 @@ def single_channel_calibration():
 
 
 		model = LinearRegression()
-		model.fit(stream.df["volts"], stream.df["pfd"])
+		model.fit(stream.df["volts"].to_numpy(), stream.df["pfd"].to_numpy())
 
-		ch_obj.params["calib_r_sq"] = model.score(stream.df["volts"], stream.df["pfd"])
+		ch_obj.params["calib_r_sq"] = model.score(stream.df["volts"].to_numpy(), stream.df["pfd"].to_numpy())
 		ch_obj.params["calib_coeff"] = model.coef_
 		ch_obj.params["calib_intercept"] = model.intercept_
 		ch_obj.params["calib_sensor_gain"] = sensor_gain
