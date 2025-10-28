@@ -1,5 +1,9 @@
 from abc import abstractmethod
 import logging as log
+import os
+from ..physical import PhysicalObject
+import datetime
+
 class ProcessorGroup:
 
 	def __init__(self, name):
@@ -33,8 +37,18 @@ class ProcessorGroup:
 			self.obj = object_
 			self.device = device
 			self.config = {}
+			self.params = None
 
 			log.debug(f"Created ProcessorGroup.Proxy: {self.obj}")
+
+			## Check if the object is made to persist - delete the database otherwise.
+			if os.path.exists(os.path.join(os.path.expanduser("~"), f"{device}.db")):
+				self.params = PhysicalObject(self.device, persist=True)
+
+		def make_persist(self):
+			self.params = PhysicalObject(self.device, persist=True)
+			self.params["created"] = datetime.datetime.now()
+			print(self.params)
 
 		def close(self):
 			log.debug(f"Closed proxy object: {self.obj}")

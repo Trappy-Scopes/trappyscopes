@@ -11,7 +11,7 @@ class PhysicalObject(object):
 		self.attribs = kwargs
 		self.attribs["name"] =  name
 		self.persistent = persistent
-
+		self.params = self.attribs ## Aliased
 
 		if persistent:
 			state = shelve.open(os.path.join(os.path.expanduser("~"), name))
@@ -33,6 +33,7 @@ class PhysicalObject(object):
 		if self.persistent:
 			self.attribs.sync()
 			self.attribs.close()
+
 
 	def __repr__(self):
 		n = 3

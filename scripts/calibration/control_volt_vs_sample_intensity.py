@@ -1,9 +1,9 @@
 import datetime
-import datetime
 from expframework.experiment import Experiment
 from hive.assembly import ScopeAssembly
 import numpy as np
 import time
+from sklearn.linear_model import LinearRegression
 
 
 __description__ = \
@@ -41,7 +41,7 @@ def set_ch(channels, vals):
 
 
 
-def measure_stream(channels, beacon=False):
+def measure_stream(channels, beacon=False, sensor_name="sensor"):
 	"""
 	Open a measurement stream for each "measurement" and iterate over intensity values.
 	"""
@@ -68,7 +68,7 @@ def measure_stream(channels, beacon=False):
 	for volts in grid:
 		set_ch(channels, volts)
 		time.sleep(exp.params["stabilization_delay_s"])
-		count_value = scope.sensor.read()
+		count_value = scope[sensor_name].read()
 
 		m = ms(channels=channels, counts=count_value, volts=list(volts), beacon=beacon, temp=scope.tandh.read()["temp"])
 		print(m)
@@ -82,3 +82,63 @@ def start_measurements():
 		measure_stream(channels, beacon=False)
 	for channels in exp.params["measurements"]:
 		measure_stream(channels, beacon=True)
+
+
+def single_channel_calibration():
+	"""Single Channel calibration uses the TSL2591 digital light sensor and constants for ThorLabs RGBE LED.
+	"""
+	global exp
+	global scope
+	## Maps wavelength in nanometers to Conversion constant of the sensor.
+	phi_map = {627.5:1.2, 630:1.2, 850:0.7, 627.5:1.2, 525:1.1, 467.5:0.4}
+	if not all(x in [ch["lambda_nm"] for ch in [scope.red.params, scope.blue.params, scope.green.params]]  for x in list(phi_map.keys())):
+		raise Exception(f"Calibration constant is not defined for all wavelengths. Please check.")
+
+	
+	exp.params["measurements"] = exp.params["measurements"][:3]
+	print(f"Measuring channels: {exp.params['measurements']}")
+	
+	## Take measurements -------------------------------------------------------
+	for channels in exp.params["measurements"]:
+		measure_stream(channels, beacon=False)
+	for channels in exp.params["measurements"]:
+		measure_stream(channels, beacon=True)
+
+	## Now need to convert the counts to umol per m^2s using the calibration equation.
+	sensor_gain = 16
+	def convert_pfd(counts, lambda_nm=None, Ga=None, phi=None):
+	    hc = 1.986 # x10^-25
+	    Re = 257.5
+	    umol = 6.022 #x10^17
+	    power = 0.1
+	    numerator = (counts * lambda_nm * power)/umol
+	    denominator = 100.0 * (1/Ga) * Re * phi * hc
+	    return np.divide(numerator, denominator)
+
+	## For each measurement stream, calculate pfd for the given counts
+	for ch in ["red", "blue", "green"]:
+		ch_obj = scope[ch]
+		wavelength = scope[ch].params.lambda_nm
+		stream = exp.mstreams[ch]
+		stream.df["pfd"] = stream.df.apply(convert_pfd, Ga=sensor_gain, lambda_nm=wavelength, phi=phi_map[wavelength])
+
+		## Because volts is a list (planned for multichannel calibrations)
+		stream.df["volts"] = stream.df["volts"].apply(lambda vlist: vlist[0])
+
+
+		model = LinearRegression()
+		model.fit(stream.df["volts"], stream.df["pfd"])
+
+		ch_obj.params["calib_r_sq"] = model.score(stream.df["volts"], stream.df["pfd"])
+		ch_obj.params["calib_coeff"] = model.coef_
+		ch_obj.params["calib_intercept"] = model.intercept_
+		ch_obj.params["calib_sensor_gain"] = sensor_gain
+		ch_obj.params["volts"] = stream.df["volts"].to_list()
+		ch_obj.params["pfd"] = stream.df["pfd"].to_list()
+		ch_obj.params["counts"] = stream.df["counts"].to_list()
+		ch_obj.params["calib_dt"] = datetime.datetime.now()
+
+
+		print(f"Calibration done for channel: {ch}")
+		print(ch_obj.params)
+
