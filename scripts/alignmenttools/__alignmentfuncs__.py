@@ -327,13 +327,14 @@ def iterate_thresholds(image, min_diameter, max_diameter=np.inf,
     return {"guassian_blur_sigma":min_deviation[0], "canny_sigma":min_deviation[1]}
 
 
-def define_magnification(reff, trap_dia_mm=2.8, real_pix_size=1.55):
+def define_magnification(reff, trap_dia_mm=2.8, real_pix_size=3.1):
+    """ M = Image pixel size/Camera pixel size"""
     trap_dia_um = trap_dia_mm*1000
     def pix_sizer(r):
         return trap_dia_um / (2*r)
     pix_size = pix_sizer(reff)
     one_x_size_um = (trap_dia_mm*1000)/real_pix_size
-    return one_x_size_um/(reff*2.0)
+    return real_pix_size/pix_size
 
 
 def profile_trap_boundaries(fov_og, x,y,r, length=20, pad=25):

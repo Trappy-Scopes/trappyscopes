@@ -165,7 +165,7 @@ class Camera(AbstractCamera):
                          "NoiseReductionMode":controls.draft.NoiseReductionModeEnum.Fast, 
                          'FrameDurationLimits':(int(1e6/25), int(1e6/25))
                         }
-        self.cam = Picamera2()
+        self.cam = Picamera2(tuning="imx477_scientific.json")
         self.config = self.cam.create_video_configuration(buffer_count=10, 
             main={"size":(1520, 1520), "format":"BGR888"}, queue=False,
             controls=self.controls,
@@ -191,7 +191,7 @@ class Camera(AbstractCamera):
     def open(self):
         self.opentime_ns = time.perf_counter()
         log.info("TS::Camera::PiCamera2 Camera was opened.")
-        self.cam = Picamera2()
+        self.cam = Picamera2(tuning="imx477_scientific.json")
         
         self.cam.configure()
         self.cam.title_fields = self.win_title_fields

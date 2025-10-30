@@ -3,15 +3,24 @@ import confuse
 import logging
 from copy import deepcopy
 from rich import print
+from rich.console import Console
+from rich.panel import Panel
+from rich.live import Live
+from rich.text import Text
 import logging as log
+import shutil
+import time
 
+from ..utilities import fluff
 from ..exceptions import TS_ConfigNotFound
 
 
 class TrappyConfig(confuse.Configuration):
 	"""
-	Trappy-Scopes configuration. It is meant to be used as a singleton class
-	but does not enforce it.
+	Trappy-Scopes configuration system.
+
+
+
 	"""
 
 
@@ -19,27 +28,38 @@ class TrappyConfig(confuse.Configuration):
 	current = None
 
 	## Config must be present at these two paths in the order of preference
-	default_paths = [os.path.join(os.path.expanduser("~"), "trappyconfig.yaml"),
-					 os.path.join(os.path.expanduser("~"), \
-					 	".config", "trappyscopes", "trappyconfig.yaml")]
+	default_paths = [os.path.join(os.path.expanduser("~"), "trappyverse", "trappyconfig.yaml"),
+					 os.path.join(os.path.expanduser("~"), "trappyconfig.yaml"),]
 
 
-	def __init__(self):
+	def __init__(self, file=None):
 		"""
 		Initalize the configuration and configure the terminal environment for use.
 		"""
 		super().__init__('trappyscopes', __name__)
 
+		## Read configuration file
 		found = False
+		if file is  None:
+			for file_ in TrappyConfig.default_paths:
+				if os.path.exists(file_):
+					found = True
+					file = file_
+					print(f"[green][OK] [bold cyan]Trappy-Scopes[default] config set: {file}")
+					break
+			if not found:
+				raise TS_ConfigNotFound("Config file not found.")
+		
+		source = confuse.YamlSource(os.path.join(os.path.dirname(__file__), "default_config.yaml"))
+		self.add(source)
+		self.set_file(file)
+		
+		## Load all other configuration files
+		all_config_files = self["config"]["config_files"].get()
+		for file in all_config_files:
+			source = confuse.YamlSource(file)
+			self.set(source)
 
-		for file in TrappyConfig.default_paths:
-			if os.path.exists(file):
-				found = True
-				self.set_file(file)
-				print(f"[green][OK] [bold cyan]Trappy-Scopes[default] config set: {file}")
-				break
-		if not found:
-			raise TS_ConfigNotFound("Config file not found.")
 
 		## Configure logger
 		try:
@@ -59,30 +79,32 @@ class TrappyConfig(confuse.Configuration):
 			print(e)
 			print(f"[red][NOK] [bold cyan]Trappy-Scopes[default] config: rich configuration failed. Try importing core.permaconfig.richsettings as it is.")
 
-		## Remove unactive blocks
-		#for key, device in self["devices"].items():
-		#	if "active" in device.keys():
-		#		if device["active"].get() == False:
-		#			#self.get().pop('devices', key)
-		#			#log.info(f"Inactive device: {key}")
-
-
 		## Singelton template
 		TrappyConfig.current = self
 
 
+	def new_config(self, filename=None):
+		"""Write a new configuration file with the given name.
+		   TODO: default scopename should be the hostname of the device."""
+		
+		if filename is None:
+			filename = os.path.join(os.path.expanduser("~"), "trappyverse", "trappyconfig.yaml")
+		if os.path.exists(filename):
+			raise IOError("File already exists. This operation is not allowed.")
+		os.makedirs(os.path.dirname(filename), exist_ok=True)
+		shutil.copy(os.path.join(os.path.dirname(__file__), "default_config.yaml"), filename)
 
-	def all_config_paths(self):
-		return list(set(deepcopy(Config.default_paths) + self["config_files"].get()))
-
-
-	def get_feature():
-		"""
-		This is used for a subfunction where the validation is only performed
-		if the feature is active.
-		"""
-		pass
-
+		def render(i):
+			colors = ["red", "green", "blue", "white"]
+			return Text(fluff.pageheader_plain(), style=colors[i], justify="center")
+		
+		with Live(render(0), screen=True) as live:
+			for i in range(1, 4):
+				time.sleep(1)
+				live.update(render(i))
+		time.sleep(0.5)
+		print(Panel(f"{render(3)}\n[bold]Config path: {filename}", title="New configuration"))
+	
 
 	def panel(self):
 		"""
@@ -94,15 +116,15 @@ class TrappyConfig(confuse.Configuration):
 		from collections import OrderedDict
 
 		def dict_to_tree(d, tree=None):
-		    if tree is None:
-		        tree = Tree("root")
-		    for key, value in d.items():
-		        if isinstance(value, dict) or isinstance(value, OrderedDict):
-		            branch = tree.add(f"[bold]{key}[/bold]")
-		            dict_to_tree(value, branch)
-		        else:
-		            tree.add(f"[bold]{key}[/bold]: {value}")
-		    return tree
+			if tree is None:
+				tree = Tree("root")
+			for key, value in d.items():
+				if isinstance(value, dict) or isinstance(value, OrderedDict):
+					branch = tree.add(f"[bold]{key}[/bold]")
+					dict_to_tree(value, branch)
+				else:
+					tree.add(f"[bold]{key}[/bold]: {value}")
+			return tree
 
 		devicepanel = Panel(dict_to_tree(self.get()), title="Device")
 		print(devicepanel)

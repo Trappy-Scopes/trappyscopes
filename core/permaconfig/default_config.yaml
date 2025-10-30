@@ -32,158 +32,60 @@ type: generic-scope                ## Type of device -> Selection of the abstrac
 
 ## Trappy-Scopes configuration options
 config:
-  autostart_cli_after_reboot: true
-  ui_mode: interactive
-  venv: 
-    active: true
-    command: source ~/opt/miniconda3/bin/activate
-    name: trappy
-  git_sync: false
-  git_dependencies:
-    https://github.com/Trappy-Scopes/pico_firmware: "~/code/Trappy-Scopes/pico_firmware"
-  set_wallpaper: false
-  log_level: 30
-  file_server:
+  trappydir: ~/trappyverse   # Directory where the configuration of the scope is stored.
+  config_files: []           # Append more configuration files
+  ui_mode: interactive       # User interaction mode
+  venv:                      # Whether to use a virtual environment for 
+      active: false          # Config block is active. The function is turned on.
+      command: source ~/opt/miniconda3/bin/activate 
+      name: trappy                # Name of the virtual environment that will be called after the command
+  git_sync:                  # Automatically git-sync certain repositories
+    active: false                # Config block is active. The function is turned on.
+    command: git pull           # Exact command to use for git syncronisation
+    repos: []                   # List of local repositories, where the command will be called
+                   
+  set_wallpaper: false       # This option will set a "information" panel as the wallpaper. This helps to id the device, incase of multiplexing.
+  log_level: 20              # Log level of the root logger. Use 10 for debug. 20 is info and higher.
+  config_server:             # Configuration files are synchronised with this server, when changed.         
     active: false
+    server: <ip>/<address>
+    share: <name-of-server-share>
+    destination: "{date}"   # Sub folder inside the share. This will create a folder with the "current date" opon operation.
+    username: <username>
+    password: <password>
+  config_redact_fields:     # Fields that will be redacted, if the config file is copied
+    - username
+    - password
+  startup_recipie: core.startup  # Startup procedure that defines how the CLI environment is created. `core.startup.__init__.py` defines the default one.
+  startup_scripts: []            # Scripts to run by default when the CLI is started.   
+
+## Experiment configuration options
+Experiment:
+  exp_dir: ~/experiments              # Default directory where experiments are stored
+  protocols_dir: ~/lab_protocols      # Directory where protocols are stored, This can also be a git-address.
+  calibration_dir: ~/calibration_dir  # Directory where calibrations are stored.
+  exp_dir_structure:                  # This is the directory structure, that will be created within every experiment.
+    - scripts
+    - postprocess
+    - converted
+    - analysis
+  exp_report: false                   # Whether the pdf report functionality is turned on or not.
+  eid_generator: core.uid.uid         # This is the funtion that will be called to generate experiment IDs. By default is calls `nanoid.generate('1234567890abcdef', 10)`
+  file_server:                        # File server for synchronisation of experiments
+    active: false
+    server: <ip>/<address>
+    share: <name-of-server-share>
     destination: "{date}"
-    server: 172.22.63.19
-    share: eyespot
-    username: TS
-    password: Chlamy_123
-  email_service:
-    active: true
-    destination: yatharth1997@gmail.com
-    server: smtp.mailersend.net
-    port: 587
-    username: MS_7l9jSQ@trial-pq3enl6opw5l2vwr.mlsender.net
-    password: rwEzS8SrVhBrIJgD
-  calander_service:
-    active: true
-    address: https://calendar.google.com/calendar/ical/0a1d3a95d78a666e49d2824aaf20156f25e6aa64f868eff8f737ede23a3eb247%40group.calendar.google.com/public/basic.ics
+    username: <username>
+    password: <password>
 
 
-
-## Hardware configuration
-## ----------------------
-## Defines the type of hardware to search and mount.
-devices:
-  pico: 
-    type: processorgroup.micropython.SerialMPDevice
-  cam: 
-    type: detectors.cameras.opencv_webcam
-  lit: ## Additional information that is bound to the Proxy as a physical object.
-    type: proxy
-    parent: pico
-    attribs: {channels: [627.5, 525.0 , 467.5], 
-              control: voltage_pwm_common_anode, 
-              form_factor: 5mm, 
-              identifier: "ThorLabs LEDRGBE"}
-
-## Abstractions are ways of interpreting the hardware in different ways.
-abstraction:
-
-  ## A simple trappy-scope microscope
-  microscope:
-    cam: detector
-    lit: actuator
-    trap: physical-persistent
-    sample: physical
-    alarm: Laboratory.current.ctrl1.
-
-  control-terminal1:
-    description: A terminal for controlling a diverse set of instruments, placed at the center of the lab.
-    kind: give.processorgroup.linux.ProcessorGroup ## For description only
-    kwargs: {"no_processors": 4}                    ## For description only      
-    
-    ## List of all instruments that are directly connected
-    buzzer:
-     description: Central buzzer or alarm for the lab.
-     alias: ["alarm"]
-     kind: gpiozero.Buzzer
-     args:
-      - 26 ## GPIO Pin-number 
-    uv_lamp:
-     description: A UV lamp with two arrays of LEDs for curing UV glue and sterlisation. 
-     array1:
-       tag : actuator 
-       kind: gpiozero.LED
-       args: [14] ## Pin number
-       kwargs: {}
-     array2:
-       tag : actuator 
-       kind: gpiozero.LED
-       args: [14] ## Pin number
-       kwargs: {}
-
-      - pico_keypad:
-        description: Input keypad to control things in the lab space.
-        kind: hive.processorgroup.micropython.SerialMPDevice
-        kargs:
-          exec_main: true
-          handshake: false
-          direct_mount: ["keypad"]   ## true -> mount all handshake objects to the scope, otherwise specify.
-      - pico_perfusion_pumpset:
-        description: Set of 2 peristaltic pumps running on Kirtronik pump.
-        kind: hive.processorgroup.micropython.SerialMPDevice
-        kargs:
-          ## circuit_id: <circuit-name> to over-ride the default circuit id of the board.
-          exec_main: true
-          handshake: true
-    run_scripts: ## only runs in the scope-context. `scope = ScopeAssembly.current`
-          - scripts/control_terminals/terminal1.py
-
-
-  telescope: ## We are describing a telescope
-    description: A telescope with a camera, a gps sensor, and 2 dc motors for alignment. We assume that the focusing is manual.
-    *:
-      kind: hive.processorgroups.linux
-      description: Raspberry Pi 4B 8GB
-
-      - cam:
-          kind: vimba.imxrt_smth.Camera
-          description: Main camera
-          args: ()
-          kwargs: {}
-        run_scripts: [camera_init.py]
-      - gps:
-          description: GPS module to record the earth coordiante.
-          kind: null ## Its a complex device
-          run_code:
-            cd ~
-            git clone https://github.com/DexterInd/GrovePi.git
-            cd GrovePi/Software/Python/grove_gps
-        uart: busio.UART
-          args: ["board.TX", "board.RX"]
-          kwargs: {baudrate: 9600, timeout: 30}
-        gps:
-          kind: adafruit_gps.GPS
-          args: [uart]
-          kwargs: {debug: False}
-      - motorset:
-         - axial:
-           kind: gpiozero.Motor
-           args: [17, 18]
-         - azumuthal:
-           kind: gpiozero.Motor
-           args: [4,5]
-    ## Run this post device initalization
-    run_scripts: {"init_telescope.py"}
-
-
-  ## Illformed
-  computing-cluster:
-    mainframe: hive.processorgroups.linuxcluster.headnode
-    m1  : hive.processorgroups.linux
-    m2  : hive.processorgroups.linux
-    m3  : hive.processorgroups.linux
-    m4  : hive.processorgroups.linux
-    m5  : hive.processorgroups.linux
-    m6  : hive.processorgroups.linux
-    m7  : hive.processorgroups.linux
-    m8  : hive.processorgroups.linux
-    vwr : hive.processorgroups.linux
-  
-  
-
+## The main device assembly is described here
+ScopeAssembly:
+  <hostname>: 
+    description: "Host processorgroup."
+    kind: hive.processorgroups.abstractprocessorgroup.ProcessorGroup
+    args: []
+    kwargs: {}
 
 
