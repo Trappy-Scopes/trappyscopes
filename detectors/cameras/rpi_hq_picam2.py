@@ -191,7 +191,7 @@ class Camera(AbstractCamera):
     def open(self):
         self.opentime_ns = time.perf_counter()
         log.info("TS::Camera::PiCamera2 Camera was opened.")
-        self.cam = Picamera2(tuning="imx477_scientific.json")
+        self.cam = Picamera2(tuning="/usr/share/libcamera/ipa/raspberrypi/imx477_scientific.json")
         
         self.cam.configure()
         self.cam.title_fields = self.win_title_fields
