@@ -1,0 +1,1 @@
+https://jamesachambers.com/fixing-storage-adapters-for-raspberry-pi-via-firmware-updates/
