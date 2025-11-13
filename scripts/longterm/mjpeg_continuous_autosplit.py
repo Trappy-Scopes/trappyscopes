@@ -163,7 +163,7 @@ def start_acq_blocking():
 	exp.__save__()
 	exp.logs.update(scope.get_config())
 	scope.beacon.blink()
-	exp.sync_dir(remove_source=True)
+	exp.sync_dir(remove_source=False)
 	exp.sync_dir()
 
 
