@@ -22,12 +22,12 @@ def create_exp():
 
 
 	exp.params["volt_limits"] = {"red":[0, 3], "green":[0,3], "blue":[0,3]}
-	exp.params["step_size"] = 0.2
+	exp.params["step_size"] = 0.1
 	exp.params["measurements"] = [["red"], ["green"], ["blue"],
 								  ["red", "green"], ["red", "blue"], ["green", "blue"],
 								  ["red", "green",  "blue"]
 								  ]
-	exp.params["stabilization_delay_s"] = 3
+	exp.params["stabilization_delay_s"] = 1
 
 
 
@@ -57,8 +57,10 @@ def measure_stream(channels, beacon=False, sensor_name="sensor"):
 	scope.lit.setVs(0,0,0) ## Reset
 
 	name_stream = lambda chs :  '_'.join(chs)
-	ms = exp.new_measurementstream(name_stream(channels), monitors=["channels", "beacon", "temp"], measurements=["volts", "counts"])
-	
+	if not name_stream(channels) in exp.mstreams.keys():
+		ms = exp.new_measurementstream(name_stream(channels), monitors=["channels", "beacon", "temp"], measurements=["volts", "counts"])
+	else:
+		ms = exp.mstreams[name_stream(channels)]
 	channel_limits = {ch: exp.params["volt_limits"][ch] for ch in  channels}
 	print("Measuring: ", channel_limits)
 	lines = [np.arange(*exp.params["volt_limits"][ch], exp.params["step_size"]) for ch in channels]
