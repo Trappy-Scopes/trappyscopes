@@ -35,6 +35,7 @@ def create_exp():
 	exp.attribs["camera_mode"] = "vid_mjpeg_tpts"
 	exp.attribs["group"] = "red_light"
 	exp.attribs["sync_files"] = True
+	exp.attribs["beacon_stabilization_delay_s"] = 1
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
  
