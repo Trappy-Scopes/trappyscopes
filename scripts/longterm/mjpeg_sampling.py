@@ -61,8 +61,8 @@ def filename_fn(split_no):
 	global exp
 	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__{time.time_ns()}__split_{split_no}.mjpeg', abspath=False)
 	capturefilelist.append(filename)
-	if split_no >= 1 and exp.params["sync_files"]:
-		sync_file()
+	#if split_no >= 1 and exp.params["sync_files"]:
+	#	sync_file()
 	return filename
 
 
@@ -93,7 +93,8 @@ def capture():
 	
 	acq.panel()
 	scope.beacon.blink()
-
+	if exp.params["sync_files"]:
+		exp.sync_file_bg(filename, remove_source=True)
 
 
 def record_sensor():
