@@ -26,7 +26,7 @@ def create_exp():
 	exp.params["tandh_sampling_period_minutes"] = 5
 
 	
-	exp.attribs["chunk_size_sec"] = 60*5
+	exp.attribs["chunk_size_sec"] = 60
 	exp.attribs["fps"] = 25
 	exp.attribs["exposure_ms"] = 3
 	exp.attribs["quality"] = 100
