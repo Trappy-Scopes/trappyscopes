@@ -90,7 +90,7 @@ def capture():
 				 	show_preview=False,
 					quality=exp.attribs["quality"])
 	scope.cam.close()
-	
+	split_no = split_no + 1
 	acq.panel()
 	scope.beacon.blink()
 	if exp.params["sync_files"]:
