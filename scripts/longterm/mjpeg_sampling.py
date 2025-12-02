@@ -145,7 +145,7 @@ if __name__ == "__main__":
 	scope = ScopeAssembly.current
 	scope.lit.setVs(2.4,0,0)
 	print("Lights ready...")
-	scope.cam.config["Controls"]["ExposureTime"] = 3000
+	scope.cam.config["controls"]["ExposureTime"] = 3000
 	scope.cam.open()
 	scope.cam.configure()
 	scope.beacon.blink()
