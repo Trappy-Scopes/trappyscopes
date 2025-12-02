@@ -58,7 +58,6 @@ def sync_file():
 
 def filename_fn(split_no):
 	global exp
-	global split_no
 	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__{time.time_ns()}__split_{split_no}.mjpeg', abspath=False)
 	capturefilelist.append(filename)
 	if split_no >= 1 and exp.params["sync_files"]:
