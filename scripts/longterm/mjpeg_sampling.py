@@ -92,7 +92,7 @@ def capture():
 	scope.cam.close()
 	split_no = split_no + 1
 	acq.panel()
-	scope.beacon.blink()
+	scope.beacon.off()
 	if exp.params["sync_files"]:
 		exp.sync_file_bg(filename, remove_source=True)
 
@@ -150,5 +150,5 @@ if __name__ == "__main__":
 	scope.cam.config["controls"]["ExposureTime"] = 3000
 	scope.cam.open()
 	scope.cam.configure()
-	scope.beacon.blink()
+	scope.beacon.off()
 
