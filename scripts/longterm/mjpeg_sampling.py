@@ -22,7 +22,7 @@ def create_exp():
 	exp.new_measurementstream("acq", monitors=["acq"])
 
 	exp.params["sampling_period_hours"] = 0.5
-	exp.params["sampling_hours"] = 24
+	exp.params["sampling_hours"] = 20
 	exp.params["tandh_sampling_period_minutes"] = 5
 
 	
@@ -82,14 +82,20 @@ def capture():
 	acq = exp.mstreams["acq"](acq=filename)
 	
 	### Capture
-	scope.cam.open()
-	scope.cam.configure()
-	scope.cam.read(exp.attribs["camera_mode"], 
-				   filename,
-				   tsec=exp.attribs["chunk_size_sec"], 
-				 	show_preview=False,
-					quality=exp.attribs["quality"])
-	scope.cam.close()
+	try:
+		scope.cam.open()
+		scope.cam.configure()
+		scope.cam.read(exp.attribs["camera_mode"], 
+					   filename,
+					   tsec=exp.attribs["chunk_size_sec"], 
+					 	show_preview=False,
+						quality=exp.attribs["quality"])
+		scope.cam.close()
+	except Exception as e:
+		print(e)
+		scope.cam.close()
+		exp.note(f"{split_no} :: acq failed.")
+
 	split_no = split_no + 1
 	acq.panel()
 	scope.beacon.off()
