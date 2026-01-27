@@ -8,6 +8,7 @@ from rich.pretty import Pretty
 
 from expframework.experiment import Experiment
 
+import schedule
 
 __description__ = \
 """
@@ -24,6 +25,7 @@ def create_exp():
 	exp.attribs["light"] = (2,0,0)
 	exp.attribs["sample_period_s"] = 60
 	exp.attribs["total_time_hours"] = 24
+	exp.attribs["autosync_dir"] = True
 	scope.beacon.blink()
 
 def start():
@@ -42,12 +44,17 @@ def start():
 			print("[red]TandH reading failed![default]")
 			value =  {"temp": None, "humidity":None}
 		r = tandh(**value)
-		r.panel()	
+		r.panel()
+
 	
 	record_sensor()
 	exp.schedule.every(exp.attribs["sample_period_s"]).seconds.until(timedelta(hours=exp.attribs["total_time_hours"])).do(record_sensor)
 	print(f'Tandh sensors set to record every {exp.attribs["sample_period_s"]} seconds for the next {exp.attribs["total_time_hours"]} hours, starting now.')
 	exp.logs.update(scope.get_config())
+
+	if exp.attribs["autosync_dir"]:
+		exp.schedule.every(exp.attribs["total_time_hours"]+0.1).hours.do(sync_once_then_cancel)
+
 	exp.__save__()
 
 def stop():
@@ -56,4 +63,8 @@ def stop():
 	exp.sync_dir()
 	exp.close()
 
-	
+def sync_once_then_cancel():
+	global exp
+	exp.__save__()
+	exp.sync_dir()
+    return schedule.CancelJob
