@@ -37,6 +37,7 @@ from core.bookkeeping.systeminfo import sys_perma_state
 from core.exceptions import TS_InvalidNameException
 from core.tsevents import TSEvent
 from core.idioms.clock import Clock
+from core.permaconfig.yaml_logger import create_yaml_logger, close_yaml_logger
 
 from .report import ExpReport
 from .expsync import ExpSync
@@ -299,6 +300,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		self.log_file = os.path.join(self.exp_dir, "experiment.yaml")
 		
 
+
 		### Draw ruler -> declare the experiment open!
 		from rich.rule import Rule
 		print(Rule(title="Experiment open", align="center", style="green"))
@@ -344,6 +346,11 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		os.chdir(self.exp_dir)
 		print(f"Working directory changed to: {os.getcwd()}")
 		print(f"[cyan]{self.filetree()}[default]")
+
+
+
+		## Open logger after cchanging directory
+		self.logger = create_yaml_logger("logs.yaml")
 
 
 		## User Information
@@ -504,6 +511,10 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		with open(self.log_file, "w") as f:
 			f.write(yaml.dump(self.logs))
 		print(f"Experiment logs updated: {self.log_file}")
+		
+		print("Closing logger.")
+		close_yaml_logger("logs.yaml", self.logger)
+
 		Experiment.current = None
 		if self.active:
 			self.active = False
