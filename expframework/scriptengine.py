@@ -1,12 +1,14 @@
-from colorama import Fore, Style
 from rich import print
 from rich.rule import Rule
 from rich.panel import Panel
 import os
 from importlib import import_module
+from collections.abc import Iterable
+
 
 
 from .experiment import Experiment
+
 
 class ScriptEngine:
 	"""
@@ -25,6 +27,11 @@ class ScriptEngine:
 	modules = []
 	
 	def run(globals_, scripts=None, raise_exceptions=False):
+		"""Run a list of scripts."""
+		
+		if isinstance(scripts, str): ## If a single path is given
+			scripts = [scripts]
+
 		if scripts == None:
 			scripts = ScriptEngine.execlist
 		
@@ -73,3 +80,37 @@ class ScriptEngine:
 							if Experiment.current:
 								Experiment.current.log_event("script_interrupted", 
 									attribs={"path": script})
+
+	def find(globals_):
+		""" Find and run scripts."""
+		print("\n\n")
+		print("[bold blue]Find scripts >>> [default]")
+		print("Press Ctrl+Z to exit or enter to ignore.")
+		from prompt_toolkit import prompt
+		from prompt_toolkit.completion import WordCompleter
+		from core.permaconfig.config import TrappyConfig
+
+
+		## Load scriptpaths
+		all_script_paths = TrappyConfig.current["Experiment"]["scripts_dirs"].get()
+		all_script_paths = [os.path.expanduser(path) for path in all_script_paths]
+		print("Looking into:", all_script_paths)
+		#scriptcompleter = PathCompleter(only_directories=False, 
+		#							    get_paths=lambda: all_script_paths, 
+		#							    file_filter=lambda file: file.endswith(".py") or os.path.isdir(file), 
+		#							    expanduser=True)
+
+		paths = []
+		paths = []
+		for root in all_script_paths:
+			for dirpath, dirnames, filenames in os.walk(root):
+			    dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+			    paths.append(dirpath)
+			    paths += [os.path.join(dirpath, f) for f in filenames]
+		paths = [path for path in paths if path.endswith(".py")]
+
+
+
+		scriptcompleter = WordCompleter(paths, sentence=True)
+		script_name = prompt('Enter script path [ press tab to expand ] -> ', completer=scriptcompleter)
+		ScriptEngine.run(globals_, scripts=script_name)
