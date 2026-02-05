@@ -105,7 +105,9 @@ def image_centroid(frame, radius=50, disk_thickness=10, rolling_window=20, reff=
 
     delta_x = np.abs((centroid_[1]-int(frame.shape[0]/2)))
     delta_y = np.abs((centroid_[0]-int(frame.shape[1]/2)))
-    ax.set_title(fr"Intensity centroid and line profiles{'\n'}$x_c$={centroid_[1]:.1f} $y_c$={centroid_[0]:.1f}{'\n'}$r$={radius} $\Delta_x$={delta_x:.2f} $\Delta_y$={delta_y:.2f}")
+    ax.set_title(fr"""Intensity centroid and line profiles
+        $x_c$={centroid_[1]:.1f} $y_c$={centroid_[0]:.1f}
+        $r$={radius} $\Delta_x$={delta_x:.2f} $\Delta_y$={delta_y:.2f}""")
     return fig, centroid_
 
 
@@ -143,7 +145,8 @@ def contrast_histogram(image, bins=256, lower_percentile_threshold=1.0):
     ax.axvline(I_b, color="blue", linestyle="--", label="background value")
     ax.axvline(I_s, color="red", linestyle="--", label="dark value")
     weber_contrast = (I_b - I_s)/I_b
-    ax.set_title(fr"Feature pixels:{len(dark_pixels)/(image.shape[0]*image.shape[1])*100:.2f}%{'\n'} $C$ = {weber_contrast:.2f} $I_s=${I_s:.2f} $I_b=${I_b:.2f}")
+    ax.set_title(fr"""Feature pixels:{len(dark_pixels)/(image.shape[0]*image.shape[1])*100:.2f}%
+    $C$ = {weber_contrast:.2f} $I_s=${I_s:.2f} $I_b=${I_b:.2f}""")
     fig.suptitle("Frame histogram and Weber contrast calculations")
     plt.legend()
     return fig
