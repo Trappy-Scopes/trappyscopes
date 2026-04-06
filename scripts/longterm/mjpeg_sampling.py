@@ -22,7 +22,7 @@ def create_exp():
 	exp.new_measurementstream("acq", monitors=["acq"])
 
 	exp.params["sampling_period_hours"] = 0.5
-	exp.params["sampling_hours"] = 20
+	exp.params["sampling_hours"] = 22
 	exp.params["tandh_sampling_period_minutes"] = 5
 
 	
@@ -31,7 +31,7 @@ def create_exp():
 	exp.attribs["exposure_ms"] = 3
 	exp.attribs["quality"] = 100
 	exp.attribs["no_splits"] = 81
-	exp.attribs["light"] = (2.4,0,0)
+	exp.attribs["light"] = (0.5,0,0)
 	exp.attribs["camera_mode"] = "vid_mjpeg_tpts"
 	exp.attribs["group"] = "red_light"
 	exp.attribs["sync_files"] = True
@@ -151,9 +151,10 @@ def cleanup():
 if __name__ == "__main__":
 	global scope
 	scope = ScopeAssembly.current
-	scope.lit.setVs(2.4,0,0)
+	#scope.lit.setVs(2.4,0,0)
 	print("Lights ready...")
-	scope.cam.config["controls"]["ExposureTime"] = 3000
+	#scope.cam.config["controls"]["ExposureTime"] = 3000
+	scope.cam.close()
 	scope.cam.open()
 	scope.cam.configure()
 	scope.beacon.off()
