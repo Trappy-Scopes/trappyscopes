@@ -8,7 +8,7 @@ import ast
 
 from expframework.experiment import Experiment
 from hive.assembly import ScopeAssembly
-
+from functools import partial
 
 
 def create_exp():
@@ -59,6 +59,7 @@ def sync_file():
 
 def filename_fn(split_no):
 	global exp
+	global capturefilelist
 	filename=exp.newfile(f'{str(datetime.datetime.now()).split(".")[0].replace(" ", "__").replace(":", "_").replace("-", "_")}__{time.time_ns()}__split_{split_no}.mjpeg', abspath=False)
 	capturefilelist.append(filename)
 	#if split_no >= 1 and exp.params["sync_files"]:
@@ -78,15 +79,15 @@ def capture():
 	split = len(exp.mstreams["acq"].readings)
 	
 	global split_no
-	filename=filename_fn(split_no)
-	acq = exp.mstreams["acq"](acq=filename)
+	#filename=filename_fn(split_no)
+	#acq = exp.mstreams["acq"](acq=filename)
 	
 	### Capture
 	try:
 		scope.cam.open()
 		scope.cam.configure()
 		scope.cam.read(exp.attribs["camera_mode"], 
-					   filename,
+					   partial(filename_fn, split_no),
 					   tsec=exp.attribs["chunk_size_sec"], 
 					 	show_preview=False,
 						quality=exp.attribs["quality"])
