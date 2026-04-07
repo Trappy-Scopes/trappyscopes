@@ -79,15 +79,15 @@ def capture():
 	split = len(exp.mstreams["acq"].readings)
 	
 	global split_no
-	#filename=filename_fn(split_no)
-	#acq = exp.mstreams["acq"](acq=filename)
+	filename=filename_fn(split_no)
+	acq = exp.mstreams["acq"](acq=filename)
 	
 	### Capture
 	try:
 		scope.cam.open()
 		scope.cam.configure()
 		scope.cam.read(exp.attribs["camera_mode"], 
-					   partial(filename_fn, split_no),
+					   filename,
 					   tsec=exp.attribs["chunk_size_sec"], 
 					 	show_preview=False,
 						quality=exp.attribs["quality"])
@@ -100,8 +100,8 @@ def capture():
 	split_no = split_no + 1
 	#acq.panel()
 	scope.beacon.off()
-	#if exp.params["sync_files"]:
-	#	exp.sync_file_bg(filename, remove_source=True)
+	if exp.params["sync_files"]:
+		exp.sync_file_bg(filename, remove_source=True)
 
 
 def record_sensor():
