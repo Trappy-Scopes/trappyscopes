@@ -93,7 +93,7 @@ def capture():
 						quality=exp.attribs["quality"])
 		scope.cam.close()
 	except Exception as e:
-		print(e)
+		raise e
 		scope.cam.close()
 		exp.note(f"{split_no} :: acq failed.")
 
