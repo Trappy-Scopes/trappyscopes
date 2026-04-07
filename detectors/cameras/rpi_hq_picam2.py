@@ -123,7 +123,7 @@ class SplittableOutput_(Output):
 
 
 
-class Camera(AbstractCamera):
+class Camera():
     """
     Camera object framework specialised for Raspberry Pi HQ Camera.
     Implementation used Picamera v2 python library.
