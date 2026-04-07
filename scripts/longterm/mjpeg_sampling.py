@@ -98,10 +98,10 @@ def capture():
 		exp.note(f"{split_no} :: acq failed.")
 
 	split_no = split_no + 1
-	acq.panel()
+	#acq.panel()
 	scope.beacon.off()
-	if exp.params["sync_files"]:
-		exp.sync_file_bg(filename, remove_source=True)
+	#if exp.params["sync_files"]:
+	#	exp.sync_file_bg(filename, remove_source=True)
 
 
 def record_sensor():
