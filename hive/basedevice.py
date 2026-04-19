@@ -2,6 +2,7 @@ from core.exceptions import TSBaseModelError
 
 from dataclasses import dataclass
 
+from __future__ import annotations
 @dataclass
 class BaseDevice: #ProcessorGroup
 
