@@ -7,7 +7,7 @@ from detectors.cameras.abstractcamera import Camera as AbstractCamera
 
 class Camera(AbstractCamera):
     def __init__(self):
-        super().__init__()
+        super().__init__(None)
         self.process = None
         self.status  = "standby"
         self.actions = {"preview": self.__preview__, 
