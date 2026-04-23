@@ -94,3 +94,12 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:mermaid2.fence_mermaid_custom
+  - pymdownx.superfences:
+      custom_fences:
+        - name: model-viewer
+          class: model-viewer
+          format: !!python/name:pymdownx.superfences.fence_code_format
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/es-module-shims@1.8.3/dist/es-module-shims.min.js
+  - https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js
+  - https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js
