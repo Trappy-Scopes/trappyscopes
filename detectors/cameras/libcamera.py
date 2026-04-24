@@ -26,7 +26,7 @@ class Camera():
     def __add_optional_args__(self, cmd):
         """Function to handle case-by-case condtions"""
         if "camera" in self.config: ## Used for a multi-camera setup.
-            cmd =  f"{cmd} ---camera {self.config['camera']}"
+            cmd =  f"{cmd} --camera {self.config['camera']}"
         return cmd
 
     def __process__(self, cmd):
