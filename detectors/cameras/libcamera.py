@@ -37,12 +37,12 @@ class Camera():
         stdout, stderr = self.process.communicate()
         return self.process.returncode, stdout, stderr, pid
 
-    def preview(self, tsec=10):
-        return self.__preview__(tsec=tsec)
+    def preview(self, tsec=10, exposure_ms=50):
+        return self.__preview__(tsec=tsec, exposure_ms=exposure_ms)
 
 
-    def __preview__(self, tsec=10):
-        cmd_list = f"{self.config['program_name']}-vid -t {tsec*1000} -f"
+    def __preview__(self, tsec=10, exposure_ms=50):
+        cmd_list = f"{self.config['program_name']}-vid -t {tsec*1000} -f --shutter {exposure_ms*1000}"
         return self.__process__(self.__add_optional_args__(cmd_list))
 
     def __preview_formatted__(self, filename, *args, **kwargs):
