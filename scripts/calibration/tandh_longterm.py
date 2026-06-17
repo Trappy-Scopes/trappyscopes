@@ -67,4 +67,4 @@ def sync_once_then_cancel():
 	global exp
 	exp.__save__()
 	exp.sync_dir()
-    return schedule.CancelJob
+	return schedule.CancelJob
