@@ -337,7 +337,7 @@ def see_cells(filename="sample_video.mjpeg", fps=25, record_time_s=10, time_s=3,
 	global exp, scope
 	if exp is None:
 		raise Exception("Exp not open")
-	if not expactive:
+	if not exp.active:
 		raise Exception("Exp not open")
 
 	if "optics" not in scope:
