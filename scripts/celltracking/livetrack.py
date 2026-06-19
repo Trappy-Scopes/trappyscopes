@@ -403,8 +403,8 @@ def trapped_many(single_cell_exception=False, schedule_checkpoint_mins=10):
 		print(Panel(Pretty({k:v for k, v in scope.cell.params.items() if k in ["no_cells", "sizes", "speeds"]}), title="Cell list", style="white on red"))
 
 	if schedule_checkpoint_mins > 0:
-		exp.scheule.every(10).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins + 1)).do(checkpoint, "Checkpoint 1", single_cell_exception=single_cell_exception).tag("checkpoint1")
-		exp.scheule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "Checkpoint 2", single_cell_exception=single_cell_exception).tag("checkpoint1")
+		exp.schedule.every(10).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins + 1)).do(checkpoint, "Checkpoint 1", single_cell_exception=single_cell_exception).tag("checkpoint1")
+		exp.schedule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "Checkpoint 2", single_cell_exception=single_cell_exception).tag("checkpoint1")
 		print("Scheduled 2 checkpoints")
 
 def trapped(schedule_checkpoint_mins=True, ):
