@@ -366,7 +366,7 @@ def checkpoint(name, single_cell_exception=False):
 	global exp, scope
 	"""Log that the cell is trapped and start a clock"""
 	exp.clocks = name
-	see_cells(filename=f"{name.strip(' ')}/sample_video.mjpeg")
+	see_cells(filename=f"{name}/sample_video.mjpeg")
 
 	no_cells = scope.cell["no_cells"]
 	if single_cell_exception:
@@ -403,8 +403,8 @@ def trapped_many(single_cell_exception=False, schedule_checkpoint_mins=10):
 		print(Panel(Pretty({k:v for k, v in scope.cell.params.items() if k in ["no_cells", "sizes", "speeds"]}), title="Cell list", style="white on red"))
 
 	if schedule_checkpoint_mins > 0:
-		exp.schedule.every(10).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins + 1)).do(checkpoint, "Checkpoint 1", single_cell_exception=single_cell_exception).tag("checkpoint1")
-		exp.schedule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "Checkpoint 2", single_cell_exception=single_cell_exception).tag("checkpoint1")
+		exp.schedule.every(10).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins + 1)).do(checkpoint, "Checkpoint1", single_cell_exception=single_cell_exception).tag("checkpoint1")
+		exp.schedule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "Checkpoint2", single_cell_exception=single_cell_exception).tag("checkpoint1")
 		print("Scheduled 2 checkpoints")
 
 def trapped(schedule_checkpoint_mins=True, ):
