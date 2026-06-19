@@ -349,7 +349,7 @@ def see_cells(filename="sample_video.mjpeg", fps=25, record_time_s=10, time_s=3,
 	os.makedirs(os.path.dirname(filename), exist_ok=True)
 	record_short_video(filename, record_time_s)
 
-	track_sample(filename, fps=fps, record_time_s=record_time_s, time_s=time_s, 
+	track_sample(filename, fps=fps, time_s=time_s, 
 			   no_processes=no_processes, minmass=minmass, pix_size_um=pix_size_um, 
 			   stub_size_s=stub_size_s)
 	if view:

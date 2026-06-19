@@ -38,6 +38,10 @@ def view_all(filenames=["centroids_plot.png", "trap_wall_profile.png", "intensit
 
 def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 	global scope
+	
+	take_calib_image()
+	calib_path = load_calib_image(path=path)
+
 	print("Beginning frame alignement tests")
 
 	print("Step 1: Trap detection")
