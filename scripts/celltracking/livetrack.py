@@ -366,7 +366,7 @@ def checkpoint(name, single_cell_exception=False):
 	global exp, scope
 	"""Log that the cell is trapped and start a clock"""
 	exp.clocks = name
-	see_cells(filename=f"{name.strip(" ")}/sample_video.mjpeg")
+	see_cells(filename=f"{name.strip(' ')}/sample_video.mjpeg")
 
 	no_cells = scope.cell["no_cells"]
 	if single_cell_exception:
