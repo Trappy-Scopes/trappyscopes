@@ -56,7 +56,7 @@ import matplotlib.pyplot as plt
 import trackpy as tp
 import pims
 import pandas as pd
-from datetime import datetime, timedelta, time
+import datetime
 
 
 from skimage import measure
@@ -403,13 +403,13 @@ def trapped_many(single_cell_exception=False, schedule_checkpoint_mins=10):
 		print(Panel(Pretty({k:v for k, v in scope.cell.params.items() if k in ["no_cells", "sizes", "speeds"]}), title="Cell list", style="white on red"))
 
 	if schedule_checkpoint_mins > 0:
-		exp.scheule.every(10).minutes.until(timedelta(minutes=schedule_checkpoint_mins + 1)).do(checkpoint, "Checkpoint 1", single_cell_exception=single_cell_exception).tag("checkpoint1")
-		exp.scheule.every(20).minutes.until(timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "Checkpoint 2", single_cell_exception=single_cell_exception).tag("checkpoint1")
+		exp.scheule.every(10).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins + 1)).do(checkpoint, "Checkpoint 1", single_cell_exception=single_cell_exception).tag("checkpoint1")
+		exp.scheule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "Checkpoint 2", single_cell_exception=single_cell_exception).tag("checkpoint1")
 		print("Scheduled 2 checkpoints")
 
-def trapped(schedule_checkpoint_mins=True):
+def trapped(schedule_checkpoint_mins=True, ):
 	"""Just a "single cell version"""
-	trapped_many(single_cell_exception=True, schedule_checkpoint_mins=schedule_checkpoint)
+	trapped_many(single_cell_exception=True, schedule_checkpoint_mins=schedule_checkpoint_mins)
 
 
 
