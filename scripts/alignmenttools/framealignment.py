@@ -40,7 +40,7 @@ def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 	global scope
 	
 	take_calib_image()
-	calib_path = load_calib_image(path=path)
+	calib_image = load_calib_image(path=path)
 
 	print("Beginning frame alignement tests")
 
