@@ -740,31 +740,37 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	def track(self, name, task, *args, **kwargs):
 		"""
 		Track execution of anhy function and log.
+		## Add option to serialise the task?
 		"""
 
-		if "desc" not in kwargs:
-			kwargs["desc"] = "No description."
-		desc = kwargs["desc"]
-		print(f"exp-step: Tracking task >> {name}")
-		print(f"Task: {task}\nDescription: {kwargs.pop('desc')}")
+		if "description" not in kwargs:
+			kwargs["description"] = "No description."
+		desc = kwargs["description"]
+		print(Rule())
+		print(f"exp-step: Tracking task >> [purple]{name}[reset]")
+		print(f"Task: {task}\nDescription: {kwargs.pop('description')}")
 		
 		
-		print(desc)
+		#print(desc)
 		interrupted = False
 		start = time.time_ns()
 		try:
 			
 			#####################
-			task(*args, **kwargs)
+			ret = task(*args, **kwargs)
 			#####################
 			
 			end = time.time_ns()
 			print(f"Task duration: {float(end-start)*10**-9} s")
 		except KeyboardInterrupt:
 			end = time.time_ns()
-		self.log("tracked_task", attribs={"name":name, "duration":float(end-start)*(10**-9), "start_ns":start, 
-				 "end_ns": end, "interrupted": False, "task": str(task), "args": args, "kwargs":kwargs,
-				 "description": desc, "task_description": task.__doc__})
+			interrupted = True
+		finally:
+			self.log("tracked_task", attribs={"name":name, "duration":float(end-start)*(10**-9), "start_ns":start, 
+					 "end_ns": end, "interrupted": interrupted,
+					 "description": desc, "task_description": task.__doc__})
+		print(Rule())
+		return ret
 	
 	@is_event
 	@autosave

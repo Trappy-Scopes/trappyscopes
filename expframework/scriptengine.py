@@ -58,7 +58,7 @@ class ScriptEngine:
 				if True:
 					print('\n', Rule(title=f"Running script: {script}", align="center", style="yellow"))
 					description = "No script description."
-					if ScriptEngine.modules[-1] != None:
+					if ScriptEngine.modules[-1] is not None:
 						if "__description__" in dir(ScriptEngine.modules[-1]):
 							description = ScriptEngine.modules[-1].__description__
 						print(Panel(description, title="description"))
