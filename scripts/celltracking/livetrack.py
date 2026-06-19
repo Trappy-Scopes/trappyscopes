@@ -43,7 +43,7 @@ def __installer__():
 	"""
 	import os
 	for lib in ["trackpy", "pims"]:
-		os.system("sudo pip install {lib} --break-system-packages -y")
+		os.system("sudo pip install {lib} --break-system-packages")
 
 
 
