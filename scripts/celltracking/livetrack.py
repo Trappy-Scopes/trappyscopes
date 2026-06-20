@@ -370,6 +370,7 @@ def open_trap():
 	exp.log("open_trap")
 	exp.schedule.clear('checkpoint1')
 	exp.schedule.clear('checkpoint2')
+	exp.__save__()
 
 def checkpoint(name, single_cell_exception=False):
 	"""Checkpoint cell count and cell speed."""
