@@ -42,7 +42,7 @@ def __installer__():
 	Call at your own risk (--break-system-packages)!
 	"""
 	import os
-	for lib in ["trackpy", "pims"]:
+	for lib in ["trackpy", "pims", "numba"]:
 		os.system("sudo pip install {lib} --break-system-packages")
 
 
@@ -54,6 +54,7 @@ import os
 
 import matplotlib.pyplot as plt
 import trackpy as tp
+tp.enable_numba()
 import pims
 import pandas as pd
 import datetime
@@ -106,6 +107,12 @@ def record_short_video(filename, time_s=10):
 		raise e
 		scope.cam.close()
 		exp.note(f"Camera failed to capture video for live tracks")
+	scope.cam.close()
+	scope.cam.open()
+	scope.cam.configure()
+	print("Camera open for previews.")
+
+
 	## TOTO Should open the camera maybe?
 
 def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4, minmass=0.2,
@@ -358,13 +365,18 @@ def see_cells(filename="sample_video.mjpeg", fps=25, record_time_s=10, time_s=3,
 
 ## Higher order functions
 def open_trap():
-	exp.logs("open_trap")
+	"""Mark the trap open and trigger cancellation of checkpoints"""
+	global exp
+	exp.log("open_trap")
 	exp.schedule.clear('checkpoint1')
 	exp.schedule.clear('checkpoint2')
 
 def checkpoint(name, single_cell_exception=False):
-	global exp, scope
-	"""Log that the cell is trapped and start a clock"""
+	"""Checkpoint cell count and cell speed."""
+	from expframework.experiment import Experiment
+	from hive.assembly import ScopeAssembly
+	exp = Experient.current
+	scope = ScopeAssembly.current
 	exp.clocks = name
 	see_cells(filename=f"{name}/sample_video.mjpeg")
 
@@ -383,8 +395,8 @@ def checkpoint(name, single_cell_exception=False):
 
 
 def trapped_many(single_cell_exception=False, schedule_checkpoint_mins=10):
+	"""Mark that the cell is trapped and trigger cell count and speed calculation."""
 	global exp, scope
-	"""Log that the cell is trapped and start a clock"""
 	exp.clocks = "trapped"
 	exp.log("trap_closed")
 	see_cells(filename="trapped/sample_video.mjpeg")
@@ -407,8 +419,8 @@ def trapped_many(single_cell_exception=False, schedule_checkpoint_mins=10):
 		exp.schedule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "Checkpoint2", single_cell_exception=single_cell_exception).tag("checkpoint1")
 		print("Scheduled 2 checkpoints")
 
-def trapped(schedule_checkpoint_mins=True, ):
-	"""Just a "single cell version"""
+def trapped_one(schedule_checkpoint_mins=True, ):
+	"""Just a single cell version of trapped_many."""
 	trapped_many(single_cell_exception=True, schedule_checkpoint_mins=schedule_checkpoint_mins)
 
 

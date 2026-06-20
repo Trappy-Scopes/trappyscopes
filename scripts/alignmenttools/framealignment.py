@@ -32,7 +32,8 @@ def load_calib_image(path=SAMPLE_IMAGE_PATH, channel_no=0):
 	else:
 		return np.array(Image.open(path))
 
-def view_all(filenames=["centroids_plot.png", "trap_wall_profile.png", "intensity_homogeneity.png", "contrast_histogram.png"]):
+def view_all(filenames=["alignment/centroids_plot.png", "alignment/trap_wall_profile.png", 
+					    "alignment/intensity_homogeneity.png", "alignment/contrast_histogram.png"]):
 	fim(filenames)
 
 
@@ -74,10 +75,11 @@ def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 	fig.suptitle(fr"""Trap centring errors: $\Delta_x$:{center_dev_x}; $\Delta_y$:{center_dev_y}
 		Magnification:{magnification:.2f}X;
 		Centering-threshold-radius: {deviation_threshold}px""")
-	scope.optics.params["magnification"] = magnification
+	scope.optics["magnification"] = magnification
 	print(f"Magnification: {magnification:.2f}X")
 	print("Emitting: centroids_plot.png")
-	fig.savefig("centroids_plot.png")
+	os.makedirs("alignment", exist_ok=True)
+	fig.savefig("alignment/centroids_plot.png")
 	if show:
 		fig.show()
 	## Add scope information
@@ -86,7 +88,7 @@ def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 	print("Step 2: Profile trap boundaries for angular misalignment")
 	fig, ax, packet = profile_trap_boundaries(calib_image, int(xc), int(yc), int(reff))
 	print("Emitting: trap_wall_profile.png")
-	fig.savefig("trap_wall_profile.png")
+	fig.savefig("alignment/trap_wall_profile.png")
 	if show:
 		fig.show()
 	## Update information in the scope settings
@@ -95,14 +97,14 @@ def start_alignment(path=SAMPLE_IMAGE_PATH, show=False):
 	print("Step 3: Intensity centroid and illumination homogeneity")
 	fig, centroid_ = image_centroid(calib_image, reff=int(reff))
 	print("Emitting: intensity_homogeneity.png")
-	fig.savefig("intensity_homogeneity.png")
+	fig.savefig("alignment/intensity_homogeneity.png")
 	if show:
 		fig.show()
 
 	print("Step 4: Intensity histograms and contrast")
 	fig = contrast_histogram(calib_image, bins=256, lower_percentile_threshold=1.0)
 	print("Emitting: contrast_histogram.png")
-	fig.savefig("contrast_histogram.png")
+	fig.savefig("alignment/contrast_histogram.png")
 	if show:
 		fig.show()
 
