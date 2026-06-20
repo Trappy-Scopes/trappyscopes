@@ -308,7 +308,7 @@ def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4
 
 		ax.set_title(f"p{particle_id}  {speeds[particle_id]:.1f}µm/s\n"
 					 f"σ={fit['sigma_um']:.1f}±{fit['sigma_um_std']:.1f}µm\n"
-					 f"C={fit['contrast']:.2f}±{fit['contrast_std']:.2f}  "
+					 f"C={fit['contrast']:.2f}±{fit['contrast_std']:.2f}\n"
 					 f"IC={fit['integrated_contrast']:.3f}±{fit['integrated_contrast_std']:.3f}",
 					 fontsize=7)
 		ax.axis("off")
@@ -375,7 +375,7 @@ def checkpoint(name, single_cell_exception=False):
 	"""Checkpoint cell count and cell speed."""
 	from expframework.experiment import Experiment
 	from hive.assembly import ScopeAssembly
-	exp = Experient.current
+	exp = Experiment.current
 	scope = ScopeAssembly.current
 	exp.clocks = name
 	see_cells(filename=f"{name}/sample_video.mjpeg")
