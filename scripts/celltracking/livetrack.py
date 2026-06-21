@@ -43,7 +43,7 @@ def __installer__():
 	"""
 	import os
 	for lib in ["trackpy", "pims", "numba"]:
-		os.system("sudo pip install {lib} --break-system-packages")
+		os.system(f"sudo pip install {lib} --break-system-packages")
 
 
 
