@@ -322,7 +322,7 @@ def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4
 	if not "cell" in scope:
 		add_cell_object()
 	scope.cell["no_cells"]   = no_detected
-	scope.cell["tracks"]     = trajs.copy()
+	trajs.to_csv(os.path.join(__live_cell_save__path__, "tracks.csv"))
 	scope.cell["speeds"]     = speeds
 	scope.cell["sizes"]      = {pid: fit["sigma_um"] for pid, fit in gauss_fits.items()}
 	scope.cell["gauss_fits"] = gauss_fits
