@@ -1,3 +1,19 @@
+# +----------------------------------------------------------------------------+
+# |                                                                            |
+# |       .-"""""""-.             ___                                          |
+# |     .'           '.       _,~"                                             |
+# |    /          .##.  \   ,~"                                                |
+# |   |           '##'  |~"                                                    |
+# |    \                /~,                                                    |
+# |     '.            .'   "~,_                                                |
+# |       '-........-'        "~,__                                            |
+# |                                                                            |
+# | Author    : Yatharth Bhasin (yatharth1997+ts@gmail.com)                    |
+# | Date      : June 2026                                                      |
+# | Copyright (c) 2026 Yatharth Bhasin                                         |
+# | License-Identifier: MIT                                                    |
+# +----------------------------------------------------------------------------+
+
 from datetime import timedelta
 import datetime
 import time
@@ -5,10 +21,22 @@ from rich import print
 from rich.panel import Panel
 from rich.pretty import Pretty
 import ast
+import os
 
 from expframework.experiment import Experiment
 from hive.assembly import ScopeAssembly
 from functools import partial
+
+from expframework.protocol import Protocol
+
+
+__decription__ = \
+"""Long term measurement using periodic video sampling
+
+print("Use create_exp() to open a new experiment. Use exp = findexp() to open an old one.")
+print("Use start_acq() to start acquiring.")
+print("Use cleanup() to close and sync experiment.")
+"""
 
 
 def create_exp():
@@ -38,10 +66,17 @@ def create_exp():
 	exp.attribs["beacon_stabilization_delay_s"] = 1
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
+
+	# Protocol
+	os.makedirs("protocols", exist_ok=True)
+	p = Protocol("experiments/masterprotocols/masterprotocol_June26.md")
+	p.write("protocols/masterprotocol_June26.md")
+
+	p = Protocol("experiments/selectswimmers.md")
+	p.write("protocols/selectswimmers.md")
+
  
-print("Use create_exp() to open a new experiment. Use exp = findexp() to open an old one.")
-print("Use start_acq() to start acquiring.")
-print("Use cleanup() to close and sync experiment.")
+
 
 ## Split number
 global split_no

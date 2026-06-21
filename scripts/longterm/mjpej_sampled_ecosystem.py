@@ -1,3 +1,21 @@
+# +----------------------------------------------------------------------------+
+# |                                                                            |
+# |       .-"""""""-.             ___                                          |
+# |     .'           '.       _,~"                                             |
+# |    /          .##.  \   ,~"                                                |
+# |   |           '##'  |~"                                                    |
+# |    \                /~,                                                    |
+# |     '.            .'   "~,_                                                |
+# |       '-........-'        "~,__                                            |
+# |                                                                            |
+# | Author    : Yatharth Bhasin (yatharth1997+ts@gmail.com)                    |
+# | Date      : June 2026                                                      |
+# | Copyright (c) 2026 Yatharth Bhasin                                         |
+# | License-Identifier: MIT                                                    |
+# +----------------------------------------------------------------------------+
+
+
+import os
 from datetime import timedelta
 import datetime
 import time
@@ -5,6 +23,10 @@ from rich import print
 import ast
 from rich.panel import Panel
 from rich.pretty import Pretty
+
+
+
+
 
 def create_exp():
 	global exp
@@ -41,6 +63,7 @@ def create_exp():
 	exp.attribs["description"] = "The script records for a certain duration every hour for 5 days.\n \
 								  During the night it records in low-intensity red light. An arbitrary amount of smaple is loaded."
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
+
 
 print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
 print("Use start_acq() to start acquiring.")
