@@ -352,7 +352,7 @@ def see_cells(filename="sample_video.mjpeg", fps=25, record_time_s=10, time_s=3,
 
 	if "cell" not in scope:
 		add_cell_object()
-
+	__live_cell_save__path__ = os.path.dirname(filename)
 	os.makedirs(os.path.dirname(filename), exist_ok=True)
 	record_short_video(filename, record_time_s)
 
