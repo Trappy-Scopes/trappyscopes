@@ -420,7 +420,7 @@ def trapped_many(single_cell_exception=False, schedule_checkpoint_mins=10):
 		exp.schedule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "Checkpoint2", single_cell_exception=single_cell_exception).tag("checkpoint1")
 		print("Scheduled 2 checkpoints")
 
-def trapped_one(schedule_checkpoint_mins=True, ):
+def trapped_one(schedule_checkpoint_mins=True):
 	"""Just a single cell version of trapped_many."""
 	trapped_many(single_cell_exception=True, schedule_checkpoint_mins=schedule_checkpoint_mins)
 
