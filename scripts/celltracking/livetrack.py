@@ -70,7 +70,7 @@ from rich.panel import Panel
 ## Trappy-Scopes Imports
 from hive.physical import PhysicalObject
 
-
+global __live_cell_save__path__
 __live_cell_save__path__ = "."
 
 def add_cell_object():
@@ -186,7 +186,7 @@ def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4
 	fig, ax = plt.subplots(figsize=(10, 10))
 	ax.set_title(f"Detected tracks: {no_detected}")
 	tp.plot_traj(trajs, superimpose=frames[0], ax=ax, label=True)
-	fig.savefig("detected_tracks.png")
+	fig.savefig(f"{__live_cell_save__path__}/detected_tracks.png")
 	print("Detected tracks:", no_detected)
 
 	if "optics" not in scope:
@@ -316,7 +316,7 @@ def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4
 	for ax in axes[n_panels:]:
 		ax.axis("off")
 	plt.tight_layout()
-	fig.savefig("detected_cells.png")
+	fig.savefig(f"{__live_cell_save__path__}/detected_cells.png")
 	#plt.show()
 
 	if not "cell" in scope:
