@@ -20,7 +20,7 @@ def create_exp():
 	exp.new_measurementstream("cell_fates", monitors=["last_split", "active_periods", "max_cells", "eid"])
 	exp.new_measurementstream("damaged_devices", monitors=["id"])
 
-	exp.new_measurementstream("cell_counts", measurements=["counts"], monitors=["df", "density", "label"])
+	exp.new_measurementstream("cell_counts", measurements=["counts"], monitors=["df", "density", "label", "sep"])
 
 print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
 print("Use link_objects() to link measuement streams.")
@@ -36,9 +36,9 @@ def link_objects():
 	counts = exp.mstreams["cell_counts"]
 
 
-def new_count(label, *args, df=2):
+def new_count(label, *args, df=2, sep=None):
 	import numpy as np
-	c = Experiment.current.mstreams["cell_counts"](counts=args, label=label, df=df,
-									density=np.mean(args)*10000*df)
+	c = Experiment.current.mstreams["cell_counts"](counts=args, label=label, df=df, sep=sep,
+									density=float(np.mean(args)*10000*df))
 	c.panel()
 	print(Panel(f"Culture density is: {c['density']:.2e}"))

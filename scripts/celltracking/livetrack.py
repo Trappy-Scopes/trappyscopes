@@ -115,7 +115,7 @@ def record_short_video(filename, time_s=10):
 
 	## TOTO Should open the camera maybe?
 
-def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4, minmass=0.2,
+def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4, minmass=0.1,
 				 pix_size_um=3.1, stub_size_s=2):
 	"""Function to track and segment moving cells.
 	   If the file is not found, it uses a fixed local path on `MDEv` to test the script. It will fail on other systems.
@@ -333,9 +333,27 @@ def view_cells():
 	from gui.fim import fim
 	fim(paths)
 
+def view_cells_trapped():
+	"""View tracked cells - step 0."""
+	paths = [os.path.join("trapped", img) for img in ["detected_tracks.png", "detected_cells.png"]]
+	from gui.fim import fim
+	fim(paths)
+
+def view_cells_checkpoint1():
+	"""View checkpoint1 tracked cells - step 1."""
+	paths = [os.path.join("checkpoint1", img) for img in ["detected_tracks.png", "detected_cells.png"]]
+	from gui.fim import fim
+	fim(paths)
+
+def view_cells_checkpoint2():
+	"""View checkpoint2 tracked cells - step 2."""
+	paths = [os.path.join("checkpoint2", img) for img in ["detected_tracks.png", "detected_cells.png"]]
+	from gui.fim import fim
+	fim(paths)
+
 
 def see_cells(filename="sample_video.mjpeg", fps=25, record_time_s=10, time_s=3, 
-			   no_processes=4, minmass=0.2, pix_size_um=3.1, 
+			   no_processes=4, minmass=0.1, pix_size_um=3.1, 
 			   stub_size_s=2, view=True):
 	"""
 	Add cell object --> Record Video --> Track and Segment --> Open Plots
@@ -368,8 +386,7 @@ def open_trap():
 	"""Mark the trap open and trigger cancellation of checkpoints"""
 	global exp
 	exp.log("open_trap")
-	exp.schedule.clear('checkpoint1')
-	exp.schedule.clear('checkpoint2')
+	exp.schedule.clear()
 	exp.__save__()
 
 def checkpoint(name, single_cell_exception=False):
@@ -379,7 +396,7 @@ def checkpoint(name, single_cell_exception=False):
 	exp = Experiment.current
 	scope = ScopeAssembly.current
 	exp.clocks = name
-	see_cells(filename=f"{name}/sample_video.mjpeg")
+	see_cells(filename=f"{name}/sample_video.mjpeg", view=False)
 
 	no_cells = scope.cell["no_cells"]
 	if single_cell_exception:
@@ -400,7 +417,7 @@ def trapped_many(single_cell_exception=False, schedule_checkpoint_mins=10):
 	global exp, scope
 	exp.clocks = "trapped"
 	exp.log("trap_closed")
-	see_cells(filename="trapped/sample_video.mjpeg")
+	see_cells(filename="trapped/sample_video.mjpeg", view=False)
 
 	no_cells = scope.cell["no_cells"]
 	if single_cell_exception:
@@ -416,8 +433,8 @@ def trapped_many(single_cell_exception=False, schedule_checkpoint_mins=10):
 		print(Panel(Pretty({k:v for k, v in scope.cell.params.items() if k in ["no_cells", "sizes", "speeds"]}), title="Cell list", style="white on red"))
 
 	if schedule_checkpoint_mins > 0:
-		exp.schedule.every(10).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins + 1)).do(checkpoint, "Checkpoint1", single_cell_exception=single_cell_exception).tag("checkpoint1")
-		exp.schedule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "Checkpoint2", single_cell_exception=single_cell_exception).tag("checkpoint1")
+		exp.schedule.every(10).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins + 1)).do(checkpoint, "checkpoint1", single_cell_exception=single_cell_exception).tag("checkpoint1")
+		exp.schedule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "checkpoint2", single_cell_exception=single_cell_exception).tag("checkpoint1")
 		print("Scheduled 2 checkpoints")
 
 def trapped_one(schedule_checkpoint_mins=True):

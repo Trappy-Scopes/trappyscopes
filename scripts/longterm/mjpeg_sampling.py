@@ -167,6 +167,11 @@ def start_acq():
 	global exp, scope, capture
 	scope = ScopeAssembly.current
 
+	## Clear all other scheduled job for safety...
+	print("[red]Clearing experiment scheduler...")
+	exp.schedule.clear()
+
+
 	## Read tandh
 	record_sensor()
 	Experiment.current.schedule.every(exp.params["tandh_sampling_period_minutes"]).minutes.until(timedelta(hours=exp.params["sampling_hours"])).do(record_sensor)
