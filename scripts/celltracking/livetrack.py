@@ -54,7 +54,7 @@ import os
 
 import matplotlib.pyplot as plt
 import trackpy as tp
-tp.enable_numba()
+#tp.enable_numba()
 import pims
 import pandas as pd
 import datetime
@@ -167,9 +167,9 @@ def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4
 		frame = frame * (-1.0)
 		return np.clip(frame, 0.0, 1.0)
 
-	print("Doing BGS...")
+
 	bgs = bg_subtract(frames)
-	bgs = list(bgs[:fps * time_s])
+	bgs = exp.track("Background subtraction", list, bgs[:fps * time_s], description="Doing background subtraction on a subset of frames")
 	print("BGS frames:", len(bgs))
 
 	tp.quiet()
@@ -305,12 +305,18 @@ def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4
 		# Radius of gyration
 		rg_px = trajs[trajs["particle"] == particle_id]["size"].dropna().median()
 		ax.add_patch(plt.Circle((cx_c, cy_c), rg_px, color="blue", fill=False, linewidth=0.5))
+		color = "black"
+		if speeds[particle_id] > 80 and fit['contrast'] < 0.95:
+			color = "green"
+
+		if speeds[particle_id] < 80 and fit['contrast'] >= 0.95:
+			color = "red"
 
 		ax.set_title(f"p{particle_id}  {speeds[particle_id]:.1f}µm/s\n"
 					 f"σ={fit['sigma_um']:.1f}±{fit['sigma_um_std']:.1f}µm\n"
 					 f"C={fit['contrast']:.2f}±{fit['contrast_std']:.2f}\n"
 					 f"IC={fit['integrated_contrast']:.3f}±{fit['integrated_contrast_std']:.3f}",
-					 fontsize=7)
+					 fontsize=7, color=color)
 		ax.axis("off")
 
 	for ax in axes[n_panels:]:
