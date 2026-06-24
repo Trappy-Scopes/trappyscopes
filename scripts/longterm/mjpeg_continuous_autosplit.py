@@ -1,3 +1,20 @@
+# +----------------------------------------------------------------------------+
+# |                                                                            |
+# |       .-"""""""-.             ___                                          |
+# |     .'           '.       _,~"                                             |
+# |    /          .##.  \   ,~"                                                |
+# |   |           '##'  |~"                                                    |
+# |    \                /~,                                                    |
+# |     '.            .'   "~,_                                                |
+# |       '-........-'        "~,__                                            |
+# |                                                                            |
+# | Author    : Yatharth Bhasin (yatharth1997+ts@gmail.com)                    |
+# | Date      : June 2026                                                      |
+# | Copyright (c) 2026 Yatharth Bhasin                                         |
+# | License-Identifier: MIT                                                    |
+# +----------------------------------------------------------------------------+
+
+
 from datetime import timedelta
 import datetime
 import time
@@ -11,16 +28,19 @@ from hive.assembly import ScopeAssembly
 import logging as log
 
 
-def create_exp():
-	global exp, scopeid, scope
-	dt = str(datetime.date.today()).replace("-", "_")
-	t = time.localtime(time.time())
-	time_str = f"{t.tm_hour}hh_{t.tm_min}mm"
-	exp = Experiment.Construct(["longterm_traj"])
+__decription__ = \
+"""Long term measurement with continuous recording.
 
-	exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
-	exp.new_measurementstream("acq", monitors=["acq"])
+Use `create_exp() to open a new experiment. Use findexp() to open an old one.
+Use `start_acq_blocking()` to start acquiring.
+Use `stop_cam()` to kill the capture thread.
+"""
 
+
+
+def populate_exp():
+	"""Add experimental parameters"""
+	exp = Experiment.current
 	exp.attribs["chunk_size_sec"] = 10*60
 	exp.attribs["fps"] = 25
 	exp.attribs["exposure_ms"] = 18
@@ -32,9 +52,17 @@ def create_exp():
 	exp.attribs["sync_files"] = False
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
-print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
-print("Use start_acq() to start acquiring.")
-print("Use stop_cam() to kill the capture thread.")
+
+def create_exp():
+	global exp, scopeid, scope
+	dt = str(datetime.date.today()).replace("-", "_")
+	t = time.localtime(time.time())
+	time_str = f"{t.tm_hour}hh_{t.tm_min}mm"
+	exp = Experiment.Construct(["longterm_traj"])
+	exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
+	exp.new_measurementstream("acq", monitors=["acq"])
+	populate_exp()
+
 
 
 
@@ -92,7 +120,6 @@ def capture():
 def start_acq():
 
 	global exp, scope, capture
-	
 	scope = ScopeAssembly.current
 	scope.beacon.on()
 
@@ -167,13 +194,6 @@ def start_acq_blocking():
 	exp.sync_dir()
 
 
-
-def test_fov(tsec):
-	global scope
-	print("[red]This function is obselete!")
-	scope.cam.read("prev_formatted", None, tsec=tsec, fps=exp.attribs["fps"], exposure_ms=exp.attribs["exposure_ms"], quality=exp.attribs["quality"])
-
-
 if __name__ == "__main__":
 	global scope
 	scope = ScopeAssembly.current
@@ -181,4 +201,4 @@ if __name__ == "__main__":
 	print("Lights ready...")
 	scope.cam.open()
 	scope.cam.configure()
-	scope.beacon.blink()
+	scope.beacon.off()
