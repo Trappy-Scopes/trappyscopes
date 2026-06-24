@@ -22,10 +22,12 @@ from rich import print
 import ast
 from rich.panel import Panel
 from rich.pretty import Pretty
+import logging as log
+
 
 from expframework.experiment import Experiment
 from hive.assembly import ScopeAssembly
-import logging as log
+from expframework.protocol import Protocol
 
 
 __decription__ = \
@@ -61,6 +63,15 @@ def create_exp():
 	exp = Experiment.Construct(["longterm_traj"])
 	exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
 	exp.new_measurementstream("acq", monitors=["acq"])
+
+	# Protocol
+	os.makedirs("protocols", exist_ok=True)
+	p = Protocol("experiments/masterprotocols/masterprotocol_June26.md")
+	p.write("protocols/masterprotocol_June26.md")
+
+	p = Protocol("experiments/selectswimmers.md")
+	p.write("protocols/selectswimmers.md")
+
 	populate_exp()
 
 
