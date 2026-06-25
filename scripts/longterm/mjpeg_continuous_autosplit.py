@@ -172,6 +172,10 @@ def start_acq_blocking():
 	scope.beacon.on()
 
 
+	## Explicit schedule clear
+	exp.schedule.clear()
+	exp.schedule.loop()
+
 	## Read tandh
 	tandh = exp.mstreams["tandh"]
 	def record_sensor():

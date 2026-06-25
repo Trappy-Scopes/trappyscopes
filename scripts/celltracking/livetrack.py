@@ -104,13 +104,14 @@ def record_short_video(filename, time_s=10):
 						quality=100)
 		scope.cam.close()
 	except Exception as e:
-		raise e
 		scope.cam.close()
 		exp.note(f"Camera failed to capture video for live tracks")
-	scope.cam.close()
-	scope.cam.open()
-	scope.cam.configure()
-	print("Camera open for previews.")
+		print(e)
+	finally:
+		scope.cam.close()
+		scope.cam.open()
+		scope.cam.configure()
+		print("Camera open for previews.")
 
 
 	## TOTO Should open the camera maybe?
@@ -183,155 +184,164 @@ def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4
 	trajs["particle"] = trajs.groupby("particle").ngroup()
 	no_detected = len(trajs.particle.unique())
 
-	fig, ax = plt.subplots(figsize=(10, 10))
-	ax.set_title(f"Detected tracks: {no_detected}")
-	tp.plot_traj(trajs, superimpose=frames[0], ax=ax, label=True)
-	fig.savefig(f"{__live_cell_save__path__}/detected_tracks.png")
-	print("Detected tracks:", no_detected)
+	if no_detected > 0:
 
-	if "optics" not in scope:
-		print("Creating dummy optics object")
-		optics = PhysicalObject("optics", magnification=1.5)
-		scope.add_device("optics", optics)
+		fig, ax = plt.subplots(figsize=(10, 10))
+		ax.set_title(f"Detected tracks: {no_detected}")
+		tp.plot_traj(trajs, superimpose=frames[0], ax=ax, label=True)
+		fig.savefig(f"{__live_cell_save__path__}/detected_tracks.png")
+		print("Detected tracks:", no_detected)
 
-	magnification = scope.optics["magnification"]
-	um_per_pix = pix_size_um / magnification
+		if "optics" not in scope:
+			print("Creating dummy optics object")
+			optics = PhysicalObject("optics", magnification=1.5)
+			scope.add_device("optics", optics)
 
-	## Speeds
-	speeds = {}
-	for particle, group in trajs.groupby("particle"):
-		group = group.sort_values("frame")
-		dx, dy = group["x"].diff(), group["y"].diff()
-		dt = group["frame"].diff() / fps
-		displacement_um = np.sqrt(dx**2 + dy**2) * um_per_pix
-		speeds[particle] = float((displacement_um / dt).mean())
+		magnification = scope.optics["magnification"]
+		um_per_pix = pix_size_um / magnification
 
-	## sRGB linearisation
-	def srgb_to_linear(img):
-		mask = img <= 0.04045
-		linear = np.empty_like(img, dtype=np.float32)
-		linear[mask]  = img[mask] / 12.92
-		linear[~mask] = ((img[~mask] + 0.055) / 1.055) ** 2.4
-		return linear
+		## Speeds
+		speeds = {}
+		for particle, group in trajs.groupby("particle"):
+			group = group.sort_values("frame")
+			dx, dy = group["x"].diff(), group["y"].diff()
+			dt = group["frame"].diff() / fps
+			displacement_um = np.sqrt(dx**2 + dy**2) * um_per_pix
+			speeds[particle] = float((displacement_um / dt).mean())
 
-	## Gaussian model
-	def gaussian2d(xy, amp, x0, y0, sigma, bg):
-		x, y = xy
-		return (amp * np.exp(-((x-x0)**2 + (y-y0)**2) / (2*sigma**2)) + bg).ravel()
+		## sRGB linearisation
+		def srgb_to_linear(img):
+			mask = img <= 0.04045
+			linear = np.empty_like(img, dtype=np.float32)
+			linear[mask]  = img[mask] / 12.92
+			linear[~mask] = ((img[~mask] + 0.055) / 1.055) ** 2.4
+			return linear
 
-	## Numerical IC in 6um radius
-	radius_px = 6.0 / um_per_pix
-	Y, X = np.indices((50, 50))
-	circle_mask = (X - 25)**2 + (Y - 25)**2 < radius_px**2
+		## Gaussian model
+		def gaussian2d(xy, amp, x0, y0, sigma, bg):
+			x, y = xy
+			return (amp * np.exp(-((x-x0)**2 + (y-y0)**2) / (2*sigma**2)) + bg).ravel()
 
-	from scipy.optimize import curve_fit
-	yy, xx = np.indices((50, 50))
-	t0 = trajs.reset_index(drop=True)
+		## Numerical IC in 6um radius
+		radius_px = 6.0 / um_per_pix
+		Y, X = np.indices((50, 50))
+		circle_mask = (X - 25)**2 + (Y - 25)**2 < radius_px**2
 
-	## Per-frame Gaussian fits
-	gauss_fits = {}
-	display_patches = {}
+		from scipy.optimize import curve_fit
+		yy, xx = np.indices((50, 50))
+		t0 = trajs.reset_index(drop=True)
 
-	for particle_id, group in t0.groupby("particle"):
-		# Store first frame patch for display
-		first_row = group.iloc[0]
-		cx, cy = int(first_row["x"]), int(first_row["y"])
-		first_patch = srgb_to_linear(frames[int(first_row["frame"])][cy-25:cy+25, cx-25:cx+25].astype(np.float32))
-		if first_patch.shape == (50, 50):
-			display_patches[particle_id] = first_patch
+		## Per-frame Gaussian fits
+		gauss_fits = {}
+		display_patches = {}
 
-		particle_fits = []
-		for _, row in group.iterrows():
-			cx, cy = int(row["x"]), int(row["y"])
-			patch = srgb_to_linear(frames[int(row["frame"])][cy-25:cy+25, cx-25:cx+25].astype(np.float32))
-			if patch.shape != (50, 50):
-				continue
-			p0 = [patch.min() - patch.max(), 25, 25, 3, patch.max()]
-			try:
-				popt, _ = curve_fit(gaussian2d, (xx, yy), patch.ravel(), p0=p0)
-				amp, x0, y0, sigma, bg = popt
-				if abs(sigma) > 20 or bg <= 0:
+		for particle_id, group in t0.groupby("particle"):
+			# Store first frame patch for display
+			first_row = group.iloc[0]
+			cx, cy = int(first_row["x"]), int(first_row["y"])
+			first_patch = srgb_to_linear(frames[int(first_row["frame"])][cy-25:cy+25, cx-25:cx+25].astype(np.float32))
+			if first_patch.shape == (50, 50):
+				display_patches[particle_id] = first_patch
+
+			particle_fits = []
+			for _, row in group.iterrows():
+				cx, cy = int(row["x"]), int(row["y"])
+				patch = srgb_to_linear(frames[int(row["frame"])][cy-25:cy+25, cx-25:cx+25].astype(np.float32))
+				if patch.shape != (50, 50):
 					continue
-				# Numerical IC in 6um radius, normalised by bg
-				border = np.concatenate([patch[0,:], patch[-1,:], patch[:,0], patch[:,-1]])
-				bg_measured = np.median(border)
-				ic_numerical = (bg_measured - patch[circle_mask]).sum() / bg_measured if bg_measured > 0 else np.nan
-				particle_fits.append({
-					"sigma_um":            abs(sigma) * um_per_pix,
-					"contrast":            abs(amp) / bg,
-					"integrated_contrast": ic_numerical,
-				})
-			except Exception:
+				p0 = [patch.min() - patch.max(), 25, 25, 3, patch.max()]
+				try:
+					popt, _ = curve_fit(gaussian2d, (xx, yy), patch.ravel(), p0=p0)
+					amp, x0, y0, sigma, bg = popt
+					if abs(sigma) > 20 or bg <= 0:
+						continue
+					# Numerical IC in 6um radius, normalised by bg
+					border = np.concatenate([patch[0,:], patch[-1,:], patch[:,0], patch[:,-1]])
+					bg_measured = np.median(border)
+					ic_numerical = (bg_measured - patch[circle_mask]).sum() / bg_measured if bg_measured > 0 else np.nan
+					particle_fits.append({
+						"sigma_um":            abs(sigma) * um_per_pix,
+						"contrast":            abs(amp) / bg,
+						"integrated_contrast": ic_numerical,
+					})
+				except Exception:
+					continue
+				if len(particle_fits) >= 100:
+					break
+
+			if not particle_fits:
 				continue
-			if len(particle_fits) >= 100:
-				break
 
-		if not particle_fits:
-			continue
+			df_fits = pd.DataFrame(particle_fits)
+			gauss_fits[particle_id] = {
+				"sigma_um":                df_fits["sigma_um"].mean(),
+				"sigma_um_std":            df_fits["sigma_um"].std(),
+				"contrast":                df_fits["contrast"].mean(),
+				"contrast_std":            df_fits["contrast"].std(),
+				"integrated_contrast":     df_fits["integrated_contrast"].mean(),
+				"integrated_contrast_std": df_fits["integrated_contrast"].std(),
+				"n_frames":                len(df_fits),
+			}
 
-		df_fits = pd.DataFrame(particle_fits)
-		gauss_fits[particle_id] = {
-			"sigma_um":                df_fits["sigma_um"].mean(),
-			"sigma_um_std":            df_fits["sigma_um"].std(),
-			"contrast":                df_fits["contrast"].mean(),
-			"contrast_std":            df_fits["contrast"].std(),
-			"integrated_contrast":     df_fits["integrated_contrast"].mean(),
-			"integrated_contrast_std": df_fits["integrated_contrast"].std(),
-			"n_frames":                len(df_fits),
-		}
+		for pid, fit in gauss_fits.items():
+			print(f"p{pid}: σ={fit['sigma_um']:.2f}±{fit['sigma_um_std']:.2f}µm  "
+				  f"C={fit['contrast']:.3f}±{fit['contrast_std']:.3f}  "
+				  f"IC={fit['integrated_contrast']:.3f}±{fit['integrated_contrast_std']:.3f}  "
+				  f"n={fit['n_frames']}")
 
-	for pid, fit in gauss_fits.items():
-		print(f"p{pid}: σ={fit['sigma_um']:.2f}±{fit['sigma_um_std']:.2f}µm  "
-			  f"C={fit['contrast']:.3f}±{fit['contrast_std']:.3f}  "
-			  f"IC={fit['integrated_contrast']:.3f}±{fit['integrated_contrast_std']:.3f}  "
-			  f"n={fit['n_frames']}")
+		## Plot
+		n_panels = len(gauss_fits)
+		fig, axes = plt.subplots(2, n_panels//2 + 1, figsize=(16, 6))
+		axes = axes.flatten()
 
-	## Plot
-	n_panels = len(gauss_fits)
-	fig, axes = plt.subplots(2, n_panels//2 + 1, figsize=(16, 6))
-	axes = axes.flatten()
+		for ax, (particle_id, fit) in zip(axes, gauss_fits.items()):
+			patch = display_patches.get(particle_id)
+			if patch is not None:
+				ax.imshow(patch, cmap="gray")
 
-	for ax, (particle_id, fit) in zip(axes, gauss_fits.items()):
-		patch = display_patches.get(particle_id)
-		if patch is not None:
-			ax.imshow(patch, cmap="gray")
+			# Reference circles at 6µm and 12µm
+			cx_c, cy_c = 25, 25
+			for radius_um, color in [(6, "cyan"), (12, "yellow")]:
+				ax.add_patch(plt.Circle((cx_c, cy_c), radius_um / um_per_pix,
+										color=color, fill=False, linewidth=0.5))
 
-		# Reference circles at 6µm and 12µm
-		cx_c, cy_c = 25, 25
-		for radius_um, color in [(6, "cyan"), (12, "yellow")]:
-			ax.add_patch(plt.Circle((cx_c, cy_c), radius_um / um_per_pix,
-									color=color, fill=False, linewidth=0.5))
+			# Radius of gyration
+			rg_px = trajs[trajs["particle"] == particle_id]["size"].dropna().median()
+			ax.add_patch(plt.Circle((cx_c, cy_c), rg_px, color="blue", fill=False, linewidth=0.5))
+			color = "black"
+			if speeds[particle_id] > 80 and fit['contrast'] < 0.95:
+				color = "green"
 
-		# Radius of gyration
-		rg_px = trajs[trajs["particle"] == particle_id]["size"].dropna().median()
-		ax.add_patch(plt.Circle((cx_c, cy_c), rg_px, color="blue", fill=False, linewidth=0.5))
-		color = "black"
-		if speeds[particle_id] > 80 and fit['contrast'] < 0.95:
-			color = "green"
+			if speeds[particle_id] < 80 and fit['contrast'] >= 0.95:
+				color = "red"
 
-		if speeds[particle_id] < 80 and fit['contrast'] >= 0.95:
-			color = "red"
+			ax.set_title(f"p{particle_id}  {speeds[particle_id]:.1f}µm/s\n"
+						 f"σ={fit['sigma_um']:.1f}±{fit['sigma_um_std']:.1f}µm\n"
+						 f"C={fit['contrast']:.2f}±{fit['contrast_std']:.2f}\n"
+						 f"IC={fit['integrated_contrast']:.3f}±{fit['integrated_contrast_std']:.3f}",
+						 fontsize=7, color=color)
+			ax.axis("off")
 
-		ax.set_title(f"p{particle_id}  {speeds[particle_id]:.1f}µm/s\n"
-					 f"σ={fit['sigma_um']:.1f}±{fit['sigma_um_std']:.1f}µm\n"
-					 f"C={fit['contrast']:.2f}±{fit['contrast_std']:.2f}\n"
-					 f"IC={fit['integrated_contrast']:.3f}±{fit['integrated_contrast_std']:.3f}",
-					 fontsize=7, color=color)
-		ax.axis("off")
+		for ax in axes[n_panels:]:
+			ax.axis("off")
+		plt.tight_layout()
+		fig.savefig(f"{__live_cell_save__path__}/detected_cells.png")
+		#plt.show()
 
-	for ax in axes[n_panels:]:
-		ax.axis("off")
-	plt.tight_layout()
-	fig.savefig(f"{__live_cell_save__path__}/detected_cells.png")
-	#plt.show()
+		if not "cell" in scope:
+			add_cell_object()
+		scope.cell["no_cells"]   = no_detected
+		trajs.to_csv(os.path.join(__live_cell_save__path__, "tracks.csv"))
+		scope.cell["speeds"]     = speeds
+		scope.cell["sizes"]      = {pid: fit["sigma_um"] for pid, fit in gauss_fits.items()}
+		scope.cell["gauss_fits"] = gauss_fits
 
-	if not "cell" in scope:
-		add_cell_object()
-	scope.cell["no_cells"]   = no_detected
-	trajs.to_csv(os.path.join(__live_cell_save__path__, "tracks.csv"))
-	scope.cell["speeds"]     = speeds
-	scope.cell["sizes"]      = {pid: fit["sigma_um"] for pid, fit in gauss_fits.items()}
-	scope.cell["gauss_fits"] = gauss_fits
+	else:
+		scope.cell["no_cells"] = 0
+		scope.cell["speeds"]   = {}
+		scope.cell["sizes"]    = {}
+		scope.cell["gauss_fits"] = {}
+		print(Panel("No cells found!", style="white on red"))
 
 def view_cells():
 	"""Visualise the generated plots using fim in terminal"""
@@ -390,9 +400,11 @@ def see_cells(filename="sample_video.mjpeg", fps=25, record_time_s=10, time_s=3,
 ## Higher order functions
 def open_trap():
 	"""Mark the trap open and trigger cancellation of checkpoints"""
-	global exp
+	global exp, scope
 	exp.log("open_trap")
 	exp.schedule.clear()
+	exp.schedule.loop()
+	scope.beacon.off()
 	exp.__save__()
 
 def checkpoint(name, single_cell_exception=False):
@@ -404,11 +416,17 @@ def checkpoint(name, single_cell_exception=False):
 	exp.clocks = name
 	see_cells(filename=f"{name}/sample_video.mjpeg", view=False)
 
+	scope.beacon.off()
+
 	no_cells = scope.cell["no_cells"]
 	if single_cell_exception:
 		if no_cells > 1:
 			scope.beacon.blink()
 			print(Panel(Pretty("MORE THAN ONE CELL!"), title="Live track", style="white on red"))
+		if no_cells == 1:
+			if not "speed_log" in scope.cell.attribs:
+				scope.cell["speed_log"] = []
+			scope.cell["speed_log"].append(next(iter(scope.cell["speeds"].values())))
 
 	if no_cells == 0:
 		scope.beacon.blink()
@@ -425,11 +443,17 @@ def trapped_many(single_cell_exception=False, schedule_checkpoint_mins=10):
 	exp.log("trap_closed")
 	see_cells(filename="trapped/sample_video.mjpeg", view=False)
 
+	scope.beacon.off()
+
 	no_cells = scope.cell["no_cells"]
 	if single_cell_exception:
 		if no_cells > 1:
 			scope.beacon.blink()
 			print(Panel(Pretty("MORE THAN ONE CELL!"), title="Live track", style="white on red"))
+		if no_cells == 1:
+			if not "speed_log" in scope.cell.attribs:
+				scope.cell["speed_log"] = []
+			scope.cell["speed_log"].append(next(iter(scope.cell["speeds"].values())))
 
 	if no_cells == 0:
 		scope.beacon.blink()
@@ -440,10 +464,11 @@ def trapped_many(single_cell_exception=False, schedule_checkpoint_mins=10):
 
 	if schedule_checkpoint_mins > 0:
 		exp.schedule.every(10).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins + 1)).do(checkpoint, "checkpoint1", single_cell_exception=single_cell_exception).tag("checkpoint1")
-		exp.schedule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "checkpoint2", single_cell_exception=single_cell_exception).tag("checkpoint1")
+		exp.schedule.every(20).minutes.until(datetime.timedelta(minutes=schedule_checkpoint_mins*2 + 1)).do(checkpoint, "checkpoint2", single_cell_exception=single_cell_exception).tag("checkpoint2")
 		print("Scheduled 2 checkpoints")
 
-def trapped_one(schedule_checkpoint_mins=True):
+
+def trapped_one(schedule_checkpoint_mins=10):
 	"""Just a single cell version of trapped_many."""
 	trapped_many(single_cell_exception=True, schedule_checkpoint_mins=schedule_checkpoint_mins)
 
