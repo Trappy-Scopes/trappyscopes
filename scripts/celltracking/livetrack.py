@@ -123,7 +123,7 @@ def track_sample(filename="sample_video.mjpeg", fps=25, time_s=3, no_processes=4
 
 	   Involves a conversion step to .avi from .mjpeg.
 	""" 
-
+	global __live_cell_save__path__
 	## For testing only
 	if not os.path.exists(filename):
 		filename = "/Users/byatharth/Downloads/55f3930aa3_2026_04_09__12_25_48__1775733948587604583__split_0_10sec.mjpeg"
@@ -365,7 +365,7 @@ def see_cells(filename="sample_video.mjpeg", fps=25, record_time_s=10, time_s=3,
 	Add cell object --> Record Video --> Track and Segment --> Open Plots
 	"""
 
-	global exp, scope
+	global exp, scope, __live_cell_save__path__
 	if exp is None:
 		raise Exception("Exp not open")
 	if not exp.active:
