@@ -10,7 +10,7 @@ from colorama import Fore
 import time
 from collections import OrderedDict
 import schedule
-from threading import Thread, Event, RLock
+from threading import Thread
 import pickle
 import atexit
 
@@ -60,33 +60,23 @@ ExperimentEvent = ExpEvent
 
 
 class ExpScheduler(schedule.Scheduler):
-    def __init__(self):
-        super().__init__()
-        self.thread = None
-        self._stop = Event()
-        self.lock = RLock()                 # guards self.jobs during run_pending
-        self.loop()
+	def __init__(self):
+		super().__init__()
+		self.thread = None
+		self.end_thread = False
+		self.loop()
 
-    def loop(self):
-        if self.thread is not None and self.thread.is_alive():
-            return                          # already running, don't spawn a second
-        self._stop.clear()
-
-        def callback():
-            while not self._stop.is_set():
-                with self.lock:
-                    self.run_pending()
-                self._stop.wait(0.5)        # responsive to stop, unlike time.sleep
-            print("Experiment.schedule.loop has been terminated.")
-
-        self.thread = Thread(name="exp.schedule.loop", target=callback)
-        self.thread.start()
-
-    def stop(self, timeout=5):
-        self._stop.set()
-        if self.thread is not None:
-            self.thread.join(timeout)
-        self.thread = None
+	def post_register(self, name):
+		Experiment.current.log("periodic_task", 
+			attribs={"name": name, "info": str(self.get_jobs()[-1])})
+	def loop(self):
+		def callback():
+			while not self.end_thread:
+				self.run_pending()
+				time.sleep(0.5)
+			print("Experiment.schedule.loop has been terminated.")
+		self.thread = Thread(name="exp.schedule.loop", target=callback)
+		self.thread.start()
 
 class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	"""

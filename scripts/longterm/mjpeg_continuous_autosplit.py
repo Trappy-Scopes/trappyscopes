@@ -174,7 +174,7 @@ def start_acq_blocking():
 
 	## Explicit schedule clear
 	exp.schedule.clear()
-	exp.schedule.loop()
+	#exp.schedule.loop()
 
 	## Read tandh
 	tandh = exp.mstreams["tandh"]

@@ -403,7 +403,8 @@ def open_trap():
 	global exp, scope
 	exp.log("open_trap")
 	exp.schedule.clear()
-	exp.schedule.loop()
+	if "cell" in scope:
+		scope.cell["speed_log"] = []
 	scope.beacon.off()
 	exp.__save__()
 
