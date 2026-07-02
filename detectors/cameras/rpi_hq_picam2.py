@@ -184,8 +184,8 @@ class Camera(AbstractCamera):
         return 
 
     def configure(self, *args, **kwargs):
-        self.cam.options.update(self.options) ## Set compression
-        self.cam.configure(self.config)
+        self.cam.options.update(deepcopy(self.options)) ## Set compression
+        self.cam.configure(deepcopy(self.config))
         log.info("Camera configured.")
 
     def open(self):
