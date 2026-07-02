@@ -184,8 +184,9 @@ class Camera(AbstractCamera):
         return 
 
     def configure(self, *args, **kwargs):
-        self.cam.options.update(deepcopy(self.options)) ## Set compression
-        self.cam.configure(deepcopy(self.config))
+        # deepcopy breaks on some microscopes
+        self.cam.options.update(self.options.copy()) ## Set compression
+        self.cam.configure(self.config.copy())
         log.info("Camera configured.")
 
     def open(self):
