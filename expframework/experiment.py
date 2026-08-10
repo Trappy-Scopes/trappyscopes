@@ -73,7 +73,7 @@ class ExpScheduler(schedule.Scheduler):
 		def callback():
 			while not self.end_thread:
 				self.run_pending()
-				time.sleep(0.5)
+				time.sleep(0.01)
 			print("Experiment.schedule.loop has been terminated.")
 		self.thread = Thread(name="exp.schedule.loop", target=callback)
 		self.thread.start()

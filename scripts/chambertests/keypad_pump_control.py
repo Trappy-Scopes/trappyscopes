@@ -1,14 +1,19 @@
 """
-Keypad-driven pump test with simulated motors.
+Keypad-driven pump control -- REAL HARDWARE.
 
-Reads the Pimoroni RGB keypad mounted as `scope.kp` and applies its commands to
-three simulated peristaltic pumps registered as `scope.pump1/2/3`. Nothing
-touches real hardware: the pumps are `SimPump` objects that mirror the
-`pico_firmware.actuators.dcmotor.DCMotor` API, so swapping to real motors later
-is a one-line change in `add_pumps()`.
+Drives the peristaltic pumps on the pump Pico (circuit
+2ch_peristat_kitroniks_vx_shield) from the Pimoroni RGB keypad on its own Pico,
+with the host relaying commands and mirroring pump state back onto the LEDs.
+
+    pump1, pump2  Kitronik channels: fast mode, or pulsed 5 s on / 55 s off
+    pump3         DFRobot DFR0523:   fast mode, or continuous slow flow
+
+There is no simulation here. Every command moves fluid. The simulated twin lives
+in scripts/toyexps/keypad_pump_test.py -- use that to test the keypad or the
+protocol without a wet rig.
 
 author: Yatharth Bhasin
-date: 08-August-2026
+date: 10-August-2026
 licence: MIT Licence
 
 Copyright (c) 2026 Yatharth Bhasin
@@ -43,392 +48,39 @@ from hive.assembly import ScopeAssembly
 ## Describe the script. This is important and will be logged in the Experiment system.
 __description__ = \
 """
-Test the Pimoroni RGB keypad as a pump input source.
+Keypad-driven peristaltic pump control on real hardware.
 
-Polls `scope.kp.lines()` over the MicroPython raw REPL, parses the wire protocol
-(PUMP <n> POWER|PULSE|SPEED|LIMIT <value>) and applies each command to a
-simulated pump. Every command is timestamped into an Experiment measurement
-stream so the whole session can be replayed.
+Relays the Pimoroni RGB keypad (scope.kp) to the pumps (scope.pumpset) over the
+wire protocol PUMP <n> POWER|PULSE|SPEED|LIMIT <value>, mirrors pump state back
+onto the keypad LEDs, and timestamps every command into a measurement stream.
 
-    POWER  fast mode  -- full speed on/off
-    PULSE  slow mode  -- continuous run at the stored speed
-    SPEED  0-100 %    -- adjusts both modes
+    POWER  fast mode  -- continuous at fast_speed
+    PULSE  slow mode  -- pump1/2 duty-cycle 5s/55s; pump3 runs continuously
+    SPEED  0-100      -- position inside that pump's slow band
     POWER overrides PULSE while it is on.
 
-Pumps are simulated (`SimPump`). To go live, swap the constructor in
-`add_pumps()` for the Pico motor proxy -- the verb set is identical.
+FLUID MOVES. Refuses to run without both scope.kp and scope.pumpset mounted.
 """
 
 ### Quick explainer
-print("[bold]keypad pump test[/bold] -- simulated motors")
+print("[bold yellow]keypad pump control -- REAL PUMPS[/bold yellow]")
 print("  create_exp()   make the experiment context")
-print("  add_pumps()    bind to the pumps (auto: real if mounted, else simulated)")
-print("  which()        what PUMPSET is actually driving")
+print("  connect()      bind to scope.pumpset and scope.kp, with a preflight")
 print("  start()        poll the keypad with a live view; Ctrl-C stops it")
-print("  start(scheduled=True)  run in exp.schedule instead; prompt stays free")
 print("  animate()      watch the pumps live")
 print("  status()       one-shot table of pump state")
+print("  prime(n, s)    run pump n at full speed for s seconds")
 print("  stop_jobs()    end polling, keep the experiment open")
 print("  stop()         safe-state everything and close the experiment")
-print("  panic()        everything off now (Ctrl-C does not stop scheduled jobs)")
+print("  panic()        everything off now")
 
 
-## ---------------------------------------------------------------- simulated pump
-## SimPump mirrors pico_firmware.actuators.peristaltic.PeristalticPump method for
-## method, and SimPumpSet mirrors PumpSet. Nothing in this script calls anything
-## outside that shared surface, so `add_pumps(simulated=False)` swaps in the real
-## firmware pumps with no other change. `check_api()` proves the surfaces match.
-##
-## Differences that are simulation-only, and additive:
-##   flow_ml_min()  volume_ml()  runtime_s()   -- integrated delivery
-## The firmware pumps do not have these; the live view degrades gracefully.
-
-class SimPump():
-	"""Simulated peristaltic pump with the PeristalticPump API.
-
-	Fast mode overrides pulse mode. Pulse mode either duty-cycles (5 s on /
-	55 s off by default) or, when continuous, runs steadily -- matching the
-	DFR0523 channel on the real board.
-	"""
-
-	def __init__(self, name="pump", ml_per_min=45.0,
-					fast_speed=0.5,
-					slow_min=0.03, slow_max=0.2,
-					pulse_on_s=5, pulse_off_s=55,
-					continuous=False, slow_speed=None):
-		self.name = name
-		self.devicetype = "sim.pump"
-		self.description = "Simulated peristaltic pump"
-		self.ml_per_min = ml_per_min
-
-		self.fast_speed_ = fast_speed
-		self.slow_min_ = slow_min
-		self.slow_max_ = slow_max
-		self.pulse_on_s_ = pulse_on_s
-		self.pulse_off_s_ = pulse_off_s
-		self.continuous_ = continuous
-
-		self.fast_ = False
-		self.pulse_ = False
-		self.level_ = 0.5
-		self.phase_ = "idle"
-		self.cycles_ = 0
-		self.dir = +1
-
-		self._phase_t0 = time.time()
-		self._t_last = time.time()
-		self._volume_ml = 0.0
-		self._runtime_s = 0.0
-
-		if slow_speed is not None:
-			self.set_slow_speed(slow_speed)
-
-	## -- tunables ---------------------------------------------------------------
-	def set_fast_speed(self, speed):
-		self.fast_speed_ = min(1.0, max(0.0, float(speed)))
-		return self.fast_speed_
-
-	def fast_speed(self):
-		return self.fast_speed_
-
-	def set_slow_limits(self, low, high):
-		low = min(1.0, max(0.0, float(low)))
-		high = min(1.0, max(0.0, float(high)))
-		if high < low:
-			low, high = high, low
-		self.slow_min_, self.slow_max_ = low, high
-		return (self.slow_min_, self.slow_max_)
-
-	def slow_limits(self):
-		return (self.slow_min_, self.slow_max_)
-
-	def set_pwm_freq(self, hz):
-		"""No-op in simulation; present so the API matches."""
-		return int(hz)
-
-	def set_pulse_duty(self, on_s, off_s):
-		self.pulse_on_s_ = max(0, int(on_s))
-		self.pulse_off_s_ = max(0, int(off_s))
-		self._phase_t0 = time.time()
-		return (self.pulse_on_s_, self.pulse_off_s_)
-
-	def pulse_duty(self):
-		return (self.pulse_on_s_, self.pulse_off_s_)
-
-	def set_continuous(self, flag):
-		self.continuous_ = bool(flag)
-		if self.continuous_ and self.pulse_:
-			self.phase_ = "on"
-			self._phase_t0 = time.time()
-		return self.continuous_
-
-	def is_continuous(self):
-		return self.continuous_
-
-	## -- speed within the slow band ---------------------------------------------
-	def set_level(self, level):
-		self._integrate()
-		self.level_ = min(1.0, max(0.0, float(level)))
-		return self.level_
-
-	def set_percent(self, pct):
-		return self.set_level(float(pct) / 100.0)
-
-	def level(self):
-		return self.level_
-
-	def percent(self):
-		return int(round(self.level_ * 100))
-
-	def slow_speed(self):
-		return self.slow_min_ + (self.slow_max_ - self.slow_min_) * self.level_
-
-	def set_slow_speed(self, unit_speed):
-		span = self.slow_max_ - self.slow_min_
-		if span <= 0:
-			return self.set_level(0.0)
-		return self.set_level((float(unit_speed) - self.slow_min_) / span)
-
-	def speed_up(self, step=0.05):
-		return self.set_level(self.level_ + step)
-
-	def speed_down(self, step=0.05):
-		return self.set_level(self.level_ - step)
-
-	## -- modes -------------------------------------------------------------------
-	def fast_on(self):
-		self._integrate()
-		self.fast_ = True
-		return True
-
-	def fast_off(self):
-		self._integrate()
-		self.fast_ = False
-		return False
-
-	def set_fast(self, on):
-		return self.fast_on() if on else self.fast_off()
-
-	def toggle_fast(self):
-		return self.set_fast(not self.fast_)
-
-	def is_fast(self):
-		return self.fast_
-
-	def pulse_on(self):
-		self._integrate()
-		self.pulse_ = True
-		self.phase_ = "on"
-		self._phase_t0 = time.time()
-		return True
-
-	def pulse_off(self):
-		self._integrate()
-		self.pulse_ = False
-		self.phase_ = "idle"
-		return False
-
-	def set_pulse(self, on):
-		return self.pulse_on() if on else self.pulse_off()
-
-	def toggle_pulse(self):
-		return self.set_pulse(not self.pulse_)
-
-	def is_pulse(self):
-		return self.pulse_
-
-	def stop(self):
-		self._integrate()
-		self.fast_ = False
-		self.pulse_ = False
-		self.phase_ = "idle"
-
-	def prime(self, seconds=5, speed=None):
-		"""Blocking prime, as on the firmware."""
-		was = (self.fast_, self.pulse_)
-		self.stop()
-		self._forced = 1.0 if speed is None else float(speed)
-		time.sleep(seconds)
-		self._forced = None
-		self.fast_, self.pulse_ = was
-
-	## -- state ---------------------------------------------------------------------
-	def mode(self):
-		if self.fast_:
-			return "fast"
-		if self.pulse_:
-			return "slow" if self.continuous_ else "pulse"
-		return "idle"
-
-	def speed(self):
-		self._advance()
-		if self.fast_:
-			return self.fast_speed_
-		if self.pulse_ and (self.continuous_ or self.phase_ == "on"):
-			return self.slow_speed()
-		return 0.0
-
-	def running(self):
-		return self.speed() > 0.0
-
-	def seconds_left(self):
-		self._advance()
-		if not self.pulse_ or self.continuous_ or self.fast_:
-			return 0
-		total = self.pulse_on_s_ if self.phase_ == "on" else self.pulse_off_s_
-		return max(0, int(total - (time.time() - self._phase_t0)))
-
-	def state(self):
-		"""Same keys as PeristalticPump.state(), plus the simulation extras."""
-		return {"name": self.name,
-				"mode": self.mode(),
-				"fast": self.fast_,
-				"pulse": self.pulse_,
-				"phase": self.phase_,
-				"level": round(self.level_, 3),
-				"percent": self.percent(),
-				"speed": round(self.speed(), 4),
-				"fast_speed": self.fast_speed_,
-				"slow_limits": (self.slow_min_, self.slow_max_),
-				"pulse_duty": (self.pulse_on_s_, self.pulse_off_s_),
-				"continuous": self.continuous_,
-				"cycles": self.cycles_,
-				"dir": self.dir,
-				## simulation-only
-				"flow_ml_min": round(self.flow_ml_min(), 2),
-				"volume_ml": round(self.volume_ml(), 3),
-				"runtime_s": round(self.runtime_s(), 1)}
-
-	def deinit(self):
-		self.stop()
-
-	def close(self):
-		"""ScopeAssembly calls close() on every device at exit."""
-		self.stop()
-
-	def __getstate__(self):
-		return self.state()
-
-	## -- simulation bookkeeping -----------------------------------------------------
-	def _advance(self):
-		"""Move the pulse phase along using wall clock -- no Timer on the host."""
-		if not self.pulse_ or self.continuous_ or self.fast_:
-			return
-		now = time.time()
-		while True:
-			total = self.pulse_on_s_ if self.phase_ == "on" else self.pulse_off_s_
-			if total <= 0 or (now - self._phase_t0) < total:
-				break
-			self._phase_t0 += total
-			if self.phase_ == "on":
-				self.phase_ = "off"
-				self.cycles_ += 1
-			else:
-				self.phase_ = "on"
-
-	def _integrate(self):
-		"""Accumulate delivered volume for the interval just ended."""
-		now = time.time()
-		dt = now - self._t_last
-		self._t_last = now
-		s = self.speed()
-		if s > 0.0:
-			self._runtime_s += dt
-			self._volume_ml += self.ml_per_min * s * dt / 60.0
-
-	def flow_ml_min(self):
-		return self.ml_per_min * self.speed()
-
-	def volume_ml(self):
-		self._integrate()
-		return self._volume_ml
-
-	def runtime_s(self):
-		self._integrate()
-		return self._runtime_s
-
-	def __repr__(self):
-		return "<SimPump {} {} {:.0f}%>".format(
-			self.name, self.mode(), self.speed() * 100)
-
-
-class SimPumpSet():
-	"""Mirrors pico_firmware.actuators.peristaltic.PumpSet."""
-
-	def __init__(self, pumps):
-		self.pumps = pumps
-
-	def __getitem__(self, n):
-		return self.pumps[n]
-
-	def get(self, n):
-		return self.pumps.get(n)
-
-	def numbers(self):
-		return sorted(self.pumps)
-
-	def command(self, line):
-		"""Apply one keypad wire line. Identical semantics to the firmware."""
-		parts = str(line).strip().upper().split()
-		if len(parts) != 4 or parts[0] != "PUMP":
-			return None
-		try:
-			n = int(parts[1])
-		except ValueError:
-			return None
-		pump = self.pumps.get(n)
-		if pump is None:
-			return None
-
-		verb, arg = parts[2], parts[3]
-		if verb == "POWER":
-			pump.set_fast(arg == "ON")
-		elif verb == "PULSE":
-			pump.set_pulse(arg == "ON")
-		elif verb == "SPEED":
-			try:
-				pump.set_percent(int(arg))
-			except ValueError:
-				return None
-		elif verb == "LIMIT":
-			return pump.state()
-		else:
-			return None
-		return pump.state()
-
-	def commands(self, lines):
-		return [self.command(line) for line in (lines or [])]
-
-	def stop_all(self):
-		for pump in self.pumps.values():
-			pump.stop()
-
-	def set_fast_speed(self, speed):
-		return [p.set_fast_speed(speed) for p in self.pumps.values()]
-
-	def set_slow_limits(self, low, high):
-		return [p.set_slow_limits(low, high) for p in self.pumps.values()]
-
-	def set_pulse_duty(self, on_s, off_s):
-		return [p.set_pulse_duty(on_s, off_s) for p in self.pumps.values()]
-
-	def set_continuous(self, flag):
-		return [p.set_continuous(flag) for p in self.pumps.values()]
-
-	def state(self):
-		return dict((n, p.state()) for n, p in self.pumps.items())
-
-	def deinit(self):
-		for pump in self.pumps.values():
-			pump.deinit()
-
-
+## ---------------------------------------------------------------- pumps
 class RemotePumpSet():
 	"""PumpSet-shaped facade over the firmware's own pumpset, via the proxy.
 
-	Lets add_pumps(simulated=False) hand the rest of this script something that
-	behaves exactly like SimPumpSet while the commands actually execute on the
-	Pico. One serial round trip per command line.
+	Everything here talks to the pumps through this, so the call sites match the
+	simulated twin in toyexps/ exactly. One serial round trip per command line.
 	"""
 
 	def __init__(self, numbers=(1, 2, 3)):
@@ -603,197 +255,153 @@ def set_read_method(method):
 
 
 ## ---------------------------------------------------------------- setup
-## PUMPSET is whatever the rest of this script talks to: SimPumpSet on the host,
-## or RemotePumpSet if the pumps live on the Pico. Both expose PumpSet's API, so
-## nothing below this line knows or cares which it is.
 PUMPSET = None
-SIMULATED = True
+SIMULATED = False          ## always: this script has no simulation path
 
-## Defaults mirrored from circuits/2ch_peristat_kitroniks_vx_shield.py
+## Envelope mirrored from circuits/2ch_peristat_kitroniks_vx_shield.py.
+## These are what the firmware was flashed with; connect() reads back what the
+## pumps actually report and warns if they disagree.
 FAST_SPEED  = 0.5
-SLOW_MIN    = 0.03      ## pump1, pump2 -- kitronik channels
+SLOW_MIN    = 0.03         ## pump1, pump2 -- kitronik channels
 SLOW_MAX    = 0.2
 PULSE_ON_S  = 5
 PULSE_OFF_S = 55
-P3_SLOW_MIN = 0.05      ## pump3 -- DFR0523, continuous
+P3_SLOW_MIN = 0.05         ## pump3 -- DFR0523, continuous
 P3_SLOW_MAX = 0.3
 P3_SLOW_START = 0.1
+
+PUMP_NUMBERS = (1, 2, 3)
 
 
 def create_exp():
 	global exp, scope
 	scope = ScopeAssembly.current
-	exp = Experiment.Construct(["keypad", "pump", "test"],
+	exp = Experiment.Construct(["keypad", "pump", "control"],
 								user=True, eid=True, date=True, time=True, scopeid=True)
 	exp.new_measurementstream("keypress",
 								measurements=["pump", "verb", "value", "applied_speed"])
-	exp.attribs["pumps"] = [1, 2, 3]
-	exp.attribs["fast_speed"] = FAST_SPEED
-	exp.attribs["slow_limits"] = (SLOW_MIN, SLOW_MAX)
-	exp.attribs["pulse_duty"] = (PULSE_ON_S, PULSE_OFF_S)
-	exp.attribs["pump3_slow_limits"] = (P3_SLOW_MIN, P3_SLOW_MAX)
-	exp.attribs["ml_per_min"] = 45.0
+	exp.attribs["pumps"] = list(PUMP_NUMBERS)
+	exp.attribs["simulated"] = False
+	exp.attribs["fluid_moved"] = True
 	exp.attribs["poll_period_s"] = 0.05
 	exp.attribs["autosync_dir"] = True    ## sync on stop() if a destination exists
-	print("[green]Experiment ready.[/] Now run add_pumps().")
+	exp.attribs["ml_per_min"] = {}        ## fill from calibrate()
+	print("[green]Experiment ready.[/] Now run connect().")
 
 
-def add_pumps(simulated=None, names=("pump1", "pump2", "pump3")):
-	"""Point PUMPSET at the pumps, real or simulated.
+def connect(numbers=PUMP_NUMBERS):
+	"""Bind to the real pumps and the keypad, and check they answer.
 
-	simulated=None (default) auto-detects: real pumps if scope.pumpset is
-	mounted, simulated otherwise.
-
-	Simulated pumps are NEVER registered while real ones are present -- a
-	shadow copy of a live device is how you end up watching an animation while
-	the real pumps sit idle, or worse, thinking you are in simulation when you
-	are not. If you ask for simulation on a rig with real pumps, this refuses
-	and tells you why.
-
-	Which backend is in use is recorded in exp.attribs and noted in the event
-	log, so the experiment record says whether fluid actually moved.
+	Refuses rather than half-starting: without scope.pumpset there is nothing to
+	drive, and without scope.kp there is nothing to drive it with.
 	"""
-	global scope, exp, PUMPSET, SIMULATED
+	global scope, exp, PUMPSET
 	scope = ScopeAssembly.current
-	remote_present = getattr(scope, "pumpset", None) is not None
 
-	if simulated is None:
-		simulated = not remote_present
-		print("[dim]auto: {} ({}).[/dim]".format(
-				"real pumps" if not simulated else "simulated pumps",
-				"scope.pumpset found" if remote_present else "no scope.pumpset"))
-
-	if simulated and remote_present:
-		print("[yellow]Real pumps are mounted -- not adding simulated ones.[/]")
-		print("  [dim]Simulating alongside live hardware would shadow it. "
-				"Use add_pumps(simulated=False), or unmount the pump Pico "
-				"first.[/dim]")
+	missing = [name for name in ("pumpset", "kp")
+				if getattr(scope, name, None) is None]
+	if missing:
+		print("[red]Not connected:[/] scope.{} missing.".format(
+				" and scope.".join(missing)))
+		print("  [dim]Mount the Picos first -- pump board running "
+				"2ch_peristat_kitroniks_vx_shield, keypad running "
+				"pimoroni_rgb_sparkly_rainbows_cntlr.[/dim]")
 		return None
 
-	if not simulated:
-		if not remote_present:
-			print("[red]scope.pumpset not found -- is the pump Pico mounted?[/]")
-			return None
-		SIMULATED = False
-		PUMPSET = RemotePumpSet(numbers=(1, 2, 3))
-		print("[green]Using REAL pumps[/] via scope.pumpset -> {}".format(
-				PUMPSET.numbers()))
-		_record_backend()
-		which()
-		return PUMPSET
-
-	## -- simulated, and no real pumps in the way ---------------------------
-	SIMULATED = True
-	rate = exp.attribs["ml_per_min"] if exp is not None else 45.0
-	pumps = {}
-	for i, name in enumerate(names):
-		n = i + 1
-		if n == 3:
-			## pump3 is the DFR0523 channel: continuous, wider band, starts at 0.1
-			pump = SimPump(name, ml_per_min=rate, fast_speed=FAST_SPEED,
-							slow_min=P3_SLOW_MIN, slow_max=P3_SLOW_MAX,
-							continuous=True, slow_speed=P3_SLOW_START)
-		else:
-			pump = SimPump(name, ml_per_min=rate, fast_speed=FAST_SPEED,
-							slow_min=SLOW_MIN, slow_max=SLOW_MAX,
-							pulse_on_s=PULSE_ON_S, pulse_off_s=PULSE_OFF_S)
-		if getattr(scope, name, None) is None:
-			scope.add_device(name, pump,
-								description="Simulated peristaltic pump {}".format(n))
-		pumps[n] = pump
-
-	PUMPSET = SimPumpSet(pumps)
-	if getattr(scope, "pumpset", None) is None:
-		scope.add_device("pumpset", PUMPSET, description="Simulated pump set")
-
-	print(scope.draw_tree())
-	print("[green]Simulated pumps ready:[/] {}".format(PUMPSET.numbers()))
-	print("  pump1/2 slow {}-{} duty {}s/{}s | pump3 slow {}-{} continuous @ {}".format(
-			SLOW_MIN, SLOW_MAX, PULSE_ON_S, PULSE_OFF_S,
-			P3_SLOW_MIN, P3_SLOW_MAX, P3_SLOW_START))
+	PUMPSET = RemotePumpSet(numbers=numbers)
+	print("[yellow]REAL PUMPS[/] via scope.pumpset -> {}".format(PUMPSET.numbers()))
 	_record_backend()
-	which()
+	preflight()
 	return PUMPSET
 
 
 def _record_backend():
-	"""Put the real-vs-simulated fact into the experiment record.
-
-	attribs is the machine-readable half (it lands in the experiment yaml);
-	note() is the human-readable half and timestamps it in the event log. Not
-	exp.write() -- that opens an interactive prompt.
-	"""
+	"""Put the real-hardware fact into the experiment record."""
 	if exp is None:
 		return None
-	backend = type(PUMPSET).__name__ if PUMPSET is not None else None
-	exp.attribs["simulated"] = bool(SIMULATED)
-	exp.attribs["pump_backend"] = backend
-	exp.attribs["pumps"] = PUMPSET.numbers() if PUMPSET is not None else []
-	exp.attribs["fluid_moved"] = not SIMULATED
+	exp.attribs["simulated"] = False
+	exp.attribs["pump_backend"] = type(PUMPSET).__name__ if PUMPSET else None
+	exp.attribs["fluid_moved"] = True
 	try:
-		exp.note("Pumps: {} via {} -- {}".format(
-			"SIMULATED (no fluid moved)" if SIMULATED else "REAL hardware",
-			backend,
-			"scope.pumpset on the pump Pico" if not SIMULATED
-			else "host-side SimPump objects"))
+		exp.note("Pumps: REAL hardware via scope.pumpset -- fluid will move.")
 	except Exception as err:
 		log.error("could not note the pump backend: %s", err)
-	return backend
 
 
-def which():
-	"""Say plainly what PUMPSET is bound to, and what is on the scope tree.
+def preflight(verbose=True):
+	"""Check the links before anything turns. Returns True when all pass.
 
-	Worth calling any time you are unsure whether you are about to move fluid.
-	Deliberately avoids touching attributes on a remote pump: `proxy.name` would
-	fire a serial round trip and return the Pico's idea of the name.
+	1. pumpset.state() answers, and answers as a dict rather than a repr string
+	   the proxy failed to parse.
+	2. every expected pump is present in that state.
+	3. the firmware's limits match what this script thinks they are.
+	4. the keypad answers and its read path is known.
 	"""
-	scope_ = ScopeAssembly.current
+	ok = True
 	if PUMPSET is None:
-		print("[red]PUMPSET is not bound -- run add_pumps().[/]")
-		return None
+		print("[red]Run connect() first.[/]")
+		return False
 
-	kind = type(PUMPSET).__name__
-	if SIMULATED:
-		print("PUMPSET -> {} ([dim]simulated -- no fluid will move[/dim])".format(kind))
+	## 1 + 2 -- the pump link
+	try:
+		states = PUMPSET.state()
+	except Exception as err:
+		print("[red]pumpset.state() failed:[/] {}".format(err))
+		return False
+
+	if not isinstance(states, dict):
+		print("[red]pumpset.state() returned {}, not a dict[/] -- the proxy could "
+				"not parse the reply.".format(type(states).__name__))
+		print("  [dim]{}[/dim]".format(str(states)[:120]))
+		ok = False
+		states = {}
 	else:
-		print("PUMPSET -> {} ([yellow]REAL PUMPS[/])".format(kind))
+		missing = [n for n in PUMPSET.numbers() if n not in states]
+		if missing:
+			print("[red]pumps missing from state():[/] {}".format(missing))
+			ok = False
 
-	for n in PUMPSET.numbers():
-		try:
-			obj = PUMPSET[n]
-		except Exception as err:
-			print("  {} -> [red]unreachable ({})[/red]".format(n, err))
+	## 3 -- limits the firmware actually holds
+	expect = {1: (SLOW_MIN, SLOW_MAX), 2: (SLOW_MIN, SLOW_MAX),
+				3: (P3_SLOW_MIN, P3_SLOW_MAX)}
+	for n, st in sorted(states.items()):
+		if not isinstance(st, dict):
 			continue
-		if SIMULATED:
-			name = getattr(obj, "name", "pump{}".format(n))
-			on_tree = getattr(scope_, str(name), None)
-			if on_tree is obj:
-				note = "[green]same object as scope.{}[/green]".format(name)
-			elif on_tree is not None:
-				note = "[red]NOT the scope.{} object -- you would be watching a " \
-						"simulation while the real pump idles[/red]".format(name)
-			else:
-				note = "[dim]local only, not on the tree[/dim]"
-			print("  {} -> {} {}".format(n, name, note))
-		else:
-			name = "pump{}".format(n)
-			on_tree = getattr(scope_, name, None)
-			note = "[green]scope.{} (remote proxy)[/green]".format(name) \
-					if on_tree is obj else "[red]does not match scope.{}[/red]".format(name)
-			print("  {} -> {}".format(n, note))
-	return kind
+		band = tuple(st.get("slow_limits", ()))
+		want = expect.get(n)
+		if want and band and tuple(round(x, 4) for x in band) != want:
+			print("[yellow]pump{} band is {} on the board, {} in this script[/]".format(
+					n, band, want))
+		if n == 3 and not st.get("continuous"):
+			print("[yellow]pump3 is not in continuous mode on the board.[/]")
+
+	## 4 -- the keypad link
+	try:
+		lines = kp().snapshot_lines()
+		if verbose:
+			print("[green]keypad ok[/] -- {} state lines, read method '{}'".format(
+					len(lines or []), _READ_METHOD or "probing"))
+	except Exception as err:
+		print("[red]keypad snapshot failed:[/] {}".format(err))
+		ok = False
+
+	if verbose:
+		print("[bold]{}[/bold]".format(
+			"Preflight passed -- ready to start()." if ok
+			else "Preflight FAILED -- fix the above before starting."))
+		status()
+	return ok
 
 
 def sync_from_keypad():
 	"""Adopt the keypad's own view of the world. Use after a reconnect."""
 	if PUMPSET is None:
-		print("[red]Run add_pumps() first.[/]")
+		print("[red]Run connect() first.[/]")
 		return
 	try:
 		lines = kp().snapshot_lines()
 	except Exception as err:
-		log.error("keypad snapshot unavailable (%s) -- keeping local state", err)
+		log.error("keypad snapshot unavailable (%s) -- keeping board state", err)
 		return
 	for line in (lines or []):
 		PUMPSET.command(line)
@@ -801,7 +409,85 @@ def sync_from_keypad():
 		if parsed:
 			_LAST_SNAPSHOT[(parsed[0], parsed[1])] = parsed[2]
 	print("[green]Synced[/] from keypad snapshot.")
+
+
+## ---------------------------------------------------------------- bench
+def prime(n, seconds=5, speed=1.0):
+	"""Run one pump at `speed` for `seconds`, then restore its mode.
+
+	Blocking on purpose -- it is a manual operation. Watch the tubing.
+	"""
+	if PUMPSET is None:
+		print("[red]Run connect() first.[/]")
+		return
+	pump = PUMPSET[n]
+	print("[yellow]Priming pump{} at {} for {}s...[/]".format(n, speed, seconds))
+	try:
+		pump.prime(seconds, speed)
+	except Exception as err:
+		log.error("prime failed: %s", err)
+		return
+	if exp is not None:
+		exp.note("Primed pump{} at {} for {}s".format(n, speed, seconds))
+	push_to_keypad()
 	status()
+
+
+def calibrate(n, measured_ml, seconds, speed=1.0):
+	"""Record a measured flow rate: pump into a cylinder and time it.
+
+	Stores ml/min per pump in exp.attribs["ml_per_min"], which is what makes any
+	later volume figure mean something.
+	"""
+	rate = measured_ml * 60.0 / float(seconds)
+	if exp is not None:
+		table = exp.attribs.get("ml_per_min") or {}
+		table[n] = {"ml_per_min": round(rate, 3), "at_speed": speed}
+		exp.attribs["ml_per_min"] = table
+		exp.note("Calibrated pump{}: {:.3f} ml/min at speed {}".format(n, rate, speed))
+	print("[green]pump{}[/]: {:.3f} ml/min at speed {}".format(n, rate, speed))
+	return rate
+
+
+def find_floor(n, speeds=(0.03, 0.05, 0.07, 0.09, 0.12, 0.15, 0.2), dwell=4):
+	"""Step a pump through speeds so you can see where it stops stalling.
+
+	Blocking, one speed at a time, prints as it goes. Note the lowest speed that
+	turns the head smoothly and feed it to set_slow_limits().
+	"""
+	if PUMPSET is None:
+		print("[red]Run connect() first.[/]")
+		return
+	pump = PUMPSET[n]
+	print("[yellow]Stepping pump{} -- watch the head. Ctrl-C to abort.[/]".format(n))
+	try:
+		for v in speeds:
+			print("  speed {:.3f}".format(v))
+			pump.motor.fwd(v)
+			time.sleep(dwell)
+	except KeyboardInterrupt:
+		print("[yellow]aborted[/]")
+	finally:
+		try:
+			pump.motor.release()
+			pump.stop()
+		except Exception as err:
+			log.error("could not stop pump%s: %s", n, err)
+	if exp is not None:
+		exp.note("Ran stiction sweep on pump{}: {}".format(n, list(speeds)))
+	push_to_keypad()
+
+
+def set_slow_limits(n, low, high):
+	"""Retune one pump's slow band on the board, and record it."""
+	out = PUMPSET[n].set_slow_limits(low, high)
+	if exp is not None:
+		bands = exp.attribs.get("slow_limits") or {}
+		bands[n] = (low, high)
+		exp.attribs["slow_limits"] = bands
+		exp.note("pump{} slow band set to {}-{}".format(n, low, high))
+	push_to_keypad()
+	return out
 
 
 ## ---------------------------------------------------------------- push back
@@ -847,20 +533,21 @@ def push_to_keypad(states=None):
 def set_fast_speed(speed, mirror=True):
 	"""Retune fast speed on every pump, then update the keypad."""
 	out = PUMPSET.set_fast_speed(speed)
+	if exp is not None:
+		exp.attribs["fast_speed"] = speed
+		exp.note("fast speed set to {} on all pumps".format(speed))
 	if mirror:
 		push_to_keypad()
 	return out
 
 
-def set_slow_limits(low, high, mirror=True):
-	out = PUMPSET.set_slow_limits(low, high)
-	if mirror:
-		push_to_keypad()
+def set_pulse_duty(on_s, off_s):
+	"""Retune the pulse duty cycle on every pump."""
+	out = PUMPSET.set_pulse_duty(on_s, off_s)
+	if exp is not None:
+		exp.attribs["pulse_duty"] = (on_s, off_s)
+		exp.note("pulse duty set to {}s on / {}s off".format(on_s, off_s))
 	return out
-
-
-def set_pulse_duty(on_s, off_s, mirror=True):
-	return PUMPSET.set_pulse_duty(on_s, off_s)
 
 
 def stop_all(mirror=True):
@@ -869,67 +556,6 @@ def stop_all(mirror=True):
 	if mirror:
 		push_to_keypad()
 	return out
-
-
-## ---------------------------------------------------------------- swap check
-## The point of this script is that the simulated pumps and the firmware pumps
-## are interchangeable. check_api() proves it rather than assuming it: it diffs
-## SimPump against PeristalticPump and SimPumpSet against PumpSet, reading the
-## firmware source straight out of the pico_firmware checkout.
-
-FIRMWARE_PERISTALTIC = "pico_firmware/pico_firmware/actuators/peristaltic.py"
-
-
-def check_api(path=None, verbose=True):
-	"""Compare the simulated API against the firmware's, method by method.
-
-	Pass the path to pico_firmware/actuators/peristaltic.py, or set
-	FIRMWARE_PERISTALTIC. Returns True when the simulation covers everything the
-	firmware exposes.
-	"""
-	import ast
-	import os
-
-	path = path or FIRMWARE_PERISTALTIC
-	if not os.path.exists(path):
-		print("[yellow]Firmware source not found at[/] {}".format(path))
-		print("  pass check_api('/path/to/actuators/peristaltic.py')")
-		return None
-
-	with open(path) as f:
-		tree = ast.parse(f.read())
-
-	firmware = {}
-	for node in tree.body:
-		if isinstance(node, ast.ClassDef):
-			firmware[node.name] = set(
-				n.name for n in node.body
-				if isinstance(n, ast.FunctionDef) and not n.name.startswith("_"))
-
-	pairs = [("PeristalticPump", SimPump), ("PumpSet", SimPumpSet),
-				("PumpSet", RemotePumpSet)]
-	ok = True
-	for fw_name, sim_cls in pairs:
-		want = firmware.get(fw_name, set())
-		have = set(m for m in dir(sim_cls) if not m.startswith("_"))
-		missing = sorted(want - have)
-		extra = sorted(have - want)
-		if missing:
-			ok = False
-		if verbose:
-			mark = "[green]ok[/]" if not missing else "[red]MISSING[/]"
-			print("{} {:<14} vs {:<14} {} firmware methods".format(
-					mark, sim_cls.__name__, fw_name, len(want)))
-			if missing:
-				print("   [red]missing:[/] {}".format(", ".join(missing)))
-			if extra:
-				print("   [dim]extra (simulation-only): {}[/dim]".format(
-						", ".join(extra)))
-	if verbose:
-		print("[bold]{}[/bold]".format(
-			"Simulated and real pumps are swappable." if ok
-			else "Simulation does NOT cover the firmware API."))
-	return ok
 
 
 ## ---------------------------------------------------------------- live view
@@ -1075,8 +701,7 @@ def _frame(t0):
 		("   total ", "grey50"),
 		("{:.2f} ml".format(total_ml) if has_volume else "n/a", "bright_white"),
 		("   ", "grey50"),
-		("simulated" if SIMULATED else "REAL PUMPS",
-			"grey50" if SIMULATED else "bold yellow"),
+		("REAL PUMPS", "bold yellow"),
 		("   ctrl-c to stop", "grey50"))
 	return Panel(Group(grid, Text(""), footer),
 					title="[bold]pumps[/bold] -- live (absolute PWM unit speed)",
@@ -1087,7 +712,7 @@ def animate(fps=12, duration_s=None):
 	"""Watch the pumps without touching the keypad. Ctrl-C to exit."""
 	from rich.live import Live
 	if PUMPSET is None:
-		print("[red]Run add_pumps() first.[/]")
+		print("[red]Run connect() first.[/]")
 		return
 	t0 = time.time()
 	try:
@@ -1217,7 +842,7 @@ def start(poll_s=None, mirror_s=None, duration_min=None, scheduled=False,
 	scope = ScopeAssembly.current
 
 	if PUMPSET is None:
-		print("[red]No pumps registered. Run add_pumps() first.[/]")
+		print("[red]Not connected. Run connect() first.[/]")
 		return
 	try:
 		kp()
@@ -1230,8 +855,7 @@ def start(poll_s=None, mirror_s=None, duration_min=None, scheduled=False,
 	if mirror_s is None:
 		mirror_s = MIRROR_PERIOD_S
 
-	print("[bold green]Keypad -> {} pumps.[/bold green] {}".format(
-			"simulated" if SIMULATED else "[yellow]REAL[/yellow]",
+	print("[bold yellow]Keypad -> REAL pumps.[/bold yellow] {}".format(
 			"Ctrl-C to stop." if not scheduled else ""))
 	sync_from_keypad()
 	N_COMMANDS = 0
@@ -1403,9 +1027,9 @@ def _states_or_warn():
 def status():
 	"""One-shot table of pump state."""
 	if PUMPSET is None:
-		print("[red]Run add_pumps() first.[/]")
+		print("[red]Run connect() first.[/]")
 		return
-	table = Table(title="pumps ({})".format("simulated" if SIMULATED else "real"))
+	table = Table(title="pumps (real hardware)")
 	for col in ("n", "name", "mode", "speed", "band", "fast", "duty", "cont",
 				"lvl%", "vol ml"):
 		table.add_column(col)
@@ -1485,6 +1109,5 @@ print("Script initalization finished.")
 
 if __name__ == "__main__":
 	create_exp()
-	add_pumps(simulated=True)
-	check_api()
+	connect()
 	print("[bold]Ready.[/bold] start() polls the keypad; animate() just watches.")
