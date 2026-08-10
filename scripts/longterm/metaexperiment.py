@@ -15,6 +15,17 @@ def create_exp():
 	time_str = f"{t.tm_hour}hh_{t.tm_min}mm"
 	exp = Experiment(f"Metaexperiment_{dt}_{time_str}_cell_trapping", append_eid=True)
 
+	populate_exp()
+
+
+print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
+print("Use link_objects() to link measuement streams.")
+print("Use new_count() to register cell_counts.")
+
+
+
+def populate_exp():
+	global exp
 	### Experiment streams
 	exp.new_measurementstream("tandh", measurements=["temp"], monitors=["ch"])
 	exp.new_measurementstream("cell_fates", monitors=["last_split", "active_periods", "max_cells", "eid"])
@@ -22,9 +33,6 @@ def create_exp():
 
 	exp.new_measurementstream("cell_counts", measurements=["counts"], monitors=["df", "density", "label", "sep"])
 
-print("Use create_exp() to open a new experiment. Use findexp() to open an old one.")
-print("Use link_objects() to link measuement streams.")
-print("Use new_count() to register cell_counts.")
 
 global tandh, cell_fates, damaged, counts
 tandh = None; cell_fates = None; damaged = None; counts = None
