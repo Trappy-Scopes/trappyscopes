@@ -74,6 +74,7 @@ print("  level_in(L0,L1) / level_out(L2,L3)  cylinder levels around the run")
 print("  prime(n, s)    run pump n at full speed for s seconds")
 print("  stop_jobs()    end polling, keep the experiment open")
 print("  stop()         safe-state everything and close the experiment")
+print("  link_check() / relink()   pump serial link health and recovery")
 print("  panic()        everything off now")
 
 
@@ -268,9 +269,10 @@ SLOW_MIN    = 0.03         ## pump1, pump2 -- kitronik channels
 SLOW_MAX    = 0.2
 PULSE_ON_S  = 5
 PULSE_OFF_S = 55
-P3_SLOW_MIN = 0.05         ## pump3 -- DFR0523, continuous
-P3_SLOW_MAX = 0.3
-P3_SLOW_START = 0.1
+P3_SLOW_MIN = 0.45         ## pump3 -- DFR0523 aeration: driven hard, it stalls
+P3_SLOW_MAX = 1.0          ##   and hums under head load at low drive
+P3_SLOW_START = 0.6
+P3_FAST_SPEED = 1.0
 
 PUMP_NUMBERS = (1, 2, 3)
 
@@ -329,6 +331,15 @@ def connect(numbers=PUMP_NUMBERS):
 	PUMPSET = RemotePumpSet(numbers=numbers)
 	print("[yellow]REAL PUMPS[/] via scope.pumpset -> {}".format(PUMPSET.numbers()))
 	_record_backend()
+	## Warm the calibration cache so the live view can integrate volume; without
+	## a stored calibration the volume column honestly reads "no calib".
+	cal = load_calibration(refresh=True)
+	reset_volumes()
+	if cal:
+		print("[green]Calibration loaded[/] for pump(s) {}".format(sorted(cal)))
+	else:
+		print("[dim]No calibration on any pump -- the live view will show "
+				"'no calib' instead of a volume. Run the calibration script.[/dim]")
 	preflight()
 	return PUMPSET
 
@@ -429,6 +440,76 @@ def sync_from_keypad():
 	print("[green]Synced[/] from keypad snapshot.")
 
 
+## ---------------------------------------------------------------- link health
+## The host talks to the Pico over the MicroPython raw REPL. It is a fragile
+## channel by construction: pyboard.exec_raw() waits 10 s, reads until \x04, and
+## expects a clean ">" prompt before every command. Two things break it, both of
+## which look identical from here -- "the pumps went unreachable":
+##
+##   1. any board-side call that blocks longer than 10 s. The host gives up, the
+##      board carries on, and its late reply is read as the answer to the NEXT
+##      command. Every call after that is off by one.
+##   2. any unsolicited output from the board -- a print() in a timer callback,
+##      an exception traceback from a soft IRQ. Same desynchronisation.
+##
+## Neither heals on its own. link_check() detects it and relink() fixes it
+## without restarting the session.
+
+def link_check(verbose=True):
+	"""Is the pump link still sane? Returns True/False.
+
+	Sends something whose answer is known and checks we get it back.
+	"""
+	dev = _pump_device()
+	try:
+		echo = dev("1+1") if dev else None
+	except Exception as err:
+		if verbose:
+			print("[red]Pump link broken:[/] {}".format(err))
+		return False
+	if echo != 2:
+		if verbose:
+			print("[red]Pump link desynchronised[/] -- asked for 1+1, got {!r}".format(echo))
+		return False
+	if verbose:
+		print("[green]Pump link ok.[/]")
+	return True
+
+
+def relink(verbose=True):
+	"""Recover a desynchronised raw REPL without restarting the session.
+
+	Drains whatever the board has queued, re-enters the raw REPL, and re-checks.
+	Does NOT reset the board, so the pumps keep doing whatever they were doing.
+	"""
+	dev = _pump_device()
+	if dev is None:
+		print("[red]No pump device to relink.[/]")
+		return False
+	try:
+		ser = dev.device.serial
+		waiting = ser.inWaiting()
+		if waiting:
+			junk = ser.read(waiting)
+			print("[dim]drained {} stale bytes: {!r}[/dim]".format(
+					waiting, junk[:60]))
+		dev.device.exit_raw_repl()
+		time.sleep(0.2)
+		dev.device.enter_raw_repl()
+	except Exception as err:
+		log.error("relink failed: %s", err)
+		print("[red]Relink failed:[/] {} -- reconnect the device.".format(err))
+		return False
+	return link_check(verbose=verbose)
+
+
+def _pump_device():
+	"""The SerialMPDevice behind the pumps, not the proxy."""
+	scope_ = ScopeAssembly.current
+	proxy = getattr(scope_, "pumpset", None)
+	return getattr(proxy, "device", None)
+
+
 ## ---------------------------------------------------------------- levels
 ## Record the measuring-cylinder levels around a perfusion run, so the volume
 ## actually delivered can be recovered later -- and the stored calibration
@@ -513,7 +594,11 @@ def level_out(l2=None, l3=None):
 def prime(n, seconds=5, speed=1.0):
 	"""Run one pump at `speed` for `seconds`, then restore its mode.
 
-	Blocking on purpose -- it is a manual operation. Watch the tubing.
+	The HOST does the waiting, not the board. pyboard.exec_raw() gives a call
+	10 s to reply; a board-side sleep longer than that raises, the board keeps
+	running, and its late output lands in the next command's window -- which
+	desynchronises the raw REPL and leaves the pump apparently unreachable.
+	So: prime_start(), sleep here, prime_stop().
 	"""
 	if PUMPSET is None:
 		print("[red]Run connect() first.[/]")
@@ -521,10 +606,17 @@ def prime(n, seconds=5, speed=1.0):
 	pump = PUMPSET[n]
 	print("[yellow]Priming pump{} at {} for {}s...[/]".format(n, speed, seconds))
 	try:
-		pump.prime(seconds, speed)
+		pump.prime_start(speed)
+		time.sleep(seconds)
+	except KeyboardInterrupt:
+		print("[yellow]interrupted[/]")
 	except Exception as err:
 		log.error("prime failed: %s", err)
-		return
+	finally:
+		try:
+			pump.prime_stop()
+		except Exception as err:
+			log.error("prime_stop failed -- pump may still be running: %s", err)
 	if exp is not None:
 		exp.note("Primed pump{} at {} for {}s".format(n, speed, seconds))
 	push_to_keypad()
@@ -725,6 +817,126 @@ def show_calibration():
 	print(table)
 
 
+## ---------------------------------------------------------------- volume
+## The firmware pumps do not integrate volume -- state() has no volume_ml, which
+## is why that column read "-" against real hardware. Nothing was broken; there
+## was simply nothing to show. So the host integrates it here, from the stored
+## calibration, and says "no calib" when there is none rather than showing a
+## number it cannot justify.
+
+_VOL = {}                  ## pump -> ml delivered since the last reset
+_RUN = {}                  ## pump -> seconds actually pumping since the reset
+_VOL_T = {}                ## pump -> last sample time
+_CALIB_CACHE = {}          ## pump -> calibration dict, read once
+
+
+def load_calibration(refresh=False):
+	"""Cache each pump's stored calibration so the frame loop is not doing IO."""
+	global _CALIB_CACHE
+	if _CALIB_CACHE and not refresh:
+		return _CALIB_CACHE
+	out = {}
+	scope_ = ScopeAssembly.current
+	for n in (PUMPSET.numbers() if PUMPSET is not None else ()):
+		proxy = getattr(scope_, "pump{}".format(n), None)
+		params = getattr(proxy, "params", None)
+		if params is None:
+			continue
+		try:
+			state = params.__getstate__()
+		except Exception:
+			continue
+		out[n] = dict((k, v) for k, v in state.items() if k.startswith("calib"))
+	_CALIB_CACHE = out
+	return out
+
+
+def rate_ml_min(n, st):
+	"""Instantaneous delivery rate implied by the calibration, or None.
+
+	fast mode  -- scale the measured prime rate by speed / calib_fast_speed
+	pulse mode -- a burst delivers (a*speed + b) ml over on_s seconds, so while
+	              the burst is running the rate is that over on_s
+	"""
+	calib = _CALIB_CACHE.get(n)
+	if not calib or not st:
+		return None
+	speed = float(st.get("speed") or 0.0)
+	if speed <= 0:
+		return 0.0
+
+	if st.get("mode") == "fast":
+		ref = calib.get("calib_fast_ml_min")
+		at = calib.get("calib_fast_speed") or 1.0
+		return None if ref is None else ref * speed / float(at)
+
+	slope = calib.get("calib_pulse_slope")
+	if slope is None:
+		return None
+	per_cycle = slope * speed + (calib.get("calib_pulse_intercept") or 0.0)
+	on_s = float((st.get("pulse_duty") or (5, 55))[0]) or 5.0
+	return max(0.0, per_cycle) * 60.0 / on_s
+
+
+def _accrue(states):
+	"""Integrate delivered volume for every pump, once per frame."""
+	now = time.time()
+	for n, st in (states or {}).items():
+		last = _VOL_T.get(n)
+		_VOL_T[n] = now
+		if last is None:
+			continue
+		dt = now - last
+		## Run time is measurable without any calibration at all -- it only
+		## needs to know whether the pump is turning. It is what the volume
+		## column falls back to, so an uncalibrated rig still shows something
+		## true and useful rather than a dash.
+		if float(st.get("speed") or 0.0) > 0:
+			_RUN[n] = _RUN.get(n, 0.0) + dt
+		rate = rate_ml_min(n, st)
+		if rate:
+			_VOL[n] = _VOL.get(n, 0.0) + rate * dt / 60.0
+
+
+def volumes():
+	"""Delivered volume per pump since the last reset, in ml."""
+	return dict(_VOL)
+
+
+def runtimes():
+	"""Seconds each pump has actually been turning since the last reset.
+
+	Always available -- no calibration needed. Multiply by a rate later and an
+	uncalibrated run is still recoverable.
+	"""
+	return dict(_RUN)
+
+
+def reset_volumes():
+	"""Zero the integrators -- call it when you swap the reservoir."""
+	_VOL.clear()
+	_RUN.clear()
+	_VOL_T.clear()
+	print("[green]Volume and run-time counters reset.[/]")
+
+
+def _setpoint(st):
+	"""The speed this pump WILL run at, whether or not it is running now.
+
+	In pulse mode the live speed drops to zero between bursts; the set speed is
+	the number you actually tuned, so it stays on screen.
+	"""
+	if not st:
+		return 0.0
+	if st.get("mode") == "fast":
+		return float(st.get("fast_speed") or 0.0)
+	lo, hi = (st.get("slow_limits") or (0.0, 1.0))[:2]
+	level = st.get("level")
+	if level is None:
+		level = float(st.get("percent") or 0) / 100.0
+	return float(lo) + (float(hi) - float(lo)) * float(level)
+
+
 ## ---------------------------------------------------------------- live view
 ROTOR    = "|/-\\"
 TUBE_W   = 22
@@ -757,28 +969,29 @@ def _tube(frac, direction, phase):
 	return Text("".join(cells), style=_flow_style(frac))
 
 
-def _bar(speed, full_scale, slow_min, slow_max, width=16):
-	"""Absolute speed bar.
+def _bar(speed, full_scale, slow_min, slow_max, width=16, setpoint=None):
+	"""Absolute speed bar, with the set speed marked.
 
-	The scale is the pump's own usable maximum (its fast speed or the top of its
-	slow band, whichever is higher), so a pump that only ever runs at 0.03-0.2 is
-	still readable instead of being a sliver of a 0-1 bar. The slow band is drawn
-	as a dotted region behind the bar, so you can see where the current speed sits
-	relative to the limits.
+	The bar is the LIVE speed; the caret is where it is set to run. Between
+	bursts the bar empties but the caret stays, so a pump that is merely idle
+	between pulses does not look like a pump that is switched off.
 	"""
 	from rich.text import Text
 	if full_scale <= 0:
 		full_scale = 1.0
 	t = Text()
 	style = _flow_style(speed / full_scale)
+	mark = int(round((setpoint or 0.0) / full_scale * width))
 	for i in range(width):
 		pos = (i + 0.5) / width * full_scale
-		if pos <= speed:
-			t.append("━", style=style)
+		if setpoint and i == min(width - 1, max(0, mark - 1)) and pos > speed:
+			t.append("\u2502", style="bright_white")      ## set-speed caret
+		elif pos <= speed:
+			t.append("\u2501", style=style)
 		elif slow_min <= pos <= slow_max:
-			t.append("┄", style="grey42")      ## the adjustable band
+			t.append("\u2504", style="grey42")            ## the adjustable band
 		else:
-			t.append("━", style="grey27")
+			t.append("\u2501", style="grey27")
 	return t
 
 
@@ -803,14 +1016,16 @@ def _frame(t0):
 			log.error("pumpset.state() failed: %s", err)
 
 	grid = _T.grid(padding=(0, 1))
-	for _ in range(9):
+	for _ in range(10):
 		grid.add_column()
 
 	## header row, so the bare numbers are self-describing
 	_h = lambda s_: Text(s_, style="grey50")
-	grid.add_row(_h("pump"), _h(""), _h("mode"), _h("speed bar"), _h("speed"),
-					_h("band"), _h("fast"), _h("flow"), _h("volume"))
+	grid.add_row(_h("pump"), _h(""), _h("mode"), _h("speed bar  \u2502=set"),
+					_h("now"), _h("set"), _h("band"), _h("fast"), _h("flow"),
+					_h("volume"))
 
+	_accrue(states)
 	total_ml = 0.0
 	has_volume = False
 	for n in sorted(states):
@@ -841,26 +1056,41 @@ def _frame(t0):
 			## printing a millilitre figure nobody should trust.
 			vol = Text("  aeration ", style="grey50")
 		elif "volume_ml" in st:
+			## simulated pumps integrate their own
 			has_volume = True
 			total_ml += float(st["volume_ml"])
 			vol = Text("{:>7.2f} ml".format(st["volume_ml"]),
 						style="white" if frac else "grey50")
+		elif n in _CALIB_CACHE:
+			## integrated here from the stored calibration
+			ml = _VOL.get(n, 0.0)
+			has_volume = True
+			total_ml += ml
+			vol = Text("{:>7.2f} ml".format(ml),
+						style="white" if frac else "grey50")
 		else:
-			vol = Text("      -   ", style="grey30")
+			## No calibration: show run time instead. Honest, and it is exactly
+			## what you need to reconstruct the volume once a calibration exists.
+			secs = _RUN.get(n, 0.0)
+			vol = Text("{:>6.0f} s run".format(secs),
+						style="grey58" if secs else "grey30")
 
 		## Everything below is an absolute PWM unit speed (0.0 - 1.0), not a
 		## percentage of the band -- percentages hid how slow "slow" really is.
 		lo, hi = st.get("slow_limits", (0.0, 1.0))
 		fast_speed = st.get("fast_speed", 1.0)
 		full_scale = max(fast_speed, hi) or 1.0
+		setpoint = _setpoint(st)
 
 		grid.add_row(
 			Text(str(st.get("name", n)), style="bold" if frac > 0 else "grey50"),
 			rotor,
 			mode_txt,
-			_bar(frac, full_scale, lo, hi),
+			_bar(frac, full_scale, lo, hi, setpoint=setpoint),
 			Text("{:>5.3f}".format(frac),
 					style=_flow_style(frac / full_scale) if frac else "grey30"),
+			Text("{:>5.3f}".format(setpoint),
+					style="white" if setpoint else "grey30"),
 			Text("{:.2f}-{:.2f}".format(lo, hi), style="grey42"),
 			Text("f{:.2f}".format(fast_speed), style="grey42"),
 			_tube(frac, direction, elapsed * frac * 34),
@@ -1140,6 +1370,7 @@ def _blocking_loop(period, duration_min, live, fps):
 
 		next_frame = 0.0
 		next_mirror = 0.0
+		_read_failures = 0
 		while True:
 			poll_once()
 			now = time.time()
@@ -1201,8 +1432,8 @@ def status():
 		print("[red]Run connect() first.[/]")
 		return
 	table = Table(title="pumps (real hardware)")
-	for col in ("n", "name", "role", "mode", "speed", "band", "fast", "duty",
-				"cont", "lvl%", "vol ml"):
+	for col in ("n", "name", "role", "mode", "now", "set", "band", "fast",
+				"duty", "cont", "lvl%", "vol ml"):
 		table.add_column(col)
 
 	states = _states_or_warn()
@@ -1219,6 +1450,7 @@ def status():
 			"[cyan]aeration[/cyan]" if is_aeration(n) else "[dim]perfusion[/dim]",
 			style,
 			"{:.3f}".format(st.get("speed", 0.0)),
+			"{:.3f}".format(_setpoint(st)),
 			"{:.2f}-{:.2f}".format(lo, hi),
 			"{:.2f}".format(st.get("fast_speed", 0.0)),
 			"[dim]n/a[/dim]" if st.get("continuous")
@@ -1226,7 +1458,11 @@ def status():
 			"[bright_cyan]yes[/bright_cyan]" if st.get("continuous") else "[dim]no[/dim]",
 			str(st.get("percent", "-")),
 			"[dim]n/a[/dim]" if is_aeration(n)
-				else ("{:.3f}".format(st["volume_ml"]) if "volume_ml" in st else "-"),
+				else ("{:.3f}".format(st["volume_ml"]) if "volume_ml" in st
+					## a calibrated pump that has not moved yet is 0.000, not
+					## "no calib" -- only an uncalibrated one cannot be counted
+					else ("{:.3f}".format(_VOL.get(n, 0.0)) if n in _CALIB_CACHE
+						else "[dim]{:.0f}s run[/dim]".format(_RUN.get(n, 0.0)))),
 		)
 	print(table)
 
@@ -1269,6 +1505,10 @@ def stop():
 		mirror_once()
 		if exp is not None:
 			exp.logs["totals"] = PUMPSET.state()
+			exp.logs["delivered_ml"] = volumes()
+			exp.logs["runtime_s"] = runtimes()
+			exp.attribs["uncalibrated_pumps"] = sorted(
+					set(runtimes()) - set(_CALIB_CACHE))
 			exp.logs["commands_applied"] = N_COMMANDS
 	if exp is not None:
 		exp.logs.update(ScopeAssembly.current.get_config())
