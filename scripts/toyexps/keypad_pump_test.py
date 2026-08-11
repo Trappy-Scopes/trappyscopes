@@ -619,6 +619,22 @@ P3_SLOW_MIN = 0.05      ## pump3 -- DFR0523, continuous
 P3_SLOW_MAX = 0.3
 P3_SLOW_START = 0.1
 
+## Roles: pumps 1 and 2 perfuse media through the microfluidic devices and are
+## calibrated in mL; pump 3 aerates and is never measured volumetrically, so the
+## displays show "aeration" rather than a meaningless millilitre figure.
+PUMP_ROLES = {1: "perfusion", 2: "perfusion", 3: "aeration"}
+CALIBRATED = (1, 2)          ## pumps whose params shelve holds a calibration
+
+
+def role(n):
+	return PUMP_ROLES.get(n, "perfusion")
+
+
+def is_aeration(n):
+	return role(n) == "aeration"
+
+
+
 
 def create_exp():
 	global exp, scope
@@ -932,6 +948,75 @@ def check_api(path=None, verbose=True):
 	return ok
 
 
+## ---------------------------------------------------------------- persistence
+## Calibrations live on the DEVICE, not the experiment: proxy.params is a
+## PhysicalObject backed by a shelve at ~/<name>.db, so a calibration follows the
+## hardware across sessions. ScopeAssembly.get_config() serialises it via
+## Proxy.__getstate__, and stop() writes that into exp.logs -- so every run
+## carries the calibration that was live when it happened.
+
+def persist(numbers=CALIBRATED, force=False):
+	"""Make the pump proxies persistent so calibrations survive the session.
+
+	Only the perfusion pumps: the aeration pump has no volumetric calibration to
+	keep. A proxy only attaches its shelve at construction if ~/<name>.db already
+	exists, so this must be called once per machine to create it.
+	"""
+	scope_ = ScopeAssembly.current
+	out = {}
+	for n in numbers:
+		name = "pump{}".format(n)
+		proxy = getattr(scope_, name, None)
+		if proxy is None:
+			print("[red]scope.{} not found.[/]".format(name))
+			continue
+		if getattr(proxy, "params", None) is not None and not force:
+			print("[dim]{} already persistent ({} keys).[/dim]".format(
+					name, len(proxy.params.__getstate__())))
+			out[n] = proxy.params
+			continue
+		try:
+			proxy.make_persist()
+			proxy.params["role"] = role(n)
+			proxy.params["kind"] = "peristaltic.PeristalticPump"
+			print("[green]{} now persistent[/] -> ~/{}.db".format(name, name))
+			out[n] = proxy.params
+		except Exception as err:
+			log.error("could not persist %s: %s", name, err)
+	return out
+
+
+def calibration(n=None):
+	"""Read back the stored calibration for a pump, or for all of them."""
+	scope_ = ScopeAssembly.current
+	if n is None:
+		return dict((i, calibration(i)) for i in CALIBRATED)
+	proxy = getattr(scope_, "pump{}".format(n), None)
+	params = getattr(proxy, "params", None)
+	if params is None:
+		return None
+	return dict((k, v) for k, v in params.__getstate__().items()
+				if k.startswith("calib") or k in ("role", "kind", "created"))
+
+
+def show_calibration():
+	"""Table of what each perfusion pump currently believes about itself."""
+	table = Table(title="stored calibrations (~/pumpN.db)")
+	for col in ("pump", "role", "fast ml/min", "pulse ml/cycle", "duty", "when"):
+		table.add_column(col)
+	for n in CALIBRATED:
+		c = calibration(n) or {}
+		table.add_row(
+			"pump{}".format(n),
+			str(c.get("role", role(n))),
+			str(c.get("calib_fast_ml_min", "[dim]-[/dim]")),
+			str(c.get("calib_pulse_ml_per_cycle", "[dim]-[/dim]")),
+			str(c.get("calib_pulse_duty", "[dim]-[/dim]")),
+			str(c.get("calib_dt", "[dim]never[/dim]")),
+		)
+	print(table)
+
+
 ## ---------------------------------------------------------------- live view
 ROTOR    = "|/-\\"
 TUBE_W   = 22
@@ -1043,7 +1128,11 @@ def _frame(t0):
 		else:
 			mode_txt = Text("idle", style="grey30")
 
-		if "volume_ml" in st:
+		if is_aeration(n):
+			## No volumetric meaning for the aeration line -- say so instead of
+			## printing a millilitre figure nobody should trust.
+			vol = Text("  aeration ", style="grey50")
+		elif "volume_ml" in st:
 			has_volume = True
 			total_ml += float(st["volume_ml"])
 			vol = Text("{:>7.2f} ml".format(st["volume_ml"]),
@@ -1406,8 +1495,8 @@ def status():
 		print("[red]Run add_pumps() first.[/]")
 		return
 	table = Table(title="pumps ({})".format("simulated" if SIMULATED else "real"))
-	for col in ("n", "name", "mode", "speed", "band", "fast", "duty", "cont",
-				"lvl%", "vol ml"):
+	for col in ("n", "name", "role", "mode", "speed", "band", "fast", "duty",
+				"cont", "lvl%", "vol ml"):
 		table.add_column(col)
 
 	states = _states_or_warn()
@@ -1420,7 +1509,9 @@ def status():
 					"pulse": "[cyan]pulse[/cyan]"}.get(mode, "[dim]idle[/dim]")
 		lo, hi = st.get("slow_limits", (0.0, 0.0))
 		table.add_row(
-			str(n), str(st.get("name", "")), style,
+			str(n), str(st.get("name", "")),
+			"[cyan]aeration[/cyan]" if is_aeration(n) else "[dim]perfusion[/dim]",
+			style,
 			"{:.3f}".format(st.get("speed", 0.0)),
 			"{:.2f}-{:.2f}".format(lo, hi),
 			"{:.2f}".format(st.get("fast_speed", 0.0)),
@@ -1428,7 +1519,8 @@ def status():
 				else "{}s/{}s".format(*st.get("pulse_duty", ("-", "-"))),
 			"[bright_cyan]yes[/bright_cyan]" if st.get("continuous") else "[dim]no[/dim]",
 			str(st.get("percent", "-")),
-			"{:.3f}".format(st["volume_ml"]) if "volume_ml" in st else "-",
+			"[dim]n/a[/dim]" if is_aeration(n)
+				else ("{:.3f}".format(st["volume_ml"]) if "volume_ml" in st else "-"),
 		)
 	print(table)
 

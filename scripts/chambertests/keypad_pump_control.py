@@ -69,6 +69,8 @@ print("  connect()      bind to scope.pumpset and scope.kp, with a preflight")
 print("  start()        poll the keypad with a live view; Ctrl-C stops it")
 print("  animate()      watch the pumps live")
 print("  status()       one-shot table of pump state")
+print("  geometry(...)  declare cylinder and tube diameters")
+print("  level_in(L0,L1) / level_out(L2,L3)  cylinder levels around the run")
 print("  prime(n, s)    run pump n at full speed for s seconds")
 print("  stop_jobs()    end polling, keep the experiment open")
 print("  stop()         safe-state everything and close the experiment")
@@ -272,6 +274,22 @@ P3_SLOW_START = 0.1
 
 PUMP_NUMBERS = (1, 2, 3)
 
+## Roles: pumps 1 and 2 perfuse media through the microfluidic devices and are
+## calibrated in mL; pump 3 aerates and is never measured volumetrically, so the
+## displays show "aeration" rather than a meaningless millilitre figure.
+PUMP_ROLES = {1: "perfusion", 2: "perfusion", 3: "aeration"}
+CALIBRATED = (1, 2)          ## pumps whose params shelve holds a calibration
+
+
+def role(n):
+	return PUMP_ROLES.get(n, "perfusion")
+
+
+def is_aeration(n):
+	return role(n) == "aeration"
+
+
+
 
 def create_exp():
 	global exp, scope
@@ -409,6 +427,86 @@ def sync_from_keypad():
 		if parsed:
 			_LAST_SNAPSHOT[(parsed[0], parsed[1])] = parsed[2]
 	print("[green]Synced[/] from keypad snapshot.")
+
+
+## ---------------------------------------------------------------- levels
+## Record the measuring-cylinder levels around a perfusion run, so the volume
+## actually delivered can be recovered later -- and the stored calibration
+## corrected against it -- without re-running a calibration.
+##
+##   level_in(L0, L1)    before the run: tube out, then tube in at depth
+##   level_out(L2, L3)   after the run: tube in, then tube withdrawn
+##
+## Geometry lives in exp.attribs so the correction can be redone from the record.
+
+RUN_LEVELS = {}
+
+
+def geometry(cylinder_id_mm=24.0, tube_od_mm=5.0, tube_depth_mm=40.0):
+	"""Declare the cylinder and tube so levels can be corrected."""
+	if exp is not None:
+		exp.attribs["cylinder_id_mm"] = float(cylinder_id_mm)
+		exp.attribs["tube_od_mm"] = float(tube_od_mm)
+		exp.attribs["tube_depth_mm"] = float(tube_depth_mm)
+		exp.attribs["area_ratio"] = round(
+				(float(tube_od_mm) / float(cylinder_id_mm)) ** 2, 5)
+	print("[green]Geometry recorded.[/] bore taken by the tube: {:.1f} %".format(
+			(float(tube_od_mm) / float(cylinder_id_mm)) ** 2 * 100))
+	return exp.attribs if exp is not None else None
+
+
+def _ratio():
+	if exp is None:
+		return 0.0
+	return float(exp.attribs.get("area_ratio", 0.0))
+
+
+def level_in(l0=None, l1=None):
+	"""Cylinder before the run: L0 tube out, L1 tube in at working depth."""
+	global RUN_LEVELS
+	RUN_LEVELS = {"L0": l0, "L1": l1, "t_start": time.time()}
+	if exp is not None:
+		exp.attribs["levels"] = dict(RUN_LEVELS)
+		exp.note("Run levels in: L0={} L1={}".format(l0, l1))
+	print("[green]Start levels recorded.[/] L0={} L1={}".format(l0, l1))
+	return RUN_LEVELS
+
+
+def level_out(l2=None, l3=None):
+	"""Cylinder after the run: L2 tube in, L3 tube withdrawn.
+
+	Delivered volume is (L2 - L1) x (1 - r): both are tube-in readings, so the
+	displacement cancels and only the reduced-bore scaling remains.
+	"""
+	global RUN_LEVELS
+	RUN_LEVELS["L2"] = l2
+	RUN_LEVELS["L3"] = l3
+	RUN_LEVELS["t_end"] = time.time()
+
+	l1 = RUN_LEVELS.get("L1")
+	if l1 is not None and l2 is not None:
+		delivered = (float(l2) - float(l1)) * (1.0 - _ratio())
+		hours = (RUN_LEVELS["t_end"] - RUN_LEVELS.get("t_start",
+					RUN_LEVELS["t_end"])) / 3600.0
+		RUN_LEVELS["delivered_ml"] = round(delivered, 3)
+		RUN_LEVELS["hours"] = round(hours, 3)
+		if hours > 0:
+			RUN_LEVELS["ml_per_hour"] = round(delivered / hours, 3)
+		print("[bold]{:.2f} ml delivered[/bold] over {:.2f} h"
+				" -> {:.2f} ml/h".format(delivered, hours,
+				RUN_LEVELS.get("ml_per_hour", 0.0)))
+		if l3 is not None and RUN_LEVELS.get("L0") is not None:
+			## L3 is tube-out, so it is a true volume; check it against what the
+			## tube-in reading implies.
+			disp = float(l1) * (1.0 - _ratio()) - float(RUN_LEVELS["L0"])
+			implied = float(l2) * (1.0 - _ratio()) - disp
+			RUN_LEVELS["L3_residual_ml"] = round(implied - float(l3), 3)
+			print("  [dim]L3 cross-check residual {:+.2f} ml[/dim]".format(
+					RUN_LEVELS["L3_residual_ml"]))
+	if exp is not None:
+		exp.attribs["levels"] = dict(RUN_LEVELS)
+		exp.note("Run levels out: {}".format(RUN_LEVELS))
+	return RUN_LEVELS
 
 
 ## ---------------------------------------------------------------- bench
@@ -558,6 +656,75 @@ def stop_all(mirror=True):
 	return out
 
 
+## ---------------------------------------------------------------- persistence
+## Calibrations live on the DEVICE, not the experiment: proxy.params is a
+## PhysicalObject backed by a shelve at ~/<name>.db, so a calibration follows the
+## hardware across sessions. ScopeAssembly.get_config() serialises it via
+## Proxy.__getstate__, and stop() writes that into exp.logs -- so every run
+## carries the calibration that was live when it happened.
+
+def persist(numbers=CALIBRATED, force=False):
+	"""Make the pump proxies persistent so calibrations survive the session.
+
+	Only the perfusion pumps: the aeration pump has no volumetric calibration to
+	keep. A proxy only attaches its shelve at construction if ~/<name>.db already
+	exists, so this must be called once per machine to create it.
+	"""
+	scope_ = ScopeAssembly.current
+	out = {}
+	for n in numbers:
+		name = "pump{}".format(n)
+		proxy = getattr(scope_, name, None)
+		if proxy is None:
+			print("[red]scope.{} not found.[/]".format(name))
+			continue
+		if getattr(proxy, "params", None) is not None and not force:
+			print("[dim]{} already persistent ({} keys).[/dim]".format(
+					name, len(proxy.params.__getstate__())))
+			out[n] = proxy.params
+			continue
+		try:
+			proxy.make_persist()
+			proxy.params["role"] = role(n)
+			proxy.params["kind"] = "peristaltic.PeristalticPump"
+			print("[green]{} now persistent[/] -> ~/{}.db".format(name, name))
+			out[n] = proxy.params
+		except Exception as err:
+			log.error("could not persist %s: %s", name, err)
+	return out
+
+
+def calibration(n=None):
+	"""Read back the stored calibration for a pump, or for all of them."""
+	scope_ = ScopeAssembly.current
+	if n is None:
+		return dict((i, calibration(i)) for i in CALIBRATED)
+	proxy = getattr(scope_, "pump{}".format(n), None)
+	params = getattr(proxy, "params", None)
+	if params is None:
+		return None
+	return dict((k, v) for k, v in params.__getstate__().items()
+				if k.startswith("calib") or k in ("role", "kind", "created"))
+
+
+def show_calibration():
+	"""Table of what each perfusion pump currently believes about itself."""
+	table = Table(title="stored calibrations (~/pumpN.db)")
+	for col in ("pump", "role", "fast ml/min", "pulse ml/cycle", "duty", "when"):
+		table.add_column(col)
+	for n in CALIBRATED:
+		c = calibration(n) or {}
+		table.add_row(
+			"pump{}".format(n),
+			str(c.get("role", role(n))),
+			str(c.get("calib_fast_ml_min", "[dim]-[/dim]")),
+			str(c.get("calib_pulse_ml_per_cycle", "[dim]-[/dim]")),
+			str(c.get("calib_pulse_duty", "[dim]-[/dim]")),
+			str(c.get("calib_dt", "[dim]never[/dim]")),
+		)
+	print(table)
+
+
 ## ---------------------------------------------------------------- live view
 ROTOR    = "|/-\\"
 TUBE_W   = 22
@@ -669,7 +836,11 @@ def _frame(t0):
 		else:
 			mode_txt = Text("idle", style="grey30")
 
-		if "volume_ml" in st:
+		if is_aeration(n):
+			## No volumetric meaning for the aeration line -- say so instead of
+			## printing a millilitre figure nobody should trust.
+			vol = Text("  aeration ", style="grey50")
+		elif "volume_ml" in st:
 			has_volume = True
 			total_ml += float(st["volume_ml"])
 			vol = Text("{:>7.2f} ml".format(st["volume_ml"]),
@@ -1030,8 +1201,8 @@ def status():
 		print("[red]Run connect() first.[/]")
 		return
 	table = Table(title="pumps (real hardware)")
-	for col in ("n", "name", "mode", "speed", "band", "fast", "duty", "cont",
-				"lvl%", "vol ml"):
+	for col in ("n", "name", "role", "mode", "speed", "band", "fast", "duty",
+				"cont", "lvl%", "vol ml"):
 		table.add_column(col)
 
 	states = _states_or_warn()
@@ -1044,7 +1215,9 @@ def status():
 					"pulse": "[cyan]pulse[/cyan]"}.get(mode, "[dim]idle[/dim]")
 		lo, hi = st.get("slow_limits", (0.0, 0.0))
 		table.add_row(
-			str(n), str(st.get("name", "")), style,
+			str(n), str(st.get("name", "")),
+			"[cyan]aeration[/cyan]" if is_aeration(n) else "[dim]perfusion[/dim]",
+			style,
 			"{:.3f}".format(st.get("speed", 0.0)),
 			"{:.2f}-{:.2f}".format(lo, hi),
 			"{:.2f}".format(st.get("fast_speed", 0.0)),
@@ -1052,7 +1225,8 @@ def status():
 				else "{}s/{}s".format(*st.get("pulse_duty", ("-", "-"))),
 			"[bright_cyan]yes[/bright_cyan]" if st.get("continuous") else "[dim]no[/dim]",
 			str(st.get("percent", "-")),
-			"{:.3f}".format(st["volume_ml"]) if "volume_ml" in st else "-",
+			"[dim]n/a[/dim]" if is_aeration(n)
+				else ("{:.3f}".format(st["volume_ml"]) if "volume_ml" in st else "-"),
 		)
 	print(table)
 
