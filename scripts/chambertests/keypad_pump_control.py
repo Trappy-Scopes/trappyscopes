@@ -65,7 +65,8 @@ FLUID MOVES. Refuses to run without both scope.kp and scope.pumpset mounted.
 ### Quick explainer
 print("[bold yellow]keypad pump control -- REAL PUMPS[/bold yellow]")
 print("  create_exp()   make the experiment context")
-print("  connect()      bind to scope.pumpset and scope.kp, with a preflight")
+print("  connect()      bind to scope.pumpset and scope.kp, apply the envelope")
+print("  show_envelope() / set_envelope(n, ...)   speeds, host-side, no reflash")
 print("  start()        poll the keypad with a live view; Ctrl-C stops it")
 print("  animate()      watch the pumps live")
 print("  status()       one-shot table of pump state")
@@ -75,6 +76,7 @@ print("  prime(n, s)    run pump n at full speed for s seconds")
 print("  stop_jobs()    end polling, keep the experiment open")
 print("  stop()         safe-state everything and close the experiment")
 print("  link_check() / relink()   pump serial link health and recovery")
+print("  link_incidents()          link failures this run (auto-relink is on)")
 print("  panic()        everything off now")
 
 
@@ -264,15 +266,50 @@ SIMULATED = False          ## always: this script has no simulation path
 ## Envelope mirrored from circuits/2ch_peristat_kitroniks_vx_shield.py.
 ## These are what the firmware was flashed with; connect() reads back what the
 ## pumps actually report and warns if they disagree.
-FAST_SPEED  = 0.5
-SLOW_MIN    = 0.03         ## pump1, pump2 -- kitronik channels
-SLOW_MAX    = 0.2
-PULSE_ON_S  = 5
-PULSE_OFF_S = 55
-P3_SLOW_MIN = 0.45         ## pump3 -- DFR0523 aeration: driven hard, it stalls
-P3_SLOW_MAX = 1.0          ##   and hums under head load at low drive
-P3_SLOW_START = 0.6
-P3_FAST_SPEED = 1.0
+## ---------------------------------------------------------------- envelope
+## The speed envelope lives HERE, not in the firmware. connect() pushes it to
+## the board, so retuning a pump is an edit in this file plus a reconnect --
+## no reflash, no reset, and the values that were actually used land in
+## exp.attribs with the run.
+##
+## The firmware constants are only defaults for a board nobody has configured.
+##
+## pump3 (DFR0523, aeration) was run flat out while its head was damaged and it
+## was stalling. With a sound head that is far too fast, hence the wound-back
+## numbers below.
+
+## PULSE_PERIOD_S is the whole cycle: one 5 s burst every 3 minutes, so the
+## off-time is the period minus the on-time. Changing the period here is the
+## only edit needed -- the duty is derived.
+PULSE_ON_S = 5
+PULSE_PERIOD_S = 180            ## one pulse every 3 minutes
+PULSE_OFF_S = PULSE_PERIOD_S - PULSE_ON_S
+
+ENVELOPE = {
+	1: {"fast_speed": 0.5,  "slow_min": 0.03, "slow_max": 0.20,
+		"slow_speed": 0.10, "pulse_duty": (PULSE_ON_S, PULSE_OFF_S),
+		"continuous": False, "kick": (0.0, 0)},
+	2: {"fast_speed": 0.5,  "slow_min": 0.03, "slow_max": 0.20,
+		"slow_speed": 0.10, "pulse_duty": (PULSE_ON_S, PULSE_OFF_S),
+		"continuous": False, "kick": (0.0, 0)},
+	## pump3 halved throughout: the aeration head was damaged when these were
+	## set, and a sound one moves far too much air at the old numbers.
+	3: {"fast_speed": 0.275, "slow_min": 0.10, "slow_max": 0.30,
+		"slow_speed": 0.15, "continuous": True,
+		## the kick is brief and only has to break stiction, so it stays
+		## stronger than the running speed -- halved too, but not below what
+		## will actually start the head
+		"kick": (0.4, 500)},
+}
+
+## Kept for the displays and for anything that still reads them
+FAST_SPEED  = ENVELOPE[1]["fast_speed"]
+SLOW_MIN    = ENVELOPE[1]["slow_min"]
+SLOW_MAX    = ENVELOPE[1]["slow_max"]
+P3_FAST_SPEED = ENVELOPE[3]["fast_speed"]
+P3_SLOW_MIN   = ENVELOPE[3]["slow_min"]
+P3_SLOW_MAX   = ENVELOPE[3]["slow_max"]
+P3_SLOW_START = ENVELOPE[3]["slow_speed"]
 
 PUMP_NUMBERS = (1, 2, 3)
 
@@ -333,6 +370,11 @@ def connect(numbers=PUMP_NUMBERS):
 	_record_backend()
 	## Warm the calibration cache so the live view can integrate volume; without
 	## a stored calibration the volume column honestly reads "no calib".
+	## Push the host's speed envelope before anything can run at the board's
+	## own defaults.
+	print("[bold]Applying speed envelope[/bold]")
+	apply_envelope()
+
 	cal = load_calibration(refresh=True)
 	reset_volumes()
 	if cal:
@@ -342,6 +384,95 @@ def connect(numbers=PUMP_NUMBERS):
 				"'no calib' instead of a volume. Run the calibration script.[/dim]")
 	preflight()
 	return PUMPSET
+
+
+def apply_envelope(numbers=None, verbose=True):
+	"""Push ENVELOPE to the board. Returns what was applied per pump.
+
+	Every setting goes through a documented firmware call, so an older board
+	missing one of them degrades to a warning rather than an exception.
+	"""
+	if PUMPSET is None:
+		print("[red]Run connect() first.[/]")
+		return None
+	applied = {}
+	for n in (numbers or PUMPSET.numbers()):
+		spec = ENVELOPE.get(n)
+		if not spec:
+			continue
+		pump = PUMPSET[n]
+		done, missing = {}, []
+		order = (("continuous", "set_continuous", lambda v: (v,)),
+					("pulse_duty", "set_pulse_duty", lambda v: tuple(v)),
+					("fast_speed", "set_fast_speed", lambda v: (v,)),
+					## limits before the speed: set_slow_speed is clamped INTO
+					## the band, so a stale band would silently move it
+					("slow_min", None, None),
+					("slow_max", "set_slow_limits",
+						lambda v, s=spec: (s["slow_min"], s["slow_max"])),
+					("kick", "set_kick", lambda v: tuple(v)),
+					("slow_speed", "set_slow_speed", lambda v: (v,)))
+		for key, method, args in order:
+			if method is None or key not in spec:
+				continue
+			try:
+				done[key] = getattr(pump, method)(*args(spec[key]))
+			except AttributeError:
+				missing.append(method)
+			except Exception as err:
+				log.error("pump%s.%s failed: %s", n, method, err)
+				missing.append(method)
+		applied[n] = done
+		if verbose:
+			print("  pump{}: fast {} slow {}-{} @ {}{}".format(
+					n, spec.get("fast_speed"), spec.get("slow_min"),
+					spec.get("slow_max"), spec.get("slow_speed"),
+					"  kick {}".format(spec["kick"]) if spec.get("kick", (0,))[0] else ""))
+		if missing:
+			print("  [yellow]pump{}: board does not support {}[/] -- "
+					"firmware is older than this script".format(n, ", ".join(missing)))
+	if exp is not None:
+		exp.attribs["envelope"] = dict((k, dict(v)) for k, v in ENVELOPE.items())
+		exp.note("Speed envelope applied from the host: {}".format(ENVELOPE))
+	return applied
+
+
+def set_envelope(n, apply_now=True, **kwargs):
+	"""Change one pump's envelope and push it. Keys as in ENVELOPE.
+
+	    set_envelope(3, fast_speed=0.4, slow_max=0.45)
+	    set_envelope(3, kick=(0.7, 400))
+	"""
+	spec = ENVELOPE.setdefault(n, {})
+	unknown = [k for k in kwargs
+				if k not in ("fast_speed", "slow_min", "slow_max", "slow_speed",
+								"pulse_duty", "continuous", "kick")]
+	if unknown:
+		print("[red]Unknown envelope keys: {}[/]".format(unknown))
+		return None
+	spec.update(kwargs)
+	if apply_now:
+		apply_envelope(numbers=[n])
+	return dict(spec)
+
+
+def show_envelope():
+	"""What the host will push, beside what the board currently reports."""
+	table = Table(title="speed envelope (host) vs board")
+	for col in ("pump", "fast", "band", "set", "duty", "kick", "board now"):
+		table.add_column(col)
+	states = _states_or_warn() or {} if PUMPSET is not None else {}
+	for n in sorted(ENVELOPE):
+		spec = ENVELOPE[n]
+		st = states.get(n) or {}
+		board = "-" if not st else "fast {} band {}-{}".format(
+				st.get("fast_speed"), *st.get("slow_limits", ("?", "?")))
+		table.add_row(str(n), str(spec.get("fast_speed")),
+						"{}-{}".format(spec.get("slow_min"), spec.get("slow_max")),
+						str(spec.get("slow_speed")),
+						str(spec.get("pulse_duty", "n/a")),
+						str(spec.get("kick", (0, 0))), board)
+	print(table)
 
 
 def _record_backend():
@@ -391,8 +522,8 @@ def preflight(verbose=True):
 			ok = False
 
 	## 3 -- limits the firmware actually holds
-	expect = {1: (SLOW_MIN, SLOW_MAX), 2: (SLOW_MIN, SLOW_MAX),
-				3: (P3_SLOW_MIN, P3_SLOW_MAX)}
+	expect = dict((n, (spec.get("slow_min"), spec.get("slow_max")))
+					for n, spec in ENVELOPE.items())
 	for n, st in sorted(states.items()):
 		if not isinstance(st, dict):
 			continue
@@ -454,6 +585,55 @@ def sync_from_keypad():
 ##
 ## Neither heals on its own. link_check() detects it and relink() fixes it
 ## without restarting the session.
+
+## Auto-recovery. A desync does not heal on its own: every later call reads the
+## previous reply, so one "timeout waiting for first EOF reception" turns into
+## an unbroken stream of them. Rather than logging forever, relink after a few
+## consecutive failures and record the incident against the run.
+AUTO_RELINK = True
+RELINK_AFTER = 3           ## consecutive failures before trying
+LINK_FAILS = 0             ## consecutive failures right now
+LINK_INCIDENTS = []        ## [{t, where, error, recovered}]
+
+
+def _link_error(where, err):
+	"""Called on every failed board call. Relinks when it looks persistent."""
+	global LINK_FAILS
+	LINK_FAILS += 1
+	log.error("%s failed: %s", where, err)
+	if not AUTO_RELINK or LINK_FAILS % RELINK_AFTER:
+		return False
+	print("[yellow]{} consecutive link failures -- relinking...[/]".format(LINK_FAILS))
+	ok = relink(verbose=False)
+	incident = {"t": time.time(), "where": where, "error": str(err),
+				"failures": LINK_FAILS, "recovered": bool(ok)}
+	LINK_INCIDENTS.append(incident)
+	if exp is not None:
+		exp.logs["link_incidents"] = list(LINK_INCIDENTS)
+		try:
+			exp.note("Serial link {} after {} failures in {}".format(
+					"recovered" if ok else "STILL BROKEN", LINK_FAILS, where))
+		except Exception:
+			pass
+	if ok:
+		print("[green]Link recovered.[/] "
+				"[dim]The pumps kept running throughout -- the board does not "
+				"stop when the host loses contact.[/dim]")
+	else:
+		print("[red]Relink failed.[/] The pumps are STILL RUNNING on the board. "
+				"Reconnect the device, or pull its power to stop them.")
+	return ok
+
+
+def _link_ok():
+	global LINK_FAILS
+	LINK_FAILS = 0
+
+
+def link_incidents():
+	"""Every link failure this run, with whether it recovered."""
+	return list(LINK_INCIDENTS)
+
 
 def link_check(verbose=True):
 	"""Is the pump link still sane? Returns True/False.
@@ -1012,8 +1192,9 @@ def _frame(t0):
 		try:
 			raw = PUMPSET.state()
 			states = raw if isinstance(raw, dict) else {}
+			_link_ok()
 		except Exception as err:
-			log.error("pumpset.state() failed: %s", err)
+			_link_error("pumpset.state()", err)
 
 	grid = _T.grid(padding=(0, 1))
 	for _ in range(10):
@@ -1197,8 +1378,9 @@ def _poll_once():
 	for line in (lines or []):
 		try:
 			st = PUMPSET.command(line)
+			_link_ok()
 		except Exception as err:
-			log.error("pump command failed on %r: %s", line, err)
+			_link_error("pumpset.command({!r})".format(line), err)
 			continue
 		if st is None:
 			continue
@@ -1220,9 +1402,10 @@ def _poll_once():
 def mirror_once():
 	"""Push pump state onto the keypad LEDs. Never raises."""
 	try:
-		return push_to_keypad()
+		out = push_to_keypad()
+		return out
 	except Exception as err:
-		log.error("keypad mirror failed: %s", err)
+		_link_error("keypad mirror", err)
 		return []
 
 
@@ -1415,8 +1598,9 @@ def _states_or_warn():
 	try:
 		states = PUMPSET.state()
 	except Exception as err:
-		log.error("pumpset.state() failed: %s", err)
+		_link_error("pumpset.state()", err)
 		return None
+	_link_ok()
 	if states is None:
 		return {}
 	if not isinstance(states, dict):
@@ -1509,6 +1693,10 @@ def stop():
 			exp.logs["runtime_s"] = runtimes()
 			exp.attribs["uncalibrated_pumps"] = sorted(
 					set(runtimes()) - set(_CALIB_CACHE))
+			if LINK_INCIDENTS:
+				exp.logs["link_incidents"] = list(LINK_INCIDENTS)
+				print("[yellow]{} serial link incident(s) during this run[/] -- "
+						"see exp.logs['link_incidents']".format(len(LINK_INCIDENTS)))
 			exp.logs["commands_applied"] = N_COMMANDS
 	if exp is not None:
 		exp.logs.update(ScopeAssembly.current.get_config())
