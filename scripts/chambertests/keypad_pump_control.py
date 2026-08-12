@@ -292,14 +292,18 @@ ENVELOPE = {
 	2: {"fast_speed": 0.5,  "slow_min": 0.03, "slow_max": 0.20,
 		"slow_speed": 0.10, "pulse_duty": (PULSE_ON_S, PULSE_OFF_S),
 		"continuous": False, "kick": (0.0, 0)},
-	## pump3 halved throughout: the aeration head was damaged when these were
-	## set, and a sound one moves far too much air at the old numbers.
-	3: {"fast_speed": 0.275, "slow_min": 0.10, "slow_max": 0.30,
-		"slow_speed": 0.15, "continuous": True,
+	## pump3 restored to the pre-halving figures. The halving was done on the
+	## assumption that a sound head would over-aerate at the old numbers; in
+	## practice the replacement head stalls at the halved drive -- the DFR0523
+	## sits close to its stiction threshold and loses the rotor before it loses
+	## flow. Host-side only: the firmware constants in
+	## circuits/2ch_peristat_kitroniks_vx_shield.py are still the halved ones,
+	## and only apply on a cold boot with no host attached.
+	3: {"fast_speed": 0.55, "slow_min": 0.20, "slow_max": 0.60,
+		"slow_speed": 0.30, "continuous": True,
 		## the kick is brief and only has to break stiction, so it stays
-		## stronger than the running speed -- halved too, but not below what
-		## will actually start the head
-		"kick": (0.4, 500)},
+		## stronger than the running speed
+		"kick": (0.8, 1000)},
 }
 
 ## Kept for the displays and for anything that still reads them
