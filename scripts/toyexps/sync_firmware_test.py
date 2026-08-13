@@ -75,7 +75,7 @@ print("  fw_reset()       soft-reset the board so the new firmware runs")
 ## ---------------------------------------------------------------- config
 ## Where the firmware lives locally. The first one that exists wins.
 FW_CANDIDATES = (
-	"pico_firmware",
+	#"pico_firmware",
 	os.path.expanduser("~/code/Trappy-Scopes/pico_firmware/pico_firmware"),
 	os.path.expanduser("~/code/Trappy-Scopes/pico_firmware"),
 	os.path.expanduser("~/trappyscopes/pico_firmware"),

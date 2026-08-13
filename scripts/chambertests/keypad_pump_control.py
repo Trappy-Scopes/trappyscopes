@@ -278,11 +278,11 @@ SIMULATED = False          ## always: this script has no simulation path
 ## was stalling. With a sound head that is far too fast, hence the wound-back
 ## numbers below.
 
-## PULSE_PERIOD_S is the whole cycle: one 5 s burst every 3 minutes, so the
-## off-time is the period minus the on-time. Changing the period here is the
-## only edit needed -- the duty is derived.
+## PULSE_PERIOD_S is the whole cycle: one 5 s burst per minute, so the off-time
+## is the period minus the on-time. Changing the period here is the only edit
+## needed -- the duty is derived, and preflight now reads it back off the board.
 PULSE_ON_S = 5
-PULSE_PERIOD_S = 180            ## one pulse every 3 minutes
+PULSE_PERIOD_S = 60             ## one pulse per minute -> duty 5 s on / 55 s off
 PULSE_OFF_S = PULSE_PERIOD_S - PULSE_ON_S
 
 ENVELOPE = {
@@ -292,18 +292,17 @@ ENVELOPE = {
 	2: {"fast_speed": 0.5,  "slow_min": 0.03, "slow_max": 0.20,
 		"slow_speed": 0.10, "pulse_duty": (PULSE_ON_S, PULSE_OFF_S),
 		"continuous": False, "kick": (0.0, 0)},
-	## pump3 restored to the pre-halving figures. The halving was done on the
-	## assumption that a sound head would over-aerate at the old numbers; in
-	## practice the replacement head stalls at the halved drive -- the DFR0523
-	## sits close to its stiction threshold and loses the rotor before it loses
-	## flow. Host-side only: the firmware constants in
-	## circuits/2ch_peristat_kitroniks_vx_shield.py are still the halved ones,
-	## and only apply on a cold boot with no host attached.
-	3: {"fast_speed": 0.55, "slow_min": 0.20, "slow_max": 0.60,
-		"slow_speed": 0.30, "continuous": True,
-		## the kick is brief and only has to break stiction, so it stays
-		## stronger than the running speed
-		"kick": (0.8, 1000)},
+	## pump3 (DFR0523, aeration) -- back to the figures this rig was actually
+	## running on 11 Aug, before the wind-down. Do not lower these to reduce
+	## aeration: the DFR0523 stalls long before it slows down usefully. Below
+	## roughly 0.5 the head hums and the rotor stays put under tube occlusion,
+	## which reads as a control fault but is a torque floor. If it aerates too
+	## hard, duty-cycle it (continuous False + pulse_duty) rather than dropping
+	## the speed -- less air per minute, same drive per revolution.
+	3: {"fast_speed": 1.0, "slow_min": 0.45, "slow_max": 1.0,
+		"slow_speed": 0.6, "continuous": True,
+		## brief, only has to break stiction, so it sits at full drive
+		"kick": (1.0, 1000)},
 }
 
 ## Kept for the displays and for anything that still reads them
@@ -390,7 +389,75 @@ def connect(numbers=PUMP_NUMBERS):
 	return PUMPSET
 
 
-def apply_envelope(numbers=None, verbose=True):
+## Which envelope fields the board reports back, and how to compare them.
+## state() returns more than the host sets, so this is the only place that knows
+## which fields are two-way. Anything not listed here is pushed blind.
+def _num(value):
+	"""Normalise for comparison. Whole numbers come back as ints purely so the
+	mismatch messages read '(5, 55)' rather than '(5.0, 55.0)' -- 5 == 5.0 in
+	Python either way, so this cannot change a verdict."""
+	try:
+		out = round(float(value), 4)
+	except (TypeError, ValueError):
+		return value
+	return int(out) if out == int(out) else out
+
+
+def _tup(value):
+	if value is None:
+		return None
+	try:
+		return tuple(_num(x) for x in value)
+	except TypeError:
+		return value
+
+
+ENVELOPE_READBACK = (
+	("fast_speed",  lambda st: _num(st.get("fast_speed")),
+					lambda sp: _num(sp.get("fast_speed"))),
+	("slow_limits", lambda st: _tup(st.get("slow_limits")),
+					lambda sp: _tup((sp.get("slow_min"), sp.get("slow_max")))),
+	("pulse_duty",  lambda st: _tup(st.get("pulse_duty")),
+					lambda sp: _tup(sp.get("pulse_duty"))),
+	("continuous",  lambda st: st.get("continuous"),
+					lambda sp: sp.get("continuous")),
+	("kick",        lambda st: _tup(st.get("kick")),
+					lambda sp: _tup(sp.get("kick"))),
+)
+
+
+def envelope_diff(states=None, numbers=None):
+	"""Every envelope field the board disagrees with. {} means it all landed.
+
+	Returns {n: [(field, wanted, on_board), ...]}, or None if the board could
+	not be read. Fields the host does not set for a pump -- pump3 has no
+	pulse_duty -- are skipped rather than reported as mismatches.
+	"""
+	if states is None:
+		states = _states_or_warn() if PUMPSET is not None else None
+	if not isinstance(states, dict):
+		return None
+	out = {}
+	for n in (numbers or sorted(ENVELOPE)):
+		spec, st = ENVELOPE.get(n), states.get(n)
+		if not spec or not isinstance(st, dict):
+			continue
+		rows = []
+		for field, from_board, from_spec in ENVELOPE_READBACK:
+			want = from_spec(spec)
+			if want is None or (isinstance(want, tuple) and None in want):
+				continue
+			got = from_board(st)
+			if got is None:
+				rows.append((field, want, "not reported"))
+			elif got != want:
+				rows.append((field, want, got))
+		if rows:
+			out[n] = rows
+	return out
+
+
+def apply_envelope(numbers=None, verbose=True, verify=True):
 	"""Push ENVELOPE to the board. Returns what was applied per pump.
 
 	Every setting goes through a documented firmware call, so an older board
@@ -435,6 +502,25 @@ def apply_envelope(numbers=None, verbose=True):
 		if missing:
 			print("  [yellow]pump{}: board does not support {}[/] -- "
 					"firmware is older than this script".format(n, ", ".join(missing)))
+	## Read it back. Pushing is not the same as landing: Proxy.__getattr__
+	## manufactures an attribute for ANY name, so the AttributeError branch
+	## above is dead over the real link -- a board running older firmware takes
+	## the call and quietly keeps its own value. This is what catches that.
+	if verify:
+		diff = envelope_diff(numbers=list(applied))
+		if diff is None:
+			print("  [yellow]could not read the board back -- envelope UNVERIFIED[/]")
+		elif diff:
+			for n, rows in sorted(diff.items()):
+				for field, want, got in rows:
+					print("  [red]pump{} {} did not take[/] -- asked {}, "
+							"board has {}".format(n, field, want, got))
+			print("  [dim]A field that will not take usually means the board is "
+					"running older firmware than this script. Reflash "
+					"actuators/peristaltic.py + the circuit file, then reset.[/dim]")
+		elif verbose:
+			print("  [green]verified against the board[/]")
+
 	if exp is not None:
 		exp.attribs["envelope"] = dict((k, dict(v)) for k, v in ENVELOPE.items())
 		exp.note("Speed envelope applied from the host: {}".format(ENVELOPE))
@@ -469,8 +555,10 @@ def show_envelope():
 	for n in sorted(ENVELOPE):
 		spec = ENVELOPE[n]
 		st = states.get(n) or {}
-		board = "-" if not st else "fast {} band {}-{}".format(
-				st.get("fast_speed"), *st.get("slow_limits", ("?", "?")))
+		board = "-" if not st else "fast {} band {}-{} duty {} kick {}".format(
+				st.get("fast_speed"),
+				*(list(st.get("slow_limits", ("?", "?")))
+					+ [st.get("pulse_duty", "?"), st.get("kick", "?")]))
 		table.add_row(str(n), str(spec.get("fast_speed")),
 						"{}-{}".format(spec.get("slow_min"), spec.get("slow_max")),
 						str(spec.get("slow_speed")),
@@ -525,19 +613,19 @@ def preflight(verbose=True):
 			print("[red]pumps missing from state():[/] {}".format(missing))
 			ok = False
 
-	## 3 -- limits the firmware actually holds
-	expect = dict((n, (spec.get("slow_min"), spec.get("slow_max")))
-					for n, spec in ENVELOPE.items())
-	for n, st in sorted(states.items()):
-		if not isinstance(st, dict):
-			continue
-		band = tuple(st.get("slow_limits", ()))
-		want = expect.get(n)
-		if want and band and tuple(round(x, 4) for x in band) != want:
-			print("[yellow]pump{} band is {} on the board, {} in this script[/]".format(
-					n, band, want))
-		if n == 3 and not st.get("continuous"):
-			print("[yellow]pump3 is not in continuous mode on the board.[/]")
+	## 3 -- the WHOLE envelope the firmware actually holds, not just the band.
+	## Checking only slow_limits was how a set_pulse_duty() that never landed
+	## stayed invisible: the duty column showed the host's intention and nothing
+	## ever read the board's.
+	diff = envelope_diff(states=states)
+	if diff:
+		for n, rows in sorted(diff.items()):
+			for field, want, got in rows:
+				print("[yellow]pump{} {}:[/] {} in this script, {} on the "
+						"board".format(n, field, want, got))
+		print("  [dim]Run apply_envelope() -- if it still will not take, the "
+				"board's firmware is older than this script.[/dim]")
+		ok = False
 
 	## 4 -- the keypad link
 	try:
