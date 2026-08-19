@@ -38,11 +38,14 @@ from rich.live import Live
 from rich.table import Table
 
 from hive.assembly import ScopeAssembly
-from experiment import Experiment
+## expframework.experiment, NOT experiment -- there is no top-level `experiment`
+## module in this repo. Every other script here (livetrack.py,
+## keypad_pump_test.py, and this file before the rework) uses the full path.
+from expframework.experiment import Experiment
 
 from actuators.pumps import RemotePumpSet, KeypadLink, Dashboard, parse_line
 from actuators.pumps import envelope as env
-from actuators.pumps.remote import hard_reset, link_check
+from actuators.pumps.remote import hard_reset
 from actuators.pumps.supervisor import LinkSupervisor
 
 ## ---------------------------------------------------------------- envelope
@@ -157,7 +160,7 @@ def connect(numbers=PUMP_NUMBERS):
 				" and scope.".join(missing)))
 		emit("  [dim]Mount the Picos first -- pump board running "
 				"2ch_peristat_kitroniks_vx_shield, keypad running "
-				"pimoroni_rgb_sparkly_rainbows_cntlr.[/dim]")
+				"pimoroni_rgb_keypad_pumpctrl.[/dim]")
 		return None
 
 	if LINK is not None:
