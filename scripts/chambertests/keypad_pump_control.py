@@ -1,289 +1,56 @@
-"""
-Keypad-driven pump control -- REAL HARDWARE.
+"""Drive the perfusion pumps from the RGB keypad. REAL PUMPS -- fluid moves.
 
-Drives the peristaltic pumps on the pump Pico (circuit
-2ch_peristat_kitroniks_vx_shield) from the Pimoroni RGB keypad on its own Pico,
-with the host relaying commands and mirroring pump state back onto the LEDs.
+There is no simulation here. The rehearsal twin is scripts/toyexps/keypad_pump_test.py.
 
-    pump1, pump2  Kitronik channels: fast mode, or pulsed 5 s on / 55 s off
-    pump3         DFRobot DFR0523:   fast mode, or continuous slow flow
+	create_exp()     make the experiment record
+	connect()        bind the boards, push the envelope, preflight
+	start()          live view + keypad polling; Ctrl-C stops it
+	status()         one-shot table
+	stop()           stop the pumps, close the record
+	panic()          stop everything, now, no questions
 
-There is no simulation here. Every command moves fluid. The simulated twin lives
-in scripts/toyexps/keypad_pump_test.py -- use that to test the keypad or the
-protocol without a wet rig.
+	link()           link health;  resume()  leaves a DOWN link and retries
+	envelope()       show it;  set_envelope(3, fast_speed=0.4)  changes it
 
-author: Yatharth Bhasin
-date: 10-August-2026
-licence: MIT Licence
+Everything else lives in actuators.pumps. This file used to carry its own fork of
+all of it -- 1807 lines, ~700 of them duplicated from the package it did not
+import. See "WHAT CHANGED" at the bottom.
 
-Copyright (c) 2026 Yatharth Bhasin
+--------------------------------------------------------------------- the rules
+The board owns the pumps. Hardware PWM and a board-side timer keep them running
+through host loss, hangs and reconnects; the board does not stop because the host
+went away. Stopping takes an explicit command or pulling power.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
+The host owns the SPEED ENVELOPE. connect() pushes it, so retuning a pump is an
+edit here plus a reconnect -- no reflash. The firmware constants are only defaults
+for a cold boot with nobody attached.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Nothing in the render loop is allowed to block. All board access goes through
+LinkSupervisor: one lock, recovery on its own thread, bounded, with a terminal
+DOWN state. That is the entire fix for the freeze this script used to have.
 """
 
-## Do common imports
-import time
 import logging as log
-from datetime import timedelta
-from rich import print
+import time
+
+from rich.console import Console
+from rich.live import Live
 from rich.table import Table
-from expframework.experiment import Experiment
+
 from hive.assembly import ScopeAssembly
+from experiment import Experiment
 
-## Describe the script. This is important and will be logged in the Experiment system.
-__description__ = \
-"""
-Keypad-driven peristaltic pump control on real hardware.
+from actuators.pumps import RemotePumpSet, KeypadLink, Dashboard, parse_line
+from actuators.pumps import envelope as env
+from actuators.pumps.remote import hard_reset, link_check
+from actuators.pumps.supervisor import LinkSupervisor
 
-Relays the Pimoroni RGB keypad (scope.kp) to the pumps (scope.pumpset) over the
-wire protocol PUMP <n> POWER|PULSE|SPEED|LIMIT <value>, mirrors pump state back
-onto the keypad LEDs, and timestamps every command into a measurement stream.
-
-    POWER  fast mode  -- continuous at fast_speed
-    PULSE  slow mode  -- pump1/2 duty-cycle 5s/55s; pump3 runs continuously
-    SPEED  0-100      -- position inside that pump's slow band
-    POWER overrides PULSE while it is on.
-
-FLUID MOVES. Refuses to run without both scope.kp and scope.pumpset mounted.
-"""
-
-### Quick explainer
-print("[bold yellow]keypad pump control -- REAL PUMPS[/bold yellow]")
-print("  create_exp()   make the experiment context")
-print("  connect()      bind to scope.pumpset and scope.kp, apply the envelope")
-print("  show_envelope() / set_envelope(n, ...)   speeds, host-side, no reflash")
-print("  start()        poll the keypad with a live view; Ctrl-C stops it")
-print("  animate()      watch the pumps live")
-print("  status()       one-shot table of pump state")
-print("  geometry(...)  declare cylinder and tube diameters")
-print("  level_in(L0,L1) / level_out(L2,L3)  cylinder levels around the run")
-print("  prime(n, s)    run pump n at full speed for s seconds")
-print("  stop_jobs()    end polling, keep the experiment open")
-print("  stop()         safe-state everything and close the experiment")
-print("  link_check() / relink()   pump serial link health and recovery")
-print("  link_incidents()          link failures this run (auto-relink is on)")
-print("  panic()        everything off now")
-
-
-## ---------------------------------------------------------------- pumps
-class RemotePumpSet():
-	"""PumpSet-shaped facade over the firmware's own pumpset, via the proxy.
-
-	Everything here talks to the pumps through this, so the call sites match the
-	simulated twin in toyexps/ exactly. One serial round trip per command line.
-	"""
-
-	def __init__(self, numbers=(1, 2, 3)):
-		self._numbers = list(numbers)
-
-	def _remote(self):
-		return ScopeAssembly.current.pumpset
-
-	def __getitem__(self, n):
-		return getattr(ScopeAssembly.current, "pump{}".format(n))
-
-	def get(self, n):
-		return self[n] if n in self._numbers else None
-
-	def numbers(self):
-		return sorted(self._numbers)
-
-	def command(self, line):
-		return self._remote().command(str(line))
-
-	def commands(self, lines):
-		return [self.command(ln) for ln in (lines or [])]
-
-	def stop_all(self):
-		return self._remote().stop_all()
-
-	def set_fast_speed(self, speed):
-		return self._remote().set_fast_speed(speed)
-
-	def set_slow_limits(self, low, high):
-		return self._remote().set_slow_limits(low, high)
-
-	def set_pulse_duty(self, on_s, off_s):
-		return self._remote().set_pulse_duty(on_s, off_s)
-
-	def set_continuous(self, flag):
-		return self._remote().set_continuous(flag)
-
-	def state(self):
-		return self._remote().state()
-
-	def deinit(self):
-		return self._remote().stop_all()
-
-
-## ---------------------------------------------------------------- keypad access
-## The keypad is reached as `ScopeAssembly.current.kp` -- always resolved fresh,
-## never cached, so a reconnect or a re-`add_device()` is picked up without
-## restarting the script.
-##
-## What comes back depends on the transport. Over the MicroPython proxy the call
-## is sent as a printed expression and the repr is parsed, so `lines()` (a list
-## of plain strings) survives but `drain()` (a list of Command objects) does not
-## -- it arrives as unparseable "<PUMP 1 POWER ON #5>" text. `_read_keypad()`
-## probes once for the best method available and remembers the choice.
-
-def parse_line(line):
-	"""'PUMP 2 SPEED 45' -> (2, 'SPEED', 45). None if it is not a command.
-
-	Only used for logging and snapshot diffing -- the pumps themselves are
-	driven through PUMPSET.command(), which does its own parsing.
-	"""
-	parts = str(line).strip().upper().split()
-	if len(parts) != 4 or parts[0] != "PUMP":
-		return None
-	try:
-		n = int(parts[1])
-	except ValueError:
-		return None
-	verb, arg = parts[2], parts[3]
-	if verb in ("POWER", "PULSE"):
-		return (n, verb, arg == "ON")
-	if verb == "SPEED":
-		try:
-			return (n, verb, int(arg))
-		except ValueError:
-			return None
-	if verb == "LIMIT":
-		return (n, verb, arg)
-	return None
-
-
-_READ_METHOD = None       ## "lines" | "drain_repr" | "poll_state"
-
-## repr of a Command, e.g. "<PUMP 1 SPEED 45 #7>"
-_CMD_REPR = None
-
-
-def kp():
-	"""The keypad device. Raises AttributeError if it is not mounted."""
-	return ScopeAssembly.current.kp
-
-
-def _reprs_to_lines(blob):
-	"""Salvage wire lines out of any mangled blob.
-
-	Handles a repr'd list of Command objects ("[<PUMP 1 SPEED 45 #7>, ...]") and
-	a repr'd list of strings ("['PUMP 1 SPEED 45', ...]") equally -- both lose
-	their structure crossing the raw REPL, but the payload is still in there.
-	"""
-	global _CMD_REPR
-	import re
-	if _CMD_REPR is None:
-		_CMD_REPR = re.compile(r"PUMP\s+(\d+)\s+([A-Z]+)\s+([A-Za-z0-9]+)")
-	return ["PUMP {} {} {}".format(*m.groups()) for m in _CMD_REPR.finditer(str(blob))]
-
-
-def _read_keypad():
-	"""Return a list of wire lines pending on the keypad. Never raises."""
-	global _READ_METHOD
-	device = kp()
-
-	if _READ_METHOD is None:
-		## Probe, cheapest and most reliable first.
-		for name in ("lines", "drain", "snapshot_lines"):
-			if hasattr(device, name):
-				_READ_METHOD = {"lines": "lines",
-								"drain": "drain_repr",
-								"snapshot_lines": "poll_state"}[name]
-				break
-		else:
-			## A bare proxy exposes nothing to hasattr -- assume lines().
-			_READ_METHOD = "lines"
-		log.info("keypad read method: %s", _READ_METHOD)
-
-	try:
-		if _READ_METHOD == "lines":
-			out = device.lines()
-			if out is None:
-				return []
-			if isinstance(out, str):
-				## Proxy returned one repr'd blob rather than a real list.
-				return _reprs_to_lines(out)
-			return [str(ln) for ln in out]
-
-		if _READ_METHOD == "drain_repr":
-			return _reprs_to_lines(device.drain())
-
-		## Last resort: diff the full snapshot each poll.
-		return _snapshot_diff(device)
-
-	except AttributeError:
-		## Method missing on this build -- fall back one rung and retry next poll.
-		_READ_METHOD = "drain_repr" if _READ_METHOD == "lines" else "poll_state"
-		log.error("keypad read method fell back to %s", _READ_METHOD)
-		return []
-
-
-_LAST_SNAPSHOT = {}
-
-
-def _snapshot_diff(device):
-	"""Poll full state and synthesise command lines for whatever changed."""
-	lines = []
-	for line in (device.snapshot_lines() or []):
-		parsed = parse_line(line)
-		if parsed is None:
-			continue
-		n, verb, value = parsed
-		key = (n, verb)
-		if _LAST_SNAPSHOT.get(key) != value:
-			_LAST_SNAPSHOT[key] = value
-			lines.append(str(line))
-	return lines
-
-
-def set_read_method(method):
-	"""Force the read strategy: 'lines', 'drain_repr' or 'poll_state'."""
-	global _READ_METHOD
-	_READ_METHOD = method
-	print("[green]Keypad read method set to[/] {}".format(method))
-
-
-## ---------------------------------------------------------------- setup
-PUMPSET = None
-SIMULATED = False          ## always: this script has no simulation path
-
-## Envelope mirrored from circuits/2ch_peristat_kitroniks_vx_shield.py.
-## These are what the firmware was flashed with; connect() reads back what the
-## pumps actually report and warns if they disagree.
 ## ---------------------------------------------------------------- envelope
-## The speed envelope lives HERE, not in the firmware. connect() pushes it to
-## the board, so retuning a pump is an edit in this file plus a reconnect --
-## no reflash, no reset, and the values that were actually used land in
-## exp.attribs with the run.
-##
-## The firmware constants are only defaults for a board nobody has configured.
-##
-## pump3 (DFR0523, aeration) was run flat out while its head was damaged and it
-## was stalling. With a sound head that is far too fast, hence the wound-back
-## numbers below.
-
 ## PULSE_PERIOD_S is the whole cycle: one 5 s burst per minute, so the off-time
-## is the period minus the on-time. Changing the period here is the only edit
-## needed -- the duty is derived, and preflight now reads it back off the board.
-PULSE_ON_S = 5
-PULSE_PERIOD_S = 60             ## one pulse per minute -> duty 5 s on / 55 s off
-PULSE_OFF_S = PULSE_PERIOD_S - PULSE_ON_S
+## is the period minus the on-time. Change the period; the duty is derived.
+PULSE_ON_S     = 5
+PULSE_PERIOD_S = 60
+PULSE_OFF_S    = PULSE_PERIOD_S - PULSE_ON_S
 
 ENVELOPE = {
 	1: {"fast_speed": 0.5,  "slow_min": 0.03, "slow_max": 0.20,
@@ -292,35 +59,49 @@ ENVELOPE = {
 	2: {"fast_speed": 0.5,  "slow_min": 0.03, "slow_max": 0.20,
 		"slow_speed": 0.10, "pulse_duty": (PULSE_ON_S, PULSE_OFF_S),
 		"continuous": False, "kick": (0.0, 0)},
-	## pump3 (DFR0523, aeration) -- back to the figures this rig was actually
-	## running on 11 Aug, before the wind-down. Do not lower these to reduce
-	## aeration: the DFR0523 stalls long before it slows down usefully. Below
-	## roughly 0.5 the head hums and the rotor stays put under tube occlusion,
-	## which reads as a control fault but is a torque floor. If it aerates too
-	## hard, duty-cycle it (continuous False + pulse_duty) rather than dropping
-	## the speed -- less air per minute, same drive per revolution.
+	## pump3 (DFR0523, aeration). Do NOT lower these to reduce aeration: the
+	## DFR0523 stalls long before it slows down usefully. Below roughly 0.5 the
+	## head hums and the rotor stays put under tube occlusion -- that reads as a
+	## control fault but it is a torque floor. To aerate less, duty-cycle it
+	## (continuous False + pulse_duty): same drive per revolution, fewer
+	## revolutions. The kick only has to break stiction, so it sits at full drive.
 	3: {"fast_speed": 1.0, "slow_min": 0.45, "slow_max": 1.0,
-		"slow_speed": 0.6, "continuous": True,
-		## brief, only has to break stiction, so it sits at full drive
-		"kick": (1.0, 1000)},
+		"slow_speed": 0.6, "continuous": True, "kick": (1.0, 1000)},
 }
 
-## Kept for the displays and for anything that still reads them
-FAST_SPEED  = ENVELOPE[1]["fast_speed"]
-SLOW_MIN    = ENVELOPE[1]["slow_min"]
-SLOW_MAX    = ENVELOPE[1]["slow_max"]
-P3_FAST_SPEED = ENVELOPE[3]["fast_speed"]
-P3_SLOW_MIN   = ENVELOPE[3]["slow_min"]
-P3_SLOW_MAX   = ENVELOPE[3]["slow_max"]
-P3_SLOW_START = ENVELOPE[3]["slow_speed"]
-
 PUMP_NUMBERS = (1, 2, 3)
+PUMP_ROLES   = {1: "perfusion", 2: "perfusion", 3: "aeration"}
+CALIBRATED   = (1, 2)          ## pumps whose params shelve holds a calibration
 
-## Roles: pumps 1 and 2 perfuse media through the microfluidic devices and are
-## calibrated in mL; pump 3 aerates and is never measured volumetrically, so the
-## displays show "aeration" rather than a meaningless millilitre figure.
-PUMP_ROLES = {1: "perfusion", 2: "perfusion", 3: "aeration"}
-CALIBRATED = (1, 2)          ## pumps whose params shelve holds a calibration
+POLL_S       = 0.10            ## keypad drain period
+MIRROR_S     = 1.0             ## how often pump state is pushed to the LEDs
+FPS          = 8               ## live view refresh
+
+## ---------------------------------------------------------------- state
+scope   = None
+exp     = None
+PUMPSET = None
+LINK    = None                 ## LinkSupervisor
+KEYPAD  = None                 ## KeypadLink
+BOARD   = None                 ## Dashboard
+RUNNING = False
+
+## ONE console for the whole script. The old version passed redirect_stdout=False
+## to Live() and then used `from rich import print`, i.e. a second Console with
+## its own lock and its own idea of where the cursor is. The two interleaved ANSI
+## cursor moves on one TTY, rich fell back to full clear-and-redraws, and because
+## transient=False every one of those stayed in the emulator's scrollback. That
+## is what made the terminal sluggish before it hung.
+CONSOLE = Console()
+_LIVE = None
+
+
+def emit(msg):
+	"""Print without fighting the live display. Use this, never bare print()."""
+	if _LIVE is not None:
+		_LIVE.console.print(msg)
+	else:
+		CONSOLE.print(msg)
 
 
 def role(n):
@@ -331,1477 +112,389 @@ def is_aeration(n):
 	return role(n) == "aeration"
 
 
-
-
+## ---------------------------------------------------------------- setup
 def create_exp():
 	global exp, scope
 	scope = ScopeAssembly.current
 	exp = Experiment.Construct(["keypad", "pump", "control"],
-								user=True, eid=True, date=True, time=True, scopeid=True)
+								user=True, eid=True, date=True, time=True,
+								scopeid=True)
 	exp.new_measurementstream("keypress",
 								measurements=["pump", "verb", "value", "applied_speed"])
 	exp.attribs["pumps"] = list(PUMP_NUMBERS)
 	exp.attribs["simulated"] = False
 	exp.attribs["fluid_moved"] = True
-	exp.attribs["poll_period_s"] = 0.05
-	exp.attribs["autosync_dir"] = True    ## sync on stop() if a destination exists
-	exp.attribs["ml_per_min"] = {}        ## fill from calibrate()
-	print("[green]Experiment ready.[/] Now run connect().")
+	exp.attribs["poll_period_s"] = POLL_S
+	exp.attribs["ml_per_min"] = {}
+	emit("[green]Experiment ready.[/] Now run connect().")
+	return exp
+
+
+def _on_incident(inc):
+	"""Bounded bookkeeping. The old code did
+	    exp.logs["link_incidents"] = list(LINK_INCIDENTS)
+	on every single incident -- a full copy of an unbounded list, O(n^2), inside
+	the render loop. Append to the log, and let the supervisor's deque cap it."""
+	if exp is None:
+		return
+	exp.logs.setdefault("link_incidents", []).append(inc)
+	del exp.logs["link_incidents"][:-200]
 
 
 def connect(numbers=PUMP_NUMBERS):
-	"""Bind to the real pumps and the keypad, and check they answer.
+	"""Bind the boards, push the envelope, preflight.
 
 	Refuses rather than half-starting: without scope.pumpset there is nothing to
 	drive, and without scope.kp there is nothing to drive it with.
 	"""
-	global scope, exp, PUMPSET
+	global scope, PUMPSET, LINK, KEYPAD, BOARD
 	scope = ScopeAssembly.current
 
 	missing = [name for name in ("pumpset", "kp")
 				if getattr(scope, name, None) is None]
 	if missing:
-		print("[red]Not connected:[/] scope.{} missing.".format(
+		emit("[red]Not connected:[/] scope.{} missing.".format(
 				" and scope.".join(missing)))
-		print("  [dim]Mount the Picos first -- pump board running "
+		emit("  [dim]Mount the Picos first -- pump board running "
 				"2ch_peristat_kitroniks_vx_shield, keypad running "
 				"pimoroni_rgb_sparkly_rainbows_cntlr.[/dim]")
 		return None
 
-	PUMPSET = RemotePumpSet(numbers=numbers)
-	print("[yellow]REAL PUMPS[/] via scope.pumpset -> {}".format(PUMPSET.numbers()))
-	_record_backend()
-	## Warm the calibration cache so the live view can integrate volume; without
-	## a stored calibration the volume column honestly reads "no calib".
-	## Push the host's speed envelope before anything can run at the board's
-	## own defaults.
-	print("[bold]Applying speed envelope[/bold]")
-	apply_envelope()
+	if LINK is not None:
+		LINK.stop()
 
-	cal = load_calibration(refresh=True)
-	reset_volumes()
+	PUMPSET = RemotePumpSet(numbers=numbers)
+	LINK = LinkSupervisor(PUMPSET, on_incident=_on_incident).start()
+	KEYPAD = KeypadLink()
+	BOARD = Dashboard(PUMPSET, roles=PUMP_ROLES)
+
+	emit("[yellow]REAL PUMPS[/] via scope.pumpset -> {}".format(PUMPSET.numbers()))
+	if exp is not None:
+		exp.attribs["backend"] = "RemotePumpSet"
+
+	emit("[bold]Applying speed envelope[/bold]")
+	env.push(ENVELOPE, PUMPSET, LINK, emit=emit)
+	env.verify(ENVELOPE, LINK.state(), emit=emit)
+	if exp is not None:
+		exp.attribs["envelope"] = dict((k, dict(v)) for k, v in ENVELOPE.items())
+
+	cal = BOARD.load_calibration(refresh=True)
+	BOARD.reset_volumes()
 	if cal:
-		print("[green]Calibration loaded[/] for pump(s) {}".format(sorted(cal)))
+		emit("[green]Calibration loaded[/] for pump(s) {}".format(sorted(cal)))
 	else:
-		print("[dim]No calibration on any pump -- the live view will show "
+		emit("[dim]No calibration on any pump -- the live view will show "
 				"'no calib' instead of a volume. Run the calibration script.[/dim]")
 	preflight()
 	return PUMPSET
 
 
-## Which envelope fields the board reports back, and how to compare them.
-## state() returns more than the host sets, so this is the only place that knows
-## which fields are two-way. Anything not listed here is pushed blind.
-def _num(value):
-	"""Normalise for comparison. Whole numbers come back as ints purely so the
-	mismatch messages read '(5, 55)' rather than '(5.0, 55.0)' -- 5 == 5.0 in
-	Python either way, so this cannot change a verdict."""
-	try:
-		out = round(float(value), 4)
-	except (TypeError, ValueError):
-		return value
-	return int(out) if out == int(out) else out
-
-
-def _tup(value):
-	if value is None:
-		return None
-	try:
-		return tuple(_num(x) for x in value)
-	except TypeError:
-		return value
-
-
-ENVELOPE_READBACK = (
-	("fast_speed",  lambda st: _num(st.get("fast_speed")),
-					lambda sp: _num(sp.get("fast_speed"))),
-	("slow_limits", lambda st: _tup(st.get("slow_limits")),
-					lambda sp: _tup((sp.get("slow_min"), sp.get("slow_max")))),
-	("pulse_duty",  lambda st: _tup(st.get("pulse_duty")),
-					lambda sp: _tup(sp.get("pulse_duty"))),
-	("continuous",  lambda st: st.get("continuous"),
-					lambda sp: sp.get("continuous")),
-	("kick",        lambda st: _tup(st.get("kick")),
-					lambda sp: _tup(sp.get("kick"))),
-)
-
-
-def envelope_diff(states=None, numbers=None):
-	"""Every envelope field the board disagrees with. {} means it all landed.
-
-	Returns {n: [(field, wanted, on_board), ...]}, or None if the board could
-	not be read. Fields the host does not set for a pump -- pump3 has no
-	pulse_duty -- are skipped rather than reported as mismatches.
-	"""
-	if states is None:
-		states = _states_or_warn() if PUMPSET is not None else None
-	if not isinstance(states, dict):
-		return None
-	out = {}
-	for n in (numbers or sorted(ENVELOPE)):
-		spec, st = ENVELOPE.get(n), states.get(n)
-		if not spec or not isinstance(st, dict):
-			continue
-		rows = []
-		for field, from_board, from_spec in ENVELOPE_READBACK:
-			want = from_spec(spec)
-			if want is None or (isinstance(want, tuple) and None in want):
-				continue
-			got = from_board(st)
-			if got is None:
-				rows.append((field, want, "not reported"))
-			elif got != want:
-				rows.append((field, want, got))
-		if rows:
-			out[n] = rows
-	return out
-
-
-def apply_envelope(numbers=None, verbose=True, verify=True):
-	"""Push ENVELOPE to the board. Returns what was applied per pump.
-
-	Every setting goes through a documented firmware call, so an older board
-	missing one of them degrades to a warning rather than an exception.
-	"""
-	if PUMPSET is None:
-		print("[red]Run connect() first.[/]")
-		return None
-	applied = {}
-	for n in (numbers or PUMPSET.numbers()):
-		spec = ENVELOPE.get(n)
-		if not spec:
-			continue
-		pump = PUMPSET[n]
-		done, missing = {}, []
-		order = (("continuous", "set_continuous", lambda v: (v,)),
-					("pulse_duty", "set_pulse_duty", lambda v: tuple(v)),
-					("fast_speed", "set_fast_speed", lambda v: (v,)),
-					## limits before the speed: set_slow_speed is clamped INTO
-					## the band, so a stale band would silently move it
-					("slow_min", None, None),
-					("slow_max", "set_slow_limits",
-						lambda v, s=spec: (s["slow_min"], s["slow_max"])),
-					("kick", "set_kick", lambda v: tuple(v)),
-					("slow_speed", "set_slow_speed", lambda v: (v,)))
-		for key, method, args in order:
-			if method is None or key not in spec:
-				continue
-			try:
-				done[key] = getattr(pump, method)(*args(spec[key]))
-			except AttributeError:
-				missing.append(method)
-			except Exception as err:
-				log.error("pump%s.%s failed: %s", n, method, err)
-				missing.append(method)
-		applied[n] = done
+def preflight(verbose=True):
+	"""Is this rig fit to start? Reports, never fixes."""
+	if LINK is None:
+		emit("[red]Run connect() first.[/]")
+		return False
+	ok = True
+	states = LINK.state()
+	if not states:
+		emit("[red]Pumps did not answer.[/] {}".format(LINK.summary()))
+		return False
+	if not KEYPAD.available():
+		emit("[red]No keypad mounted[/] -- scope.kp is missing.")
+		ok = False
+	bad = env.diff(ENVELOPE, states)
+	if bad:
+		ok = False
 		if verbose:
-			print("  pump{}: fast {} slow {}-{} @ {}{}".format(
-					n, spec.get("fast_speed"), spec.get("slow_min"),
-					spec.get("slow_max"), spec.get("slow_speed"),
-					"  kick {}".format(spec["kick"]) if spec.get("kick", (0,))[0] else ""))
-		if missing:
-			print("  [yellow]pump{}: board does not support {}[/] -- "
-					"firmware is older than this script".format(n, ", ".join(missing)))
-	## Read it back. Pushing is not the same as landing: Proxy.__getattr__
-	## manufactures an attribute for ANY name, so the AttributeError branch
-	## above is dead over the real link -- a board running older firmware takes
-	## the call and quietly keeps its own value. This is what catches that.
-	if verify:
-		diff = envelope_diff(numbers=list(applied))
-		if diff is None:
-			print("  [yellow]could not read the board back -- envelope UNVERIFIED[/]")
-		elif diff:
-			for n, rows in sorted(diff.items()):
-				for field, want, got in rows:
-					print("  [red]pump{} {} did not take[/] -- asked {}, "
-							"board has {}".format(n, field, want, got))
-			print("  [dim]A field that will not take usually means the board is "
-					"running older firmware than this script. Reflash "
-					"actuators/peristaltic.py + the circuit file, then reset.[/dim]")
-		elif verbose:
-			print("  [green]verified against the board[/]")
+			env.verify(ENVELOPE, states, emit=emit)
+	running = [n for n, st in states.items() if st.get("fast") or st.get("pulse")]
+	if running:
+		emit("[yellow]Already running:[/] pump(s) {} -- the board kept them going "
+				"across the reconnect, which is by design.".format(sorted(running)))
+	if verbose and ok:
+		emit("[green]Preflight clear.[/] start() when ready.")
+	return ok
 
-	if exp is not None:
-		exp.attribs["envelope"] = dict((k, dict(v)) for k, v in ENVELOPE.items())
-		exp.note("Speed envelope applied from the host: {}".format(ENVELOPE))
-	return applied
+
+## ---------------------------------------------------------------- envelope
+def envelope():
+	"""What the host will push, beside what the board currently reports."""
+	states = LINK.state() if LINK is not None else {}
+	table = Table(title="speed envelope -- host vs board")
+	for col in ("pump", "role", "fast", "band", "set", "duty", "kick", "board"):
+		table.add_column(col)
+	bad = env.diff(ENVELOPE, states) or {}
+	for n in sorted(ENVELOPE):
+		s = ENVELOPE[n]
+		table.add_row(str(n), role(n),
+						str(s.get("fast_speed")),
+						"{}-{}".format(s.get("slow_min"), s.get("slow_max")),
+						str(s.get("slow_speed")),
+						str(s.get("pulse_duty", "continuous")),
+						str(s.get("kick")),
+						"[red]MISMATCH[/]" if n in bad else "[green]ok[/]")
+	CONSOLE.print(table)
+	return dict(ENVELOPE)
 
 
 def set_envelope(n, apply_now=True, **kwargs):
-	"""Change one pump's envelope and push it. Keys as in ENVELOPE.
-
-	    set_envelope(3, fast_speed=0.4, slow_max=0.45)
-	    set_envelope(3, kick=(0.7, 400))
-	"""
-	spec = ENVELOPE.setdefault(n, {})
-	unknown = [k for k in kwargs
-				if k not in ("fast_speed", "slow_min", "slow_max", "slow_speed",
-								"pulse_duty", "continuous", "kick")]
-	if unknown:
-		print("[red]Unknown envelope keys: {}[/]".format(unknown))
+	"""set_envelope(3, fast_speed=0.4, slow_max=0.45) -- change and push."""
+	try:
+		spec = env.update(ENVELOPE, n, **kwargs)
+	except ValueError as err:
+		emit("[red]{}[/]".format(err))
 		return None
-	spec.update(kwargs)
-	if apply_now:
-		apply_envelope(numbers=[n])
-	return dict(spec)
+	if apply_now and LINK is not None:
+		env.push(ENVELOPE, PUMPSET, LINK, numbers=[n], emit=emit)
+		env.verify(ENVELOPE, LINK.state(), numbers=[n], emit=emit)
+	return spec
 
 
-def show_envelope():
-	"""What the host will push, beside what the board currently reports."""
-	table = Table(title="speed envelope (host) vs board")
-	for col in ("pump", "fast", "band", "set", "duty", "kick", "board now"):
-		table.add_column(col)
-	states = _states_or_warn() or {} if PUMPSET is not None else {}
-	for n in sorted(ENVELOPE):
-		spec = ENVELOPE[n]
-		st = states.get(n) or {}
-		board = "-" if not st else "fast {} band {}-{} duty {} kick {}".format(
-				st.get("fast_speed"),
-				*(list(st.get("slow_limits", ("?", "?")))
-					+ [st.get("pulse_duty", "?"), st.get("kick", "?")]))
-		table.add_row(str(n), str(spec.get("fast_speed")),
-						"{}-{}".format(spec.get("slow_min"), spec.get("slow_max")),
-						str(spec.get("slow_speed")),
-						str(spec.get("pulse_duty", "n/a")),
-						str(spec.get("kick", (0, 0))), board)
-	print(table)
-
-
-def _record_backend():
-	"""Put the real-hardware fact into the experiment record."""
-	if exp is None:
+## ---------------------------------------------------------------- link
+def link():
+	"""Link health. Never touches the port -- safe to call any time."""
+	if LINK is None:
+		emit("[red]Not connected.[/]")
 		return None
-	exp.attribs["simulated"] = False
-	exp.attribs["pump_backend"] = type(PUMPSET).__name__ if PUMPSET else None
-	exp.attribs["fluid_moved"] = True
-	try:
-		exp.note("Pumps: REAL hardware via scope.pumpset -- fluid will move.")
-	except Exception as err:
-		log.error("could not note the pump backend: %s", err)
+	h = LINK.health()
+	emit("[bold]{}[/bold]".format(LINK.summary()))
+	if not h["repair_thread"]:
+		emit("[red]The repair thread is not alive[/] -- run connect() again.")
+	for inc in LINK.incidents(5):
+		emit("  [dim]{}  {}  {}[/dim]".format(
+				time.strftime("%H:%M:%S", time.localtime(inc["t"])),
+				inc["where"], inc["error"][:80]))
+	return h
 
 
-def preflight(verbose=True):
-	"""Check the links before anything turns. Returns True when all pass.
-
-	1. pumpset.state() answers, and answers as a dict rather than a repr string
-	   the proxy failed to parse.
-	2. every expected pump is present in that state.
-	3. the firmware's limits match what this script thinks they are.
-	4. the keypad answers and its read path is known.
-	"""
-	ok = True
-	if PUMPSET is None:
-		print("[red]Run connect() first.[/]")
+def resume():
+	"""Leave a DOWN link and start trying again. Deliberately manual."""
+	if LINK is None:
 		return False
+	emit("[yellow]Retrying the link.[/]")
+	return LINK.resume()
 
-	## 1 + 2 -- the pump link
-	try:
-		states = PUMPSET.state()
-	except Exception as err:
-		print("[red]pumpset.state() failed:[/] {}".format(err))
-		return False
 
-	if not isinstance(states, dict):
-		print("[red]pumpset.state() returned {}, not a dict[/] -- the proxy could "
-				"not parse the reply.".format(type(states).__name__))
-		print("  [dim]{}[/dim]".format(str(states)[:120]))
-		ok = False
-		states = {}
-	else:
-		missing = [n for n in PUMPSET.numbers() if n not in states]
-		if missing:
-			print("[red]pumps missing from state():[/] {}".format(missing))
-			ok = False
-
-	## 3 -- the WHOLE envelope the firmware actually holds, not just the band.
-	## Checking only slow_limits was how a set_pulse_duty() that never landed
-	## stayed invisible: the duty column showed the host's intention and nothing
-	## ever read the board's.
-	diff = envelope_diff(states=states)
-	if diff:
-		for n, rows in sorted(diff.items()):
-			for field, want, got in rows:
-				print("[yellow]pump{} {}:[/] {} in this script, {} on the "
-						"board".format(n, field, want, got))
-		print("  [dim]Run apply_envelope() -- if it still will not take, the "
-				"board's firmware is older than this script.[/dim]")
-		ok = False
-
-	## 4 -- the keypad link
-	try:
-		lines = kp().snapshot_lines()
-		if verbose:
-			print("[green]keypad ok[/] -- {} state lines, read method '{}'".format(
-					len(lines or []), _READ_METHOD or "probing"))
-	except Exception as err:
-		print("[red]keypad snapshot failed:[/] {}".format(err))
-		ok = False
-
-	if verbose:
-		print("[bold]{}[/bold]".format(
-			"Preflight passed -- ready to start()." if ok
-			else "Preflight FAILED -- fix the above before starting."))
-		status()
+def reset_board(wait_s=3.0):
+	"""Reboot the pump Pico. The pumps stop for the couple of seconds it takes;
+	the circuit restores them from pumpstate.txt on the way up."""
+	ok = hard_reset("pumpset", wait_s=wait_s)
+	if ok and LINK is not None:
+		LINK.resume()
 	return ok
 
 
-def sync_from_keypad():
-	"""Adopt the keypad's own view of the world. Use after a reconnect."""
-	if PUMPSET is None:
-		print("[red]Run connect() first.[/]")
-		return
-	try:
-		lines = kp().snapshot_lines()
-	except Exception as err:
-		log.error("keypad snapshot unavailable (%s) -- keeping board state", err)
-		return
-	for line in (lines or []):
-		PUMPSET.command(line)
-		parsed = parse_line(line)
-		if parsed:
-			_LAST_SNAPSHOT[(parsed[0], parsed[1])] = parsed[2]
-	print("[green]Synced[/] from keypad snapshot.")
-
-
-## ---------------------------------------------------------------- link health
-## The host talks to the Pico over the MicroPython raw REPL. It is a fragile
-## channel by construction: pyboard.exec_raw() waits 10 s, reads until \x04, and
-## expects a clean ">" prompt before every command. Two things break it, both of
-## which look identical from here -- "the pumps went unreachable":
-##
-##   1. any board-side call that blocks longer than 10 s. The host gives up, the
-##      board carries on, and its late reply is read as the answer to the NEXT
-##      command. Every call after that is off by one.
-##   2. any unsolicited output from the board -- a print() in a timer callback,
-##      an exception traceback from a soft IRQ. Same desynchronisation.
-##
-## Neither heals on its own. link_check() detects it and relink() fixes it
-## without restarting the session.
-
-## Auto-recovery. A desync does not heal on its own: every later call reads the
-## previous reply, so one "timeout waiting for first EOF reception" turns into
-## an unbroken stream of them. Rather than logging forever, relink after a few
-## consecutive failures and record the incident against the run.
-AUTO_RELINK = True
-RELINK_AFTER = 3           ## consecutive failures before trying
-LINK_FAILS = 0             ## consecutive failures right now
-LINK_INCIDENTS = []        ## [{t, where, error, recovered}]
-
-
-def _link_error(where, err):
-	"""Called on every failed board call. Relinks when it looks persistent."""
-	global LINK_FAILS
-	LINK_FAILS += 1
-	log.error("%s failed: %s", where, err)
-	if not AUTO_RELINK or LINK_FAILS % RELINK_AFTER:
+## ---------------------------------------------------------------- the loop
+def _apply_line(line):
+	"""One keypad line -> one pump command. Returns True if it went out."""
+	parsed = parse_line(line)
+	if parsed is None:
 		return False
-	print("[yellow]{} consecutive link failures -- relinking...[/]".format(LINK_FAILS))
-	ok = relink(verbose=False)
-	incident = {"t": time.time(), "where": where, "error": str(err),
-				"failures": LINK_FAILS, "recovered": bool(ok)}
-	LINK_INCIDENTS.append(incident)
+	n, verb, value = parsed
+	if verb == "LIMIT":
+		return True                          ## keypad UI feedback, nothing to do
+	if not LINK.command(line):
+		return False
 	if exp is not None:
-		exp.logs["link_incidents"] = list(LINK_INCIDENTS)
 		try:
-			exp.note("Serial link {} after {} failures in {}".format(
-					"recovered" if ok else "STILL BROKEN", LINK_FAILS, where))
-		except Exception:
-			pass
-	if ok:
-		print("[green]Link recovered.[/] "
-				"[dim]The pumps kept running throughout -- the board does not "
-				"stop when the host loses contact.[/dim]")
-	else:
-		print("[red]Relink failed.[/] The pumps are STILL RUNNING on the board. "
-				"Reconnect the device, or pull its power to stop them.")
-	return ok
-
-
-def _link_ok():
-	global LINK_FAILS
-	LINK_FAILS = 0
-
-
-def link_incidents():
-	"""Every link failure this run, with whether it recovered."""
-	return list(LINK_INCIDENTS)
-
-
-def link_check(verbose=True):
-	"""Is the pump link still sane? Returns True/False.
-
-	Sends something whose answer is known and checks we get it back.
-	"""
-	dev = _pump_device()
-	try:
-		echo = dev("1+1") if dev else None
-	except Exception as err:
-		if verbose:
-			print("[red]Pump link broken:[/] {}".format(err))
-		return False
-	if echo != 2:
-		if verbose:
-			print("[red]Pump link desynchronised[/] -- asked for 1+1, got {!r}".format(echo))
-		return False
-	if verbose:
-		print("[green]Pump link ok.[/]")
+			exp.keypress.add(pump=n, verb=verb, value=value, applied_speed=None)
+		except Exception as err:
+			log.debug("keypress record failed: %s", err)
 	return True
 
 
-def relink(verbose=True):
-	"""Recover a desynchronised raw REPL without restarting the session.
+def start(duration_min=None, fps=FPS, poll_s=POLL_S, mirror_s=MIRROR_S):
+	"""Poll the keypad and render the live view until Ctrl-C.
 
-	Drains whatever the board has queued, re-enters the raw REPL, and re-checks.
-	Does NOT reset the board, so the pumps keep doing whatever they were doing.
+	Owns the terminal. Nothing in here blocks on serial: LinkSupervisor.state()
+	returns the last good snapshot if the board is unwell, and recovery happens
+	on its own thread. If the link goes DOWN the view keeps drawing and says so.
 	"""
-	dev = _pump_device()
-	if dev is None:
-		print("[red]No pump device to relink.[/]")
-		return False
-	try:
-		ser = dev.device.serial
-		waiting = ser.inWaiting()
-		if waiting:
-			junk = ser.read(waiting)
-			print("[dim]drained {} stale bytes: {!r}[/dim]".format(
-					waiting, junk[:60]))
-		dev.device.exit_raw_repl()
-		time.sleep(0.2)
-		dev.device.enter_raw_repl()
-	except Exception as err:
-		log.error("relink failed: %s", err)
-		print("[red]Relink failed:[/] {} -- reconnect the device.".format(err))
-		return False
-	return link_check(verbose=verbose)
-
-
-def _pump_device():
-	"""The SerialMPDevice behind the pumps, not the proxy."""
-	scope_ = ScopeAssembly.current
-	proxy = getattr(scope_, "pumpset", None)
-	return getattr(proxy, "device", None)
-
-
-## ---------------------------------------------------------------- levels
-## Record the measuring-cylinder levels around a perfusion run, so the volume
-## actually delivered can be recovered later -- and the stored calibration
-## corrected against it -- without re-running a calibration.
-##
-##   level_in(L0, L1)    before the run: tube out, then tube in at depth
-##   level_out(L2, L3)   after the run: tube in, then tube withdrawn
-##
-## Geometry lives in exp.attribs so the correction can be redone from the record.
-
-RUN_LEVELS = {}
-
-
-def geometry(cylinder_id_mm=24.0, tube_od_mm=5.0, tube_depth_mm=40.0):
-	"""Declare the cylinder and tube so levels can be corrected."""
-	if exp is not None:
-		exp.attribs["cylinder_id_mm"] = float(cylinder_id_mm)
-		exp.attribs["tube_od_mm"] = float(tube_od_mm)
-		exp.attribs["tube_depth_mm"] = float(tube_depth_mm)
-		exp.attribs["area_ratio"] = round(
-				(float(tube_od_mm) / float(cylinder_id_mm)) ** 2, 5)
-	print("[green]Geometry recorded.[/] bore taken by the tube: {:.1f} %".format(
-			(float(tube_od_mm) / float(cylinder_id_mm)) ** 2 * 100))
-	return exp.attribs if exp is not None else None
-
-
-def _ratio():
-	if exp is None:
-		return 0.0
-	return float(exp.attribs.get("area_ratio", 0.0))
-
-
-def level_in(l0=None, l1=None):
-	"""Cylinder before the run: L0 tube out, L1 tube in at working depth."""
-	global RUN_LEVELS
-	RUN_LEVELS = {"L0": l0, "L1": l1, "t_start": time.time()}
-	if exp is not None:
-		exp.attribs["levels"] = dict(RUN_LEVELS)
-		exp.note("Run levels in: L0={} L1={}".format(l0, l1))
-	print("[green]Start levels recorded.[/] L0={} L1={}".format(l0, l1))
-	return RUN_LEVELS
-
-
-def level_out(l2=None, l3=None):
-	"""Cylinder after the run: L2 tube in, L3 tube withdrawn.
-
-	Delivered volume is (L2 - L1) x (1 - r): both are tube-in readings, so the
-	displacement cancels and only the reduced-bore scaling remains.
-	"""
-	global RUN_LEVELS
-	RUN_LEVELS["L2"] = l2
-	RUN_LEVELS["L3"] = l3
-	RUN_LEVELS["t_end"] = time.time()
-
-	l1 = RUN_LEVELS.get("L1")
-	if l1 is not None and l2 is not None:
-		delivered = (float(l2) - float(l1)) * (1.0 - _ratio())
-		hours = (RUN_LEVELS["t_end"] - RUN_LEVELS.get("t_start",
-					RUN_LEVELS["t_end"])) / 3600.0
-		RUN_LEVELS["delivered_ml"] = round(delivered, 3)
-		RUN_LEVELS["hours"] = round(hours, 3)
-		if hours > 0:
-			RUN_LEVELS["ml_per_hour"] = round(delivered / hours, 3)
-		print("[bold]{:.2f} ml delivered[/bold] over {:.2f} h"
-				" -> {:.2f} ml/h".format(delivered, hours,
-				RUN_LEVELS.get("ml_per_hour", 0.0)))
-		if l3 is not None and RUN_LEVELS.get("L0") is not None:
-			## L3 is tube-out, so it is a true volume; check it against what the
-			## tube-in reading implies.
-			disp = float(l1) * (1.0 - _ratio()) - float(RUN_LEVELS["L0"])
-			implied = float(l2) * (1.0 - _ratio()) - disp
-			RUN_LEVELS["L3_residual_ml"] = round(implied - float(l3), 3)
-			print("  [dim]L3 cross-check residual {:+.2f} ml[/dim]".format(
-					RUN_LEVELS["L3_residual_ml"]))
-	if exp is not None:
-		exp.attribs["levels"] = dict(RUN_LEVELS)
-		exp.note("Run levels out: {}".format(RUN_LEVELS))
-	return RUN_LEVELS
-
-
-## ---------------------------------------------------------------- bench
-def prime(n, seconds=5, speed=1.0):
-	"""Run one pump at `speed` for `seconds`, then restore its mode.
-
-	The HOST does the waiting, not the board. pyboard.exec_raw() gives a call
-	10 s to reply; a board-side sleep longer than that raises, the board keeps
-	running, and its late output lands in the next command's window -- which
-	desynchronises the raw REPL and leaves the pump apparently unreachable.
-	So: prime_start(), sleep here, prime_stop().
-	"""
-	if PUMPSET is None:
-		print("[red]Run connect() first.[/]")
+	global RUNNING, _LIVE
+	if LINK is None:
+		emit("[red]Run connect() first.[/]")
 		return
-	pump = PUMPSET[n]
-	print("[yellow]Priming pump{} at {} for {}s...[/]".format(n, speed, seconds))
-	try:
-		pump.prime_start(speed)
-		time.sleep(seconds)
-	except KeyboardInterrupt:
-		print("[yellow]interrupted[/]")
-	except Exception as err:
-		log.error("prime failed: %s", err)
-	finally:
-		try:
-			pump.prime_stop()
-		except Exception as err:
-			log.error("prime_stop failed -- pump may still be running: %s", err)
-	if exp is not None:
-		exp.note("Primed pump{} at {} for {}s".format(n, speed, seconds))
-	push_to_keypad()
-	status()
-
-
-def calibrate(n, measured_ml, seconds, speed=1.0):
-	"""Record a measured flow rate: pump into a cylinder and time it.
-
-	Stores ml/min per pump in exp.attribs["ml_per_min"], which is what makes any
-	later volume figure mean something.
-	"""
-	rate = measured_ml * 60.0 / float(seconds)
-	if exp is not None:
-		table = exp.attribs.get("ml_per_min") or {}
-		table[n] = {"ml_per_min": round(rate, 3), "at_speed": speed}
-		exp.attribs["ml_per_min"] = table
-		exp.note("Calibrated pump{}: {:.3f} ml/min at speed {}".format(n, rate, speed))
-	print("[green]pump{}[/]: {:.3f} ml/min at speed {}".format(n, rate, speed))
-	return rate
-
-
-def find_floor(n, speeds=(0.03, 0.05, 0.07, 0.09, 0.12, 0.15, 0.2), dwell=4):
-	"""Step a pump through speeds so you can see where it stops stalling.
-
-	Blocking, one speed at a time, prints as it goes. Note the lowest speed that
-	turns the head smoothly and feed it to set_slow_limits().
-	"""
-	if PUMPSET is None:
-		print("[red]Run connect() first.[/]")
-		return
-	pump = PUMPSET[n]
-	print("[yellow]Stepping pump{} -- watch the head. Ctrl-C to abort.[/]".format(n))
-	try:
-		for v in speeds:
-			print("  speed {:.3f}".format(v))
-			pump.motor.fwd(v)
-			time.sleep(dwell)
-	except KeyboardInterrupt:
-		print("[yellow]aborted[/]")
-	finally:
-		try:
-			pump.motor.release()
-			pump.stop()
-		except Exception as err:
-			log.error("could not stop pump%s: %s", n, err)
-	if exp is not None:
-		exp.note("Ran stiction sweep on pump{}: {}".format(n, list(speeds)))
-	push_to_keypad()
-
-
-def set_slow_limits(n, low, high):
-	"""Retune one pump's slow band on the board, and record it."""
-	out = PUMPSET[n].set_slow_limits(low, high)
-	if exp is not None:
-		bands = exp.attribs.get("slow_limits") or {}
-		bands[n] = (low, high)
-		exp.attribs["slow_limits"] = bands
-		exp.note("pump{} slow band set to {}-{}".format(n, low, high))
-	push_to_keypad()
-	return out
-
-
-## ---------------------------------------------------------------- push back
-## Changes made through the API rather than the keys -- pump1.set_fast_speed(),
-## a scripted dose, stop_all() -- are invisible to the keypad unless we tell it.
-## push_to_keypad() mirrors pump state onto the LEDs using the keypad's quiet
-## sync path, so nothing bounces back as a fresh command.
-
-MIRROR = True          ## keep the keypad LEDs in step during start()
-MIRROR_PERIOD_S = 0.5  ## how often start() pushes pump state to the keypad
-
-
-def push_to_keypad(states=None):
-	"""Reflect pump state onto the keypad LEDs. Returns the pumps touched."""
-	if PUMPSET is None:
-		return []
-	if states is None:
-		states = PUMPSET.state() or {}
-	try:
-		return kp().sync(states)
-	except AttributeError:
-		## Older keypad firmware without sync(): fall back to wire lines.
-		lines = []
-		for n, st in states.items():
-			if not st:
-				continue
-			lines.append("PUMP {} POWER {}".format(
-					n, "ON" if st.get("fast") else "OFF"))
-			lines.append("PUMP {} PULSE {}".format(
-					n, "ON" if st.get("pulse") else "OFF"))
-			lines.append("PUMP {} SPEED {}".format(n, int(st.get("percent", 0))))
-		try:
-			kp().apply_lines(lines)
-			return sorted(states)
-		except AttributeError:
-			log.error("keypad has no sync()/apply_lines() -- cannot mirror state")
-			return []
-	except Exception as err:
-		log.error("keypad mirror failed: %s", err)
-		return []
-
-
-def set_fast_speed(speed, mirror=True):
-	"""Retune fast speed on every pump, then update the keypad."""
-	out = PUMPSET.set_fast_speed(speed)
-	if exp is not None:
-		exp.attribs["fast_speed"] = speed
-		exp.note("fast speed set to {} on all pumps".format(speed))
-	if mirror:
-		push_to_keypad()
-	return out
-
-
-def set_pulse_duty(on_s, off_s):
-	"""Retune the pulse duty cycle on every pump."""
-	out = PUMPSET.set_pulse_duty(on_s, off_s)
-	if exp is not None:
-		exp.attribs["pulse_duty"] = (on_s, off_s)
-		exp.note("pulse duty set to {}s on / {}s off".format(on_s, off_s))
-	return out
-
-
-def stop_all(mirror=True):
-	"""Stop every pump AND clear the keypad, so the LEDs do not lie."""
-	out = PUMPSET.stop_all()
-	if mirror:
-		push_to_keypad()
-	return out
-
-
-## ---------------------------------------------------------------- persistence
-## Calibrations live on the DEVICE, not the experiment: proxy.params is a
-## PhysicalObject backed by a shelve at ~/<name>.db, so a calibration follows the
-## hardware across sessions. ScopeAssembly.get_config() serialises it via
-## Proxy.__getstate__, and stop() writes that into exp.logs -- so every run
-## carries the calibration that was live when it happened.
-
-def persist(numbers=CALIBRATED, force=False):
-	"""Make the pump proxies persistent so calibrations survive the session.
-
-	Only the perfusion pumps: the aeration pump has no volumetric calibration to
-	keep. A proxy only attaches its shelve at construction if ~/<name>.db already
-	exists, so this must be called once per machine to create it.
-	"""
-	scope_ = ScopeAssembly.current
-	out = {}
-	for n in numbers:
-		name = "pump{}".format(n)
-		proxy = getattr(scope_, name, None)
-		if proxy is None:
-			print("[red]scope.{} not found.[/]".format(name))
-			continue
-		if getattr(proxy, "params", None) is not None and not force:
-			print("[dim]{} already persistent ({} keys).[/dim]".format(
-					name, len(proxy.params.__getstate__())))
-			out[n] = proxy.params
-			continue
-		try:
-			proxy.make_persist()
-			proxy.params["role"] = role(n)
-			proxy.params["kind"] = "peristaltic.PeristalticPump"
-			print("[green]{} now persistent[/] -> ~/{}.db".format(name, name))
-			out[n] = proxy.params
-		except Exception as err:
-			log.error("could not persist %s: %s", name, err)
-	return out
-
-
-def calibration(n=None):
-	"""Read back the stored calibration for a pump, or for all of them."""
-	scope_ = ScopeAssembly.current
-	if n is None:
-		return dict((i, calibration(i)) for i in CALIBRATED)
-	proxy = getattr(scope_, "pump{}".format(n), None)
-	params = getattr(proxy, "params", None)
-	if params is None:
-		return None
-	return dict((k, v) for k, v in params.__getstate__().items()
-				if k.startswith("calib") or k in ("role", "kind", "created"))
-
-
-def show_calibration():
-	"""Table of what each perfusion pump currently believes about itself."""
-	table = Table(title="stored calibrations (~/pumpN.db)")
-	for col in ("pump", "role", "fast ml/min", "pulse ml/cycle", "duty", "when"):
-		table.add_column(col)
-	for n in CALIBRATED:
-		c = calibration(n) or {}
-		table.add_row(
-			"pump{}".format(n),
-			str(c.get("role", role(n))),
-			str(c.get("calib_fast_ml_min", "[dim]-[/dim]")),
-			str(c.get("calib_pulse_ml_per_cycle", "[dim]-[/dim]")),
-			str(c.get("calib_pulse_duty", "[dim]-[/dim]")),
-			str(c.get("calib_dt", "[dim]never[/dim]")),
-		)
-	print(table)
-
-
-## ---------------------------------------------------------------- volume
-## The firmware pumps do not integrate volume -- state() has no volume_ml, which
-## is why that column read "-" against real hardware. Nothing was broken; there
-## was simply nothing to show. So the host integrates it here, from the stored
-## calibration, and says "no calib" when there is none rather than showing a
-## number it cannot justify.
-
-_VOL = {}                  ## pump -> ml delivered since the last reset
-_RUN = {}                  ## pump -> seconds actually pumping since the reset
-_VOL_T = {}                ## pump -> last sample time
-_CALIB_CACHE = {}          ## pump -> calibration dict, read once
-
-
-def load_calibration(refresh=False):
-	"""Cache each pump's stored calibration so the frame loop is not doing IO."""
-	global _CALIB_CACHE
-	if _CALIB_CACHE and not refresh:
-		return _CALIB_CACHE
-	out = {}
-	scope_ = ScopeAssembly.current
-	for n in (PUMPSET.numbers() if PUMPSET is not None else ()):
-		proxy = getattr(scope_, "pump{}".format(n), None)
-		params = getattr(proxy, "params", None)
-		if params is None:
-			continue
-		try:
-			state = params.__getstate__()
-		except Exception:
-			continue
-		out[n] = dict((k, v) for k, v in state.items() if k.startswith("calib"))
-	_CALIB_CACHE = out
-	return out
-
-
-def rate_ml_min(n, st):
-	"""Instantaneous delivery rate implied by the calibration, or None.
-
-	fast mode  -- scale the measured prime rate by speed / calib_fast_speed
-	pulse mode -- a burst delivers (a*speed + b) ml over on_s seconds, so while
-	              the burst is running the rate is that over on_s
-	"""
-	calib = _CALIB_CACHE.get(n)
-	if not calib or not st:
-		return None
-	speed = float(st.get("speed") or 0.0)
-	if speed <= 0:
-		return 0.0
-
-	if st.get("mode") == "fast":
-		ref = calib.get("calib_fast_ml_min")
-		at = calib.get("calib_fast_speed") or 1.0
-		return None if ref is None else ref * speed / float(at)
-
-	slope = calib.get("calib_pulse_slope")
-	if slope is None:
-		return None
-	per_cycle = slope * speed + (calib.get("calib_pulse_intercept") or 0.0)
-	on_s = float((st.get("pulse_duty") or (5, 55))[0]) or 5.0
-	return max(0.0, per_cycle) * 60.0 / on_s
-
-
-def _accrue(states):
-	"""Integrate delivered volume for every pump, once per frame."""
-	now = time.time()
-	for n, st in (states or {}).items():
-		last = _VOL_T.get(n)
-		_VOL_T[n] = now
-		if last is None:
-			continue
-		dt = now - last
-		## Run time is measurable without any calibration at all -- it only
-		## needs to know whether the pump is turning. It is what the volume
-		## column falls back to, so an uncalibrated rig still shows something
-		## true and useful rather than a dash.
-		if float(st.get("speed") or 0.0) > 0:
-			_RUN[n] = _RUN.get(n, 0.0) + dt
-		rate = rate_ml_min(n, st)
-		if rate:
-			_VOL[n] = _VOL.get(n, 0.0) + rate * dt / 60.0
-
-
-def volumes():
-	"""Delivered volume per pump since the last reset, in ml."""
-	return dict(_VOL)
-
-
-def runtimes():
-	"""Seconds each pump has actually been turning since the last reset.
-
-	Always available -- no calibration needed. Multiply by a rate later and an
-	uncalibrated run is still recoverable.
-	"""
-	return dict(_RUN)
-
-
-def reset_volumes():
-	"""Zero the integrators -- call it when you swap the reservoir."""
-	_VOL.clear()
-	_RUN.clear()
-	_VOL_T.clear()
-	print("[green]Volume and run-time counters reset.[/]")
-
-
-def _setpoint(st):
-	"""The speed this pump WILL run at, whether or not it is running now.
-
-	In pulse mode the live speed drops to zero between bursts; the set speed is
-	the number you actually tuned, so it stays on screen.
-	"""
-	if not st:
-		return 0.0
-	if st.get("mode") == "fast":
-		return float(st.get("fast_speed") or 0.0)
-	lo, hi = (st.get("slow_limits") or (0.0, 1.0))[:2]
-	level = st.get("level")
-	if level is None:
-		level = float(st.get("percent") or 0) / 100.0
-	return float(lo) + (float(hi) - float(lo)) * float(level)
-
-
-## ---------------------------------------------------------------- live view
-ROTOR    = "|/-\\"
-TUBE_W   = 22
-SLUG     = "█"
-TUBE_BG  = "·"
-SLUG_GAP = 5
-
-
-def _flow_style(frac):
-	if frac <= 0.0:
-		return "grey35"
-	if frac < 0.34:
-		return "blue"
-	if frac < 0.67:
-		return "cyan"
-	if frac < 0.9:
-		return "bright_cyan"
-	return "bright_yellow"
-
-
-def _tube(frac, direction, phase):
-	from rich.text import Text
-	if frac <= 0.0:
-		return Text(TUBE_BG * TUBE_W, style="grey30")
-	offset = int(phase) % SLUG_GAP
-	cells = []
-	for i in range(TUBE_W):
-		pos = (i - offset) if direction > 0 else (i + offset)
-		cells.append(SLUG if pos % SLUG_GAP == 0 else TUBE_BG)
-	return Text("".join(cells), style=_flow_style(frac))
-
-
-def _bar(speed, full_scale, slow_min, slow_max, width=16, setpoint=None):
-	"""Absolute speed bar, with the set speed marked.
-
-	The bar is the LIVE speed; the caret is where it is set to run. Between
-	bursts the bar empties but the caret stays, so a pump that is merely idle
-	between pulses does not look like a pump that is switched off.
-	"""
-	from rich.text import Text
-	if full_scale <= 0:
-		full_scale = 1.0
-	t = Text()
-	style = _flow_style(speed / full_scale)
-	mark = int(round((setpoint or 0.0) / full_scale * width))
-	for i in range(width):
-		pos = (i + 0.5) / width * full_scale
-		if setpoint and i == min(width - 1, max(0, mark - 1)) and pos > speed:
-			t.append("\u2502", style="bright_white")      ## set-speed caret
-		elif pos <= speed:
-			t.append("\u2501", style=style)
-		elif slow_min <= pos <= slow_max:
-			t.append("\u2504", style="grey42")            ## the adjustable band
-		else:
-			t.append("\u2501", style="grey27")
-	return t
-
-
-def _frame(t0):
-	"""One frame of the live view, built from state() dicts only.
-
-	Uses nothing beyond PumpSet.state(), so it renders identically for simulated
-	and real pumps -- the simulation-only volume column just shows a dash.
-	"""
-	from rich.table import Table as _T
-	from rich.text import Text
-	from rich.console import Group
-	from rich.panel import Panel
-
-	elapsed = time.time() - t0
-	states = {}
-	if PUMPSET is not None:
-		try:
-			raw = PUMPSET.state()
-			states = raw if isinstance(raw, dict) else {}
-			_link_ok()
-		except Exception as err:
-			_link_error("pumpset.state()", err)
-
-	grid = _T.grid(padding=(0, 1))
-	for _ in range(10):
-		grid.add_column()
-
-	## header row, so the bare numbers are self-describing
-	_h = lambda s_: Text(s_, style="grey50")
-	grid.add_row(_h("pump"), _h(""), _h("mode"), _h("speed bar  \u2502=set"),
-					_h("now"), _h("set"), _h("band"), _h("fast"), _h("flow"),
-					_h("volume"))
-
-	_accrue(states)
-	total_ml = 0.0
-	has_volume = False
-	for n in sorted(states):
-		st = states[n] or {}
-		frac = float(st.get("speed", 0.0))
-		mode = st.get("mode", "idle")
-		direction = st.get("dir", 1)
-
-		if frac > 0:
-			rotor = Text(ROTOR[int(elapsed * frac * 24) % len(ROTOR)],
-							style=_flow_style(frac))
-		else:
-			rotor = Text("o", style="grey30")
-
-		if mode == "fast":
-			mode_txt = Text("FAST", style="bold green")
-		elif mode == "slow":
-			mode_txt = Text("slow", style="bright_cyan")     ## continuous
-		elif mode == "pulse":
-			left = st.get("seconds_left")
-			label = "pulse {}".format(st.get("phase", ""))
-			mode_txt = Text(label, style="cyan")
-		else:
-			mode_txt = Text("idle", style="grey30")
-
-		if is_aeration(n):
-			## No volumetric meaning for the aeration line -- say so instead of
-			## printing a millilitre figure nobody should trust.
-			vol = Text("  aeration ", style="grey50")
-		elif "volume_ml" in st:
-			## simulated pumps integrate their own
-			has_volume = True
-			total_ml += float(st["volume_ml"])
-			vol = Text("{:>7.2f} ml".format(st["volume_ml"]),
-						style="white" if frac else "grey50")
-		elif n in _CALIB_CACHE:
-			## integrated here from the stored calibration
-			ml = _VOL.get(n, 0.0)
-			has_volume = True
-			total_ml += ml
-			vol = Text("{:>7.2f} ml".format(ml),
-						style="white" if frac else "grey50")
-		else:
-			## No calibration: show run time instead. Honest, and it is exactly
-			## what you need to reconstruct the volume once a calibration exists.
-			secs = _RUN.get(n, 0.0)
-			vol = Text("{:>6.0f} s run".format(secs),
-						style="grey58" if secs else "grey30")
-
-		## Everything below is an absolute PWM unit speed (0.0 - 1.0), not a
-		## percentage of the band -- percentages hid how slow "slow" really is.
-		lo, hi = st.get("slow_limits", (0.0, 1.0))
-		fast_speed = st.get("fast_speed", 1.0)
-		full_scale = max(fast_speed, hi) or 1.0
-		setpoint = _setpoint(st)
-
-		grid.add_row(
-			Text(str(st.get("name", n)), style="bold" if frac > 0 else "grey50"),
-			rotor,
-			mode_txt,
-			_bar(frac, full_scale, lo, hi, setpoint=setpoint),
-			Text("{:>5.3f}".format(frac),
-					style=_flow_style(frac / full_scale) if frac else "grey30"),
-			Text("{:>5.3f}".format(setpoint),
-					style="white" if setpoint else "grey30"),
-			Text("{:.2f}-{:.2f}".format(lo, hi), style="grey42"),
-			Text("f{:.2f}".format(fast_speed), style="grey42"),
-			_tube(frac, direction, elapsed * frac * 34),
-			vol,
-		)
-
-	footer = Text.assemble(
-		("elapsed ", "grey50"), ("{:>6.1f}s".format(elapsed), "white"),
-		("   total ", "grey50"),
-		("{:.2f} ml".format(total_ml) if has_volume else "n/a", "bright_white"),
-		("   ", "grey50"),
-		("REAL PUMPS", "bold yellow"),
-		("   ctrl-c to stop", "grey50"))
-	return Panel(Group(grid, Text(""), footer),
-					title="[bold]pumps[/bold] -- live (absolute PWM unit speed)",
-					border_style="grey37")
-
-
-def animate(fps=12, duration_s=None):
-	"""Watch the pumps without touching the keypad. Ctrl-C to exit."""
-	from rich.live import Live
-	if PUMPSET is None:
-		print("[red]Run connect() first.[/]")
-		return
-	t0 = time.time()
-	try:
-		with Live(_frame(t0), refresh_per_second=fps) as live:
-			while True:
-				time.sleep(1.0 / fps)
-				live.update(_frame(t0))
-				if duration_s is not None and time.time() - t0 > duration_s:
-					break
-	except KeyboardInterrupt:
-		print("[yellow]Animation stopped.[/] "
-				"(the display only -- polling and pumps keep running)")
-		if is_running():
-			print("  [dim]stop_jobs() to end polling, panic() to stop everything.[/dim]")
-
-
-## ---------------------------------------------------------------- main loop
-## ---------------------------------------------------------------- polling
-## The experiment owns the cadence. exp.schedule (ExpScheduler) already runs its
-## own thread calling run_pending() every 0.01 s, so a job registered at
-## every(0.05).seconds really does fire at 20 Hz -- the same responsiveness as a
-## hand-rolled loop, but non-blocking, logged as a periodic_task event, and
-## stoppable without Ctrl-C.
-##
-## start()             -> schedules the jobs, returns to the prompt
-## start(scheduled=False) -> the old blocking loop, for bench work
-## animate()           -> watch the pumps; run it whenever, jobs keep running
-
-_CONSOLE = None        ## set to Live's console while the live view is up
-
-def _emit(msg):
-	"""Print a log line without fighting the live display.
-
-	While Live is running, plain print() writes straight over the panel; Live's
-	own console prints ABOVE it and keeps the panel pinned to the bottom.
-	"""
-	if _CONSOLE is not None:
-		_CONSOLE.print(msg)
-	else:
-		print(msg)
-
-
-JOBS = []              ## scheduled jobs owned by this script
-JOB_TAG = "keypad_pump_test"    ## every job we register carries this tag
-N_COMMANDS = 0         ## commands applied since start()
-
-## Ctrl-C does NOT stop scheduled polling: the jobs run in exp.schedule's own
-## thread, so KeyboardInterrupt only interrupts whatever is in the foreground.
-## Use stop_jobs(), stop(), or panic(). Because ScriptEngine re-execs this file
-## into the CLI globals, JOBS is reset on every re-run while the previously
-## registered jobs keep firing -- so cancellation goes through the TAG, which
-## survives the re-exec, rather than through the JOBS list alone.
-
-
-def poll_once():
-	"""One poll: drain the keypad, apply to the pumps, log. Never raises.
-
-	Hard requirement, not politeness: exp.schedule's run_pending() does not
-	catch job exceptions, so anything escaping here kills the scheduler thread
-	and silently stops every other periodic task in the experiment.
-	"""
-	try:
-		return _poll_once()
-	except Exception as err:
-		log.error("poll_once failed: %s", err)
-		return 0
-
-
-def _poll_once():
-	global N_COMMANDS
-	if PUMPSET is None:
-		return 0
-	try:
-		lines = _read_keypad()
-	except Exception as err:
-		log.error("keypad read failed: %s", err)
-		return 0
-
-	stream = exp.mstreams["keypress"] if exp is not None else None
-	applied = 0
-	for line in (lines or []):
-		try:
-			st = PUMPSET.command(line)
-			_link_ok()
-		except Exception as err:
-			_link_error("pumpset.command({!r})".format(line), err)
-			continue
-		if st is None:
-			continue
-		applied += 1
-		N_COMMANDS += 1
-		_emit("  [cyan]{}[/cyan] -> {} {:.3f}".format(
-				line, st.get("mode", "?"), st.get("speed", 0.0)))
-		if stream is not None:
-			parsed = parse_line(line)
-			if parsed:
-				try:
-					stream(pump=parsed[0], verb=parsed[1], value=parsed[2],
-							applied_speed=round(st.get("speed", 0.0), 4))
-				except Exception as err:
-					log.error("measurement stream write failed: %s", err)
-	return applied
-
-
-def mirror_once():
-	"""Push pump state onto the keypad LEDs. Never raises."""
-	try:
-		out = push_to_keypad()
-		return out
-	except Exception as err:
-		_link_error("keypad mirror", err)
-		return []
-
-
-def start(poll_s=None, mirror_s=None, duration_min=None, scheduled=False,
-			live=True, fps=12):
-	"""Start polling the keypad and driving the pumps.
-
-	Default is the inline loop: it owns the terminal, renders the live view, and
-	Ctrl-C stops it and prints the closing table. This is the one you want while
-	testing the keypad.
-
-	scheduled=True instead registers jobs on exp.schedule and RETURNS, leaving
-	the prompt free -- good for a long run you want to leave going. There is no
-	live view in that mode (nothing owns the terminal); call animate() to watch,
-	and stop_jobs() / panic() to end it, since Ctrl-C will not.
-	"""
-	global exp, scope, JOBS, N_COMMANDS
-	scope = ScopeAssembly.current
-
-	if PUMPSET is None:
-		print("[red]Not connected. Run connect() first.[/]")
-		return
-	try:
-		kp()
-	except AttributeError:
-		print("[red]ScopeAssembly.current.kp is not mounted.[/]")
+	if RUNNING:
+		emit("[yellow]Already running.[/]")
 		return
 
-	if poll_s is None:
-		poll_s = exp.attribs["poll_period_s"] if exp is not None else 0.05
-	if mirror_s is None:
-		mirror_s = MIRROR_PERIOD_S
+	RUNNING = True
+	t0 = time.monotonic()
+	deadline = t0 + duration_min * 60 if duration_min else None
+	next_poll = next_mirror = 0.0
+	applied = skipped = 0
 
-	print("[bold yellow]Keypad -> REAL pumps.[/bold yellow] {}".format(
-			"Ctrl-C to stop." if not scheduled else ""))
-	sync_from_keypad()
-	N_COMMANDS = 0
-
-	if not scheduled:
-		return _blocking_loop(poll_s, duration_min, live, fps)
-
-
-	if exp is None:
-		print("[red]No experiment -- run create_exp(), or use scheduled=False.[/]")
-		return
-	orphans = stop_jobs(quiet=True)
-	if orphans:
-		print("[yellow]Cancelled {} job(s) left over from a previous run.[/]".format(
-				orphans))
-
-	poll_job = exp.schedule.every(poll_s).seconds
-	mirror_job = exp.schedule.every(mirror_s).seconds
-	if duration_min is not None:
-		poll_job = poll_job.until(timedelta(minutes=duration_min))
-		mirror_job = mirror_job.until(timedelta(minutes=duration_min))
-	JOBS = [poll_job.do(poll_once).tag(JOB_TAG)]
-	if MIRROR:
-		JOBS.append(mirror_job.do(mirror_once).tag(JOB_TAG))
-
-	exp.attribs["poll_period_s"] = poll_s
-	exp.attribs["mirror_period_s"] = mirror_s
-	exp.attribs["scheduled"] = True
-
-	print("[green]Scheduled[/] poll every {}s, mirror every {}s{}.".format(
-			poll_s, mirror_s,
-			"" if duration_min is None else ", for {} min".format(duration_min)))
-	print("  [dim]prompt is free -- animate() to watch, status() for a snapshot.[/dim]")
-	print("  [yellow]Ctrl-C will NOT stop this[/] (it runs in exp.schedule's "
-			"thread): use [bold]stop_jobs()[/bold], stop(), or panic().")
-	return JOBS
-
-
-def stop_jobs(quiet=False):
-	"""Cancel this script's scheduled jobs, leaving the experiment open.
-
-	Clears by TAG, not by the JOBS list, so it also kills orphans left behind by
-	an earlier run of this script -- re-running via ScriptEngine resets JOBS but
-	not the scheduler.
-	"""
-	global JOBS
-	killed = 0
-	if exp is not None:
-		before = len(exp.schedule.get_jobs())
-		try:
-			exp.schedule.clear(JOB_TAG)
-		except Exception:
-			for job in JOBS:
-				try:
-					exp.schedule.cancel_job(job)
-				except Exception:
-					pass
-		killed = before - len(exp.schedule.get_jobs())
-	JOBS = []
-	if killed and not quiet:
-		print("[dim]Cancelled {} scheduled job(s).[/dim]".format(killed))
-	return killed
-
-
-def jobs():
-	"""Scheduled jobs currently registered by this script."""
-	if exp is None:
-		return []
-	return [j for j in exp.schedule.get_jobs() if JOB_TAG in getattr(j, "tags", ())]
-
-
-def panic():
-	"""Everything off, now. Cancels jobs, stops pumps, clears the keypad.
-
-	The one call to reach for when Ctrl-C did not do what you wanted.
-	"""
-	stop_jobs()
+	## auto_refresh=False: the old version left Live's own 12 Hz refresh thread
+	## running AND called update() at 12 Hz, so every panel was rendered and
+	## written twice per frame for no benefit.
+	display = Live(BOARD.frame(LINK.state(), t0, banner=LINK.summary()),
+					console=CONSOLE, auto_refresh=False, transient=False,
+					redirect_stdout=True, redirect_stderr=True)
+	display.start()
+	_LIVE = display
 	try:
-		if PUMPSET is not None:
-			PUMPSET.stop_all()
-	except Exception as err:
-		log.error("stop_all failed: %s", err)
-	try:
-		kp().stop_all()
-	except Exception:
-		pass
-	mirror_once()
-	print("[bold red]PANIC[/bold red] -- jobs cancelled, pumps stopped.")
-	status()
-
-
-def is_running():
-	"""True when a poll job is registered -- including one from an earlier run."""
-	return bool(jobs())
-
-
-def _blocking_loop(period, duration_min, live, fps):
-	"""Inline loop: live view, Ctrl-C to stop, closing table on the way out."""
-	global _CONSOLE
-	deadline = None if duration_min is None else time.time() + duration_min * 60
-	t0 = time.time()
-	display = None
-	try:
-		if live:
-			from rich.live import Live
-			display = Live(_frame(t0), refresh_per_second=fps,
-							transient=False, redirect_stdout=False,
-							redirect_stderr=False)
-			display.start()
-			_CONSOLE = display.console
-
-		next_frame = 0.0
-		next_mirror = 0.0
-		_read_failures = 0
 		while True:
-			poll_once()
-			now = time.time()
-			if MIRROR and now >= next_mirror:
-				next_mirror = now + MIRROR_PERIOD_S
-				mirror_once()
-			if display is not None and now >= next_frame:
-				next_frame = now + 1.0 / fps
-				display.update(_frame(t0))
-			if deadline is not None and now > deadline:
-				print("[yellow]Duration reached.[/]")
+			now = time.monotonic()
+			if deadline and now >= deadline:
+				emit("[yellow]Duration reached.[/]")
 				break
-			time.sleep(period)
+
+			if now >= next_poll:
+				next_poll = now + poll_s
+				for line in (KEYPAD.lines() or []):
+					if _apply_line(line):
+						applied += 1
+					else:
+						skipped += 1
+
+			states = LINK.state()
+
+			if now >= next_mirror:
+				next_mirror = now + mirror_s
+				## Reuse the states we already have -- the old code fetched its
+				## own inside push_to_keypad(), doubling the round trips.
+				if states:
+					KEYPAD.sync(states)
+
+			display.update(BOARD.frame(states, t0, banner=LINK.summary()),
+							refresh=True)
+
+			if LINK.status() == "down":
+				emit("[red]{}[/]".format(LINK.summary()))
+				break
+
+			time.sleep(max(0.0, next_poll - time.monotonic()))
 	except KeyboardInterrupt:
-		pass
+		emit("\n[yellow]Stopped by hand.[/]")
 	finally:
-		## Tear the display down FIRST, so the closing report is not swallowed
-		## by the live region or overwritten when it repaints.
-		if display is not None:
-			try:
-				display.stop()
-			except Exception:
-				pass
-		_CONSOLE = None
-		print("\n[yellow]Keypad polling stopped.[/]")
+		RUNNING = False
+		_LIVE = None
 		try:
-			PUMPSET.stop_all()
-			mirror_once()
-		except Exception as err:
-			log.error("stopping pumps failed: %s", err)
-		print("[dim]All pumps stopped. {} commands processed in {:.0f}s.[/dim]".format(
-				N_COMMANDS, time.time() - t0))
-		status()
-
-
-def _states_or_warn():
-	"""PUMPSET.state() as a dict, or None after complaining.
-
-	A remote pumpset can hand back a repr string the proxy failed to parse; the
-	display code must not explode on it.
-	"""
-	try:
-		states = PUMPSET.state()
-	except Exception as err:
-		_link_error("pumpset.state()", err)
-		return None
-	_link_ok()
-	if states is None:
-		return {}
-	if not isinstance(states, dict):
-		print("[red]pumpset.state() returned {} rather than a dict[/] -- "
-				"the proxy could not parse the reply.".format(type(states).__name__))
-		return None
-	return states
+			display.stop()
+		except Exception:
+			pass
+		## Do NOT touch the board here beyond one bounded call. The old finally
+		## block ran stop_all() + mirror_once() + status(), each of which fed
+		## straight back into the inline relink -- so the first Ctrl-C escaped the
+		## loop and immediately blocked again in the shutdown path. That is why
+		## one Ctrl-C appeared not to work.
+		emit("[dim]{} commands applied, {} skipped. Pumps are STILL RUNNING -- "
+				"stop() or panic() to stop them.[/dim]".format(applied, skipped))
+		emit(LINK.summary())
 
 
 def status():
-	"""One-shot table of pump state."""
-	if PUMPSET is None:
-		print("[red]Run connect() first.[/]")
-		return
-	table = Table(title="pumps (real hardware)")
-	for col in ("n", "name", "role", "mode", "now", "set", "band", "fast",
-				"duty", "cont", "lvl%", "vol ml"):
-		table.add_column(col)
-
-	states = _states_or_warn()
-	if states is None:
-		return
-	for n, st in sorted(states.items()):
-		st = st or {}
-		mode = st.get("mode", "?")
-		style = {"fast": "[green]fast[/green]", "slow": "[bright_cyan]slow[/bright_cyan]",
-					"pulse": "[cyan]pulse[/cyan]"}.get(mode, "[dim]idle[/dim]")
-		lo, hi = st.get("slow_limits", (0.0, 0.0))
-		table.add_row(
-			str(n), str(st.get("name", "")),
-			"[cyan]aeration[/cyan]" if is_aeration(n) else "[dim]perfusion[/dim]",
-			style,
-			"{:.3f}".format(st.get("speed", 0.0)),
-			"{:.3f}".format(_setpoint(st)),
-			"{:.2f}-{:.2f}".format(lo, hi),
-			"{:.2f}".format(st.get("fast_speed", 0.0)),
-			"[dim]n/a[/dim]" if st.get("continuous")
-				else "{}s/{}s".format(*st.get("pulse_duty", ("-", "-"))),
-			"[bright_cyan]yes[/bright_cyan]" if st.get("continuous") else "[dim]no[/dim]",
-			str(st.get("percent", "-")),
-			"[dim]n/a[/dim]" if is_aeration(n)
-				else ("{:.3f}".format(st["volume_ml"]) if "volume_ml" in st
-					## a calibrated pump that has not moved yet is 0.000, not
-					## "no calib" -- only an uncalibrated one cannot be counted
-					else ("{:.3f}".format(_VOL.get(n, 0.0)) if n in _CALIB_CACHE
-						else "[dim]{:.0f}s run[/dim]".format(_RUN.get(n, 0.0)))),
-		)
-	print(table)
-
-
-def _sync_dir():
-	"""rsync the experiment payload to exp.destination_dir, when there is one.
-
-	destination_dir is None unless the experiment yaml declared it, and
-	ExpSync.sync_dir() raises if the directory has gone missing -- so this is
-	guarded rather than called blind. Skipped if attribs["autosync_dir"] is
-	explicitly False.
-	"""
-	if exp is None:
+	"""One-shot table. Safe while start() is running."""
+	if LINK is None:
+		emit("[red]Not connected.[/]")
 		return None
-	dest = getattr(exp, "destination_dir", None)
-	if not dest:
-		print("[dim]No exp.destination_dir declared -- nothing to sync.[/dim]")
+	states = LINK.state()
+	if not states:
+		emit("[red]No answer from the pumps.[/] {}".format(LINK.summary()))
 		return None
-	if exp.attribs.get("autosync_dir") is False:
-		print("[dim]autosync_dir is off -- skipping sync to {}[/dim]".format(dest))
-		return None
-	try:
-		out = exp.sync_dir()
-		print("[green]Synced[/] experiment directory -> {}".format(dest))
-		return out
-	except Exception as err:
-		## Never let a failed copy take down the shutdown path: the pumps are
-		## already stopped by this point and that matters more.
-		log.error("sync_dir failed: %s", err)
-		print("[red]Sync failed:[/] {}".format(err))
-		return None
+	CONSOLE.print(BOARD.table(states))
+	emit(LINK.summary())
+	return states
 
 
 def stop():
-	"""Cancel the jobs, safe-state the pumps, sync, close the experiment."""
-	global exp
-	stop_jobs()
-	if PUMPSET is not None:
-		PUMPSET.stop_all()
-		mirror_once()
-		if exp is not None:
-			exp.logs["totals"] = PUMPSET.state()
-			exp.logs["delivered_ml"] = volumes()
-			exp.logs["runtime_s"] = runtimes()
-			exp.attribs["uncalibrated_pumps"] = sorted(
-					set(runtimes()) - set(_CALIB_CACHE))
-			if LINK_INCIDENTS:
-				exp.logs["link_incidents"] = list(LINK_INCIDENTS)
-				print("[yellow]{} serial link incident(s) during this run[/] -- "
-						"see exp.logs['link_incidents']".format(len(LINK_INCIDENTS)))
-			exp.logs["commands_applied"] = N_COMMANDS
+	"""Stop the pumps and close the record."""
+	if LINK is None:
+		emit("[red]Not connected.[/]")
+		return False
+	ok = LINK.stop_all()
+	emit("[green]Pumps stopped.[/]" if ok else
+			"[red]Could not stop the pumps[/] -- {}".format(LINK.summary()))
 	if exp is not None:
-		exp.logs.update(ScopeAssembly.current.get_config())
-		exp.__save__()
-		_sync_dir()
-		exp.close()
-	print("[green]Stopped.[/] Pumps safe, experiment closed.")
+		try:
+			exp.attribs["volumes_ml"] = BOARD.volumes()
+			exp.attribs["runtimes_s"] = BOARD.runtimes()
+			exp.save()
+		except Exception as err:
+			log.error("saving the experiment failed: %s", err)
+	return ok
 
 
-## End of initalization message
-print("Script initalization finished.")
+def panic():
+	"""Stop everything, now. Bypasses the supervisor's DOWN state."""
+	emit("[bold red]PANIC[/bold red]")
+	try:
+		ScopeAssembly.current.pumpset.stop_all()
+		emit("[green]Pumps stopped.[/]")
+		return True
+	except Exception as err:
+		emit("[red]Direct stop failed:[/] {}".format(err))
+		emit("  [dim]The board keeps pumping without the host. "
+				"reset_board(), or pull the pump supply.[/dim]")
+		return False
 
-if __name__ == "__main__":
-	create_exp()
-	connect()
-	print("[bold]Ready.[/bold] start() polls the keypad; animate() just watches.")
+
+def shutdown():
+	"""Release the repair thread. Call before dropping the script."""
+	if LINK is not None:
+		LINK.stop()
+	return True
+
+
+emit("[bold]keypad_pump_control[/bold] -- REAL PUMPS. "
+		"create_exp() -> connect() -> start()")
+
+
+# ============================================================ WHAT CHANGED
+# 1807 lines -> 500, of which ~200 is the WHAT CHANGED note and the docstrings.
+#
+# THE FREEZE
+# `relink()` was called from inside `_frame()`, the render function of the rich
+# Live view. It does exit_raw_repl()/enter_raw_repl(), both blocking serial
+# reads, and pyserial's timeout was never set. `LINK_FAILS` was only ever reset
+# on SUCCESS, so once the raw REPL desynchronised, `LINK_FAILS % RELINK_AFTER`
+# fired a fresh blocking relink every third failure, forever, at ~10 Hz. All of
+# it on the thread that owned the terminal.
+#
+# The trigger underneath: `orphans = stop_jobs(quiet=True)` sat AFTER the
+# `return _blocking_loop(...)` early return, so scheduler jobs from an earlier
+# start(scheduled=True) -- or from a ScriptEngine re-exec, which resets JOBS
+# while the registered jobs keep firing -- kept hitting the same serial port at
+# 20 Hz. Two threads on one raw REPL, no lock anywhere in the file. They only
+# collide when their round trips overlap, which is why onset was random.
+#
+# Now: every board call goes through LinkSupervisor -- one lock, recovery on a
+# dedicated thread, exponential backoff, MAX_REPAIR_ATTEMPTS, then a terminal
+# DOWN state that stops touching the port and says so. The loop only reads
+# state(), which returns the last good snapshot instead of raising.
+#
+# THE SLUGGISH TERMINAL
+# `redirect_stdout=False` plus `from rich import print` meant two Consoles with
+# separate locks writing to one TTY. rich's incremental repaint was computed
+# against a cursor that had moved underneath it, so it fell back to full
+# clear-and-redraws -- and with transient=False every one stayed in scrollback.
+# During a relink storm that was 3-4 rich-formatted lines per relink at ~10/s.
+# Now: one Console, everything through emit(), auto_refresh=False.
+#
+# `LINK_INCIDENTS` was an unbounded list, and every append also did
+# `exp.logs["link_incidents"] = list(LINK_INCIDENTS)` -- a full copy, O(n^2),
+# in the hot path, each entry holding the board's traceback text. Now a
+# deque(maxlen=200) with an append-only hook.
+#
+# Round-trip budget was ~36/s across two boards at 20-30 ms each, i.e. no
+# headroom at all -- one slow board-side moment and replies land outside their
+# window. poll 0.05 -> 0.10, fps 12 -> 8, and push_to_keypad() no longer fetches
+# state() a second time when the caller already has it. ~36/s -> ~12/s.
+#
+# Ctrl-C: the finally block ran stop_all() + mirror_once() + status(), each of
+# which fed back into the inline relink, so the first Ctrl-C escaped the loop and
+# blocked again immediately. The shutdown path no longer touches the board.
+#
+# DELETED (~700 lines were verbatim forks of actuators/pumps/, which this file
+# never imported): RemotePumpSet, parse_line, _reprs_to_lines, _read_keypad,
+# _snapshot_diff, link_check, relink, _pump_device, load_calibration,
+# rate_ml_min, _accrue, volumes, runtimes, reset_volumes, _setpoint, _flow_style,
+# _tube, _bar, _frame, animate, _states_or_warn, status, _sync_dir.
+# Dead on top of that: set_read_method, calibrate, find_floor, persist,
+# calibration, show_calibration, the module-level set_slow_limits /
+# set_fast_speed / set_pulse_duty / stop_all shadows, link_incidents,
+# RemotePumpSet.get/commands/set_continuous/deinit, and the geometry/level
+# machinery (geometry, _ratio, level_in, level_out, prime).
+# The scheduled-jobs path (start(scheduled=True), poll_once, mirror_once,
+# stop_jobs, jobs, is_running, _emit's JOBS registry) is gone entirely -- it was
+# the source of the second thread, and the inline loop was always the one used.
