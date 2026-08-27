@@ -23,6 +23,26 @@ So the freeze is a read that never returns, in a process that is otherwise
 healthy. Nothing raises, nothing is logged, nothing recovers, and no amount of
 exception handling downstream can help.
 
+WHAT THE 19-23 AUG RUNS ADDED (9 more records, all on this code)
+
+  * The port timeout works: every run logs "serial read timeout 5.0s". The hang
+    is gone -- the link now FAILS instead of stopping the process. Confirmed by
+    the errors themselves existing.
+
+  * The error is `could not enter raw repl`, and pyboard raises it from
+    `exec_raw_no_follow`, whose first act is `read_until(1, b">")` -- a prompt
+    check on EVERY command. It is not enter_raw_repl(). Once the stream is off
+    by one reply, every later command fails this check, permanently. The boards
+    are fine; the byte stream is not.
+
+  * Repair was rebooting the board. `enter_raw_repl()` defaults to
+    soft_reset=True -> Ctrl-D -> main.py re-runs -> circuit rebuild. As routine
+    recovery, up to 5 times an incident. Now soft_reset=False.
+
+  * `state skipped -- blocked: ? in flight 0s`, hundreds of lines of it, was
+    this class misreporting an ordinary repair as a stuck call. Fixed, and rate
+    limited.
+
 WHAT THIS CLASS DOES ABOUT IT
 
   1. `arm_serial_timeout()` puts a hard read AND write timeout on the port at
@@ -65,6 +85,12 @@ SERIAL_WRITE_TIMEOUT_S = 5.0 # ditto for writes -- a full CDC buffer blocks too
 LOCK_WAIT_S = 2.0            # how long a caller waits for the lock before
                              # giving up. Bounds the render loop even if the
                              # port timeout could not be armed.
+REPAIR_LOCK_WAIT_S = 10.0    # repair is allowed to wait longer than a caller
+DRAIN_ROUNDS = 40            # max passes when clearing a desynchronised stream
+DRAIN_SETTLE_S = 0.05        # gap between drain passes
+SKIP_LOG_EVERY_S = 5.0       # rate limit for "skipped" messages; the render loop
+                             # asks ~2x a second and a repair takes seconds, so
+                             # logging every skip buries the real error
 INCIDENTS_MAX = 200          # bounded; the old list was unbounded AND copied
 							 # wholesale into exp.logs on every append -- O(n^2)
 
@@ -89,7 +115,9 @@ class LinkSupervisor:
 		self._last_state_t = 0.0
 		self._calls = 0
 		self._inflight = None          # (what, started_monotonic) while in a call
+		self._holder = None            # ("repair"|"call:<what>", started) or None
 		self._blocked_calls = 0
+		self._last_skip_log = 0.0
 
 		self._wake = threading.Event()
 		self._stop = threading.Event()
@@ -199,13 +227,16 @@ class LinkSupervisor:
 			return (False, None)
 		try:
 			self._calls += 1
-			self._inflight = (what, time.monotonic())
+			started = time.monotonic()
+			self._inflight = (what, started)
+			self._holder = ("call:" + what, started)
 			out = fn(*args, **kw)
 		except Exception as err:
 			self._fail(what, err)
 			return (False, None)
 		finally:
 			self._inflight = None
+			self._holder = None
 			self._lock.release()
 
 		if self._fails:
@@ -311,13 +342,35 @@ class LinkSupervisor:
 			self._wake.set()
 
 	def _blocked(self, what):
-		"""Could not get the lock: someone else's call has not come back."""
+		"""Could not get the lock within LOCK_WAIT_S. Say WHY, accurately.
+
+		The 19-23 Aug logs are full of `state skipped -- blocked: ? in flight 0s`,
+		which is this method lying twice over. `?` and `0s` because it read
+		`_inflight`, which only a *call* ever sets -- and the actual holder was
+		the repair thread. And "blocked" implied a stuck call when the truth was
+		an ordinary repair in progress, which is expected and not an error.
+		"""
 		self._blocked_calls += 1
-		held = self._inflight
-		self._last_error = "blocked: {} in flight {:.0f}s".format(
-				held[0] if held else "?", self.blocked_s())
-		log.error("%s %s skipped -- %s", self._name, what, self._last_error)
-		if self._status == UP:
+		holder, since = (self._holder or (None, None))
+		now = time.monotonic()
+		if holder == "repair":
+			detail = "repair in progress ({:.0f}s)".format(now - since)
+			level = log.debug
+		elif holder:
+			detail = "{} has been in flight {:.0f}s".format(holder, now - since)
+			self._last_error = detail
+			level = log.error            ## a call that will not return IS a fault
+		else:
+			detail = "lock contended, holder already finished"
+			level = log.debug
+
+		## Rate limit. A repair takes seconds and the loop asks twice a second;
+		## without this the real error is buried under its own consequences.
+		if now - self._last_skip_log >= SKIP_LOG_EVERY_S:
+			self._last_skip_log = now
+			level("%s %s skipped -- %s", self._name, what, detail)
+
+		if self._status == UP and holder != "repair":
 			self._status = REPAIRING
 			self._wake.set()
 
@@ -366,36 +419,82 @@ class LinkSupervisor:
 			else:
 				self._wake.set()            # go round again, backed off further
 
+	def _drain(self, ser, rounds=DRAIN_ROUNDS):
+		"""Read until the port stays quiet. Returns bytes discarded.
+
+		One inWaiting()/read() pass is not enough: the board is often still
+		emitting when the drain starts (that is usually WHY the stream
+		desynchronised), so the first read clears the buffer and more arrives
+		immediately after. Drain until two consecutive passes see nothing.
+		"""
+		total = 0
+		quiet = 0
+		for _ in range(rounds):
+			waiting = ser.inWaiting()
+			if waiting:
+				junk = ser.read(waiting)
+				total += len(junk)
+				quiet = 0
+				if total <= 200:
+					log.info("drained %d stale bytes: %r", len(junk), junk[:80])
+			else:
+				quiet += 1
+				if quiet >= 2:
+					break
+			time.sleep(DRAIN_SETTLE_S)
+		if total:
+			log.info("drain discarded %d bytes total", total)
+		return total
+
 	def _repair_once(self):
-		"""Drain, re-enter the raw REPL, verify. Bounded by SERIAL_TIMEOUT_S."""
+		"""Resynchronise the raw REPL WITHOUT rebooting the board.
+
+		Two things learned from the 19-23 Aug runs:
+
+		1. The error is `could not enter raw repl`, and it is NOT raised by
+		   enter_raw_repl(). pyboard raises it from `exec_raw_no_follow`, whose
+		   first act is `read_until(1, b">")` -- "check we have a prompt". Once
+		   the stream is off by one reply, that check fails on EVERY subsequent
+		   command and never heals on its own. So repair means: clear the
+		   backlog and get the prompt back, nothing more.
+
+		2. `enter_raw_repl()` defaults to **soft_reset=True**, which sends
+		   Ctrl-D. On this stack a soft reset re-runs main.py, which execfile()s
+		   the circuit. Using that as routine error recovery reboots the pump
+		   board mid-experiment, up to MAX_REPAIR_ATTEMPTS times per incident,
+		   and has to wait out the whole circuit rebuild before the raw REPL
+		   banner appears. It is both destructive and the reason repair kept
+		   failing. `soft_reset=False` re-enters the raw REPL and leaves the
+		   running program -- and the pumps -- alone.
+
+		hard_reset() still exists for a board that has genuinely hung. It is a
+		deliberate, manual escalation, not something a retry loop should do.
+		"""
 		from .remote import pump_device, link_check
 		dev = pump_device(self._name)
 		if dev is None:
 			self._last_error = "no device mounted"
 			return False
+		got = self._lock.acquire(timeout=REPAIR_LOCK_WAIT_S)
+		if not got:
+			self._last_error = "repair could not take the lock"
+			return False
+		self._holder = ("repair", time.monotonic())
 		try:
-			with self._lock:
-				ser = dev.device.serial
-				## The old code never set this. pyserial defaults can be None,
-				## which makes read() block forever -- and that is the actual
-				## freeze, as opposed to the slowness around it.
-				previous_timeout = getattr(ser, "timeout", None)
-				try:
-					ser.timeout = SERIAL_TIMEOUT_S
-					waiting = ser.inWaiting()
-					if waiting:
-						junk = ser.read(waiting)
-						log.info("drained %d stale bytes: %r", waiting, junk[:60])
-					dev.device.exit_raw_repl()
-					time.sleep(0.2)
-					dev.device.enter_raw_repl()
-				finally:
-					try:
-						ser.timeout = previous_timeout
-					except Exception:
-						pass
-				return bool(link_check(self._name, verbose=False))
+			ser = dev.device.serial
+			self._drain(ser)
+			try:
+				dev.device.exit_raw_repl()          ## Ctrl-B, back to friendly
+			except Exception as err:
+				log.debug("exit_raw_repl during repair: %s", err)
+			time.sleep(0.2)
+			self._drain(ser)                        ## the Ctrl-B banner, too
+			dev.device.enter_raw_repl(soft_reset=False)
+			return bool(link_check(self._name, verbose=False))
 		except Exception as err:
 			self._last_error = "repair: {}: {}".format(type(err).__name__, err)
 			log.error("relink attempt %d failed: %s", self._attempts, err)
 			return False
+		finally:
+			self._holder = None
+			self._lock.release()

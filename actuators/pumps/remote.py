@@ -118,7 +118,13 @@ def relink(name="pumpset", verbose=True):
 						waiting, junk[:60]))
 		dev.device.exit_raw_repl()
 		time.sleep(0.2)
-		dev.device.enter_raw_repl()
+		## soft_reset=False. enter_raw_repl() defaults to sending Ctrl-D, and on
+		## this stack a soft reset re-runs main.py, which execfile()s the circuit
+		## -- so the default turns "resynchronise the link" into "reboot the pump
+		## board mid-experiment". The pumps must not stop because the host lost
+		## its place in the byte stream. hard_reset() is the deliberate escalation
+		## when the board has genuinely hung.
+		dev.device.enter_raw_repl(soft_reset=False)
 	except Exception as err:
 		log.error("relink failed: %s", err)
 		print("[red]Relink failed:[/] {} -- reconnect the device.".format(err))

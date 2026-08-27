@@ -11,6 +11,7 @@ There is no simulation here. The rehearsal twin is scripts/toyexps/keypad_pump_t
 
 	link()           link health;  resume()  leaves a DOWN link and retries
 	envelope()       show it;  set_envelope(3, fast_speed=0.4)  changes it
+	push_to_keypad() mirror pump state onto the LEDs once, by hand
 
 Everything else lives in actuators.pumps. This file used to carry its own fork of
 all of it -- 1807 lines, ~700 of them duplicated from the package it did not
@@ -69,16 +70,28 @@ ENVELOPE = {
 	## (continuous False + pulse_duty): same drive per revolution, fewer
 	## revolutions. The kick only has to break stiction, so it sits at full drive.
 	3: {"fast_speed": 1.0, "slow_min": 0.45, "slow_max": 1.0,
-		"slow_speed": 0.6, "continuous": True, "kick": (1.0, 1000)},
+		## slow_speed at the top of the band: aeration runs flat out in speed
+		## control mode. Same drive as POWER mode for this pump, by design --
+		## band max and fast_speed are both 1.0. Yatharth, 26 Aug.
+		"slow_speed": 1.0, "continuous": True, "kick": (1.0, 1000)},
 }
 
 PUMP_NUMBERS = (1, 2, 3)
 PUMP_ROLES   = {1: "perfusion", 2: "perfusion", 3: "aeration"}
 CALIBRATED   = (1, 2)          ## pumps whose params shelve holds a calibration
 
-POLL_S       = 0.10            ## keypad drain period
-MIRROR_S     = 1.0             ## how often pump state is pushed to the LEDs
-FPS          = 8               ## live view refresh
+## Round-trip budget. These are the numbers that decide how hard the raw REPL is
+## being driven, and the raw REPL is the thing that breaks.
+##
+## KEYPAD board and PUMP board are separate ports, so their rates are separate
+## costs. Keypad polling has to stay fast or button presses feel laggy; pump
+## state only feeds a display, and a display does not need 10 Hz.
+POLL_S       = 0.10            ## keypad drain -- keypad board, 10/s
+STATE_S      = 0.50            ## pump state read -- pump board, 2/s
+FPS          = 8               ## live view refresh, drawn from the last state
+
+## The host -> keypad LED mirror is GONE from the live loop. See start().
+MIRROR_S     = None            ## kept so old calls do not raise; ignored
 
 ## ---------------------------------------------------------------- state
 scope   = None
@@ -306,12 +319,26 @@ def _apply_line(line):
 	return True
 
 
-def start(duration_min=None, fps=FPS, poll_s=POLL_S, mirror_s=MIRROR_S):
+def start(duration_min=None, fps=FPS, poll_s=POLL_S, state_s=STATE_S,
+			mirror_s=None):
 	"""Poll the keypad and render the live view until Ctrl-C.
 
 	Owns the terminal. Nothing in here blocks on serial: LinkSupervisor.state()
 	returns the last good snapshot if the board is unwell, and recovery happens
 	on its own thread. If the link goes DOWN the view keeps drawing and says so.
+
+	NO LED MIRROR. The loop no longer pushes pump state back onto the keypad.
+	While start() owns the terminal the trappyscopes REPL is blocked, so nothing
+	can drive the pumps through the API -- the keypad is the only thing changing
+	pump state, and it already knows what it sent. The mirror was reflecting the
+	keypad's own commands back at it. Yatharth's call, 26 Aug, and it is right:
+	it removes the second board from the loop entirely.
+
+	STATE IS POLLED AT 2 Hz, NOT AT LOOP RATE. The previous version called
+	LINK.state() on every iteration -- 10 pump round trips a second, feeding a
+	display that refreshes at 8 fps. Every round trip is a chance for the raw
+	REPL to desynchronise, and desynchronisation is the failure. Pump-board
+	traffic per second: was ~11 (10 state + 1 mirror), now 2.
 	"""
 	global RUNNING, _LIVE
 	if LINK is None:
@@ -320,11 +347,15 @@ def start(duration_min=None, fps=FPS, poll_s=POLL_S, mirror_s=MIRROR_S):
 	if RUNNING:
 		emit("[yellow]Already running.[/]")
 		return
+	if mirror_s is not None:
+		emit("[dim]mirror_s is ignored -- the LED mirror was removed from the "
+				"live loop. Use push_to_keypad() by hand if you want one.[/dim]")
 
 	RUNNING = True
 	t0 = time.monotonic()
 	deadline = t0 + duration_min * 60 if duration_min else None
-	next_poll = next_mirror = 0.0
+	next_poll = next_state = 0.0
+	states = {}
 	applied = skipped = 0
 
 	## auto_refresh=False: the old version left Live's own 12 Hz refresh thread
@@ -342,6 +373,7 @@ def start(duration_min=None, fps=FPS, poll_s=POLL_S, mirror_s=MIRROR_S):
 				emit("[yellow]Duration reached.[/]")
 				break
 
+			## Keypad board: drained fast, because latency here is felt.
 			if now >= next_poll:
 				next_poll = now + poll_s
 				for line in (KEYPAD.lines() or []):
@@ -350,14 +382,12 @@ def start(duration_min=None, fps=FPS, poll_s=POLL_S, mirror_s=MIRROR_S):
 					else:
 						skipped += 1
 
-			states = LINK.state()
-
-			if now >= next_mirror:
-				next_mirror = now + mirror_s
-				## Reuse the states we already have -- the old code fetched its
-				## own inside push_to_keypad(), doubling the round trips.
-				if states:
-					KEYPAD.sync(states)
+			## Pump board: read slowly, because this only feeds a display.
+			## A command sent above already refreshed what matters; the operator
+			## sees the button light on the keypad immediately either way.
+			if now >= next_state:
+				next_state = now + state_s
+				states = LINK.state()
 
 			display.update(BOARD.frame(states, t0, banner=LINK.summary()),
 							refresh=True)
@@ -384,6 +414,26 @@ def start(duration_min=None, fps=FPS, poll_s=POLL_S, mirror_s=MIRROR_S):
 		emit("[dim]{} commands applied, {} skipped. Pumps are STILL RUNNING -- "
 				"stop() or panic() to stop them.[/dim]".format(applied, skipped))
 		emit(LINK.summary())
+
+
+def push_to_keypad():
+	"""Mirror pump state onto the keypad LEDs, once, by hand.
+
+	The live loop does NOT do this any more (see start()). This is here for the
+	case the loop cannot cover: you changed pump state from the REPL, outside
+	start(), and want the LEDs to agree again. Quiet -- it emits no commands, so
+	it cannot bounce back as fresh keypad input.
+	"""
+	if LINK is None:
+		emit("[red]Run connect() first.[/]")
+		return []
+	states = LINK.state()
+	if not states:
+		emit("[red]No pump state to mirror.[/] {}".format(LINK.summary()))
+		return []
+	touched = KEYPAD.sync(states)
+	emit("[green]Keypad LEDs synced[/] for pump(s) {}".format(touched))
+	return touched
 
 
 def status():

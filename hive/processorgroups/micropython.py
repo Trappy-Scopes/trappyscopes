@@ -199,29 +199,112 @@ class SerialMPDevice(MicropythonDevice):
 		log.debug(f"{self.name} >> {ret.decode()}")
 		return resolve_type(ret.decode().strip("\r\nNone").strip("\r\n"))
 
-	def sync_files(self, local_folder, target_folder):
-		try:
-			# Traverse through local directory
-			for root, dirs, files in os.walk(local_folder):
-				# Create equivalent folder structure on MicroPython device
-				remote_root = os.path.join(target_folder, os.path.relpath(root, local_folder)).replace("\\", "/")
-				remote_root = remote_root.replace("/.", "")
-				#self.__call__(f"import os\ntry:\n\tos.mkdir('{remote_root}')\nexcept OSError:\n\tpass")
-				
-				# Send each file in the directory
-				for file_name in files:
-					local_path = os.path.join(root, file_name)
-					remote_path = f"{remote_root}/{file_name}"
+	## ---------------------------------------------------------------- sync
+	SKIP_DIRS = ("__pycache__", ".git", ".idea", ".vscode", "micropython-async")
+	SKIP_FILES = (".DS_Store", ".gitignore", ".pyc")
 
-					#send_file_to_micropython(pyboard, local_path, remote_path)
-					#with open(local_path, 'rb') as file:
-					#file_data = file.read()
+	def fs_makedirs(self, path):
+		"""mkdir -p on the device. Returns the directories it created.
+
+		fs_put() opens the destination for writing and nothing more, so writing
+		into a directory that does not exist fails with ENOENT. Every parent has
+		to exist first -- which is why the commented-out mkdir in the old version
+		made this method unable to sync anything but the top level.
+		"""
+		made = []
+		parts = [p for p in str(path).strip("/").split("/") if p and p != "."]
+		for i in range(len(parts)):
+			d = "/".join(parts[: i + 1])
+			try:
+				self.device.fs_mkdir(d)
+				made.append(d)
+			except Exception as err:
+				## already there is the normal case; anything else is real
+				if "EEXIST" not in str(err) and "exists" not in str(err).lower():
+					log.debug(f"mkdir {d}: {err}")
+		return made
+
+	def fs_exists(self, path):
+		try:
+			self.device.fs_stat(path)
+			return True
+		except Exception:
+			return False
+
+	def sync_files(self, local_folder, target_folder, skip_unchanged=True,
+					dry_run=False, verbose=True):
+		"""Copy a local tree onto the device, creating directories as needed.
+
+		Returns a summary dict; the caller can tell success from failure, which
+		the old version could not -- it caught every exception, aborted the whole
+		walk on the first one, and printed "Sync completed" regardless.
+
+		skip_unchanged compares size against the device and skips matching files.
+		Serial is slow: a full firmware tree is minutes, an incremental sync is
+		seconds. dry_run=True lists what would happen and touches nothing.
+		"""
+		sent, skipped, failed, made = [], [], [], []
+
+		for root, dirs, files in os.walk(local_folder):
+			## prune junk in place so os.walk does not descend into it
+			dirs[:] = [d for d in dirs if d not in SerialMPDevice.SKIP_DIRS
+						and not d.startswith(".")]
+
+			rel = os.path.relpath(root, local_folder)
+			if rel == ".":
+				remote_root = target_folder.strip("/")
+			else:
+				remote_root = "/".join([target_folder.strip("/")] +
+										rel.replace("\\", "/").split("/"))
+
+			wanted = [f for f in files
+						if not f.startswith(".")
+						and not f.endswith(".pyc")
+						and f not in SerialMPDevice.SKIP_FILES]
+			if not wanted:
+				continue
+
+			if not dry_run:
+				made += self.fs_makedirs(remote_root)
+
+			for file_name in wanted:
+				local_path = os.path.join(root, file_name)
+				remote_path = f"{remote_root}/{file_name}"
+
+				if skip_unchanged and not dry_run:
+					try:
+						st = self.device.fs_stat(remote_path)
+						if st and st[6] == os.path.getsize(local_path):
+							skipped.append(remote_path)
+							continue
+					except Exception:
+						pass          ## not there yet, or no stat -- just send it
+
+				if dry_run:
+					sent.append(remote_path)
+					continue
+				try:
 					self.device.fs_put(local_path, remote_path)
-					print(f"Transferred file: {local_path} -> {remote_path}")
-		
-		except Exception as e:
-			print("[red] Sync failed ----------> [default]")
-			print(e)
-		finally:
-			pass
-		print(f"Sync completed: {local_folder} to {target_folder} on MicroPython device.")
+					sent.append(remote_path)
+					if verbose:
+						print(f"  [green]sent[/] {remote_path}")
+				except Exception as err:
+					## Keep going. One unwritable file must not abandon the rest
+					## of the tree half-copied.
+					failed.append((remote_path, str(err)))
+					log.error(f"sync failed for {remote_path}: {err}")
+					if verbose:
+						print(f"  [red]FAILED[/] {remote_path}: {err}")
+
+		summary = {"sent": sent, "skipped": skipped, "failed": failed,
+					"dirs_created": made, "dry_run": dry_run}
+		if verbose:
+			head = "[yellow]DRY RUN[/] " if dry_run else ""
+			print(f"{head}sync {local_folder} -> {target_folder}: "
+					f"{len(sent)} sent, {len(skipped)} unchanged, "
+					f"{len(made)} dirs created, "
+					f"{'[red]' if failed else ''}{len(failed)} failed"
+					f"{'[/]' if failed else ''}")
+			if failed:
+				print("  [red]The device tree is now incomplete -- fix and re-run.[/]")
+		return summary
