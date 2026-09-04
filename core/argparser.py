@@ -125,12 +125,15 @@ for script in args.scriptlist_:
 if None in scriptlist:
     scriptlist.remove(None)
 if len(scriptlist) > 0:
-    from expframework.scriptengine import ScriptEngine
-    ScriptEngine.execlist = scriptlist
     print("Scripts that will be loaded: ")
-    print(ScriptEngine.execlist)
+    print(scriptlist)
 ####### --------------------------------------
 
+
+## `core` must not import upwards into `expframework`, so the scriptlist is
+## only recorded here. The experiment environment recipe picks it up and hands
+## it to the ScriptEngine.
+Share.argparse["scriptlist"] = scriptlist
 
 Share.argparse["user"] = args.user[0]
 Share.argparse["expname"] = args.expname
