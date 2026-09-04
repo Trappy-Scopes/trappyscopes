@@ -1,8 +1,17 @@
+"""
+User tools exposed into the experiment environment.
+
+These were `exec()`-ed into the session's globals, which is why several of them
+used to reference names (ScopeAssembly, Experiment) they never imported. This
+module is now imported normally by the recipe, so it imports what it uses.
+"""
+
 import os
 from rich import print
 from rich.rule import Rule
 from time import sleep
 from core.permaconfig.sharing import Share
+from hive.assembly import ScopeAssembly
 import logging as log
 
 

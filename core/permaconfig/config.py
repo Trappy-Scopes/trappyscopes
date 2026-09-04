@@ -11,7 +11,7 @@ import logging as log
 import shutil
 import time
 
-from ..utilities import fluff
+from utilities import fluff
 from ..exceptions import TS_ConfigNotFound
 
 
