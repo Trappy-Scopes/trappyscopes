@@ -1,8 +1,17 @@
+"""
+User tools exposed into the experiment environment.
+
+These were `exec()`-ed into the session's globals, which is why several of them
+used to reference names (ScopeAssembly, Experiment) they never imported. This
+module is now imported normally by the recipe, so it imports what it uses.
+"""
+
 import os
 from rich import print
 from rich.rule import Rule
 from time import sleep
 from core.permaconfig.sharing import Share
+from hive.assembly import ScopeAssembly
 import logging as log
 
 
@@ -88,7 +97,7 @@ def findexp():
 	from prompt_toolkit.completion import WordCompleter
 	from expframework.experiment import Experiment
 
-	expcompleter = WordCompleter([os.path.basename(exp_) for exp_ in Experiment.list_all()])
+	expcompleter = WordCompleter(sorted([os.path.basename(exp_) for exp_ in Experiment.list_all()], reverse=True))
 	exp_name = prompt('Input the session/experiment name -> ', completer=expcompleter)
 	#autocompleter.directory("/Users/byatharth/experiments")
 	#exp_name = input("Input the session/experiment name -> ")
