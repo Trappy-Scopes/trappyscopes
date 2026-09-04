@@ -8,7 +8,7 @@
 
 
 
-<img src="https://github.com/Trappy-Scopes/trappyscopes/blob/main/docs/assets/trappyscopes_icon.png?raw=true" style="zoom:25%;" />
+​	S
 
 The base model of this library imagines instruments as an arbitrary tree of python enabled computers and "pythonic" microcontrollers (micropython or circuitpython). With this base model, the control layer enables plug and play interfacing with minimal configuration. The key idea is to have the following workflow while building instruments.
 

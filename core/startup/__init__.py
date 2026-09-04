@@ -128,6 +128,10 @@ scope.draw_tree()
 for i in range(1, 5):
 	print(Rule(characters='═', style=f"rgb({int(255/i)},{int(255/i)},0)"),  end='')
 
+## Bind keyboard shortcuts for scope devices (e.g. Ctrl+S, n -> scope.node)
+from utilities.keyboard_shortcuts import bind_shortcuts
+bind_shortcuts(scope)
+
 
 ## Set Experiment
 import rich.box as box

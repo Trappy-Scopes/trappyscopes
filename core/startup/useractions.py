@@ -88,7 +88,7 @@ def findexp():
 	from prompt_toolkit.completion import WordCompleter
 	from expframework.experiment import Experiment
 
-	expcompleter = WordCompleter([os.path.basename(exp_) for exp_ in Experiment.list_all()])
+	expcompleter = WordCompleter(sorted([os.path.basename(exp_) for exp_ in Experiment.list_all()], reverse=True))
 	exp_name = prompt('Input the session/experiment name -> ', completer=expcompleter)
 	#autocompleter.directory("/Users/byatharth/experiments")
 	#exp_name = input("Input the session/experiment name -> ")
