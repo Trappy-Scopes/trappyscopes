@@ -5,8 +5,14 @@
     Yatharth on 2026-09-05, as a working plan for restructuring the
     Trappy-Scopes CLI. It records decisions taken in that session, the state of
     the repository at the time, and the reasoning behind each proposed change.
-    It is a plan, not a description of what exists — anything marked *proposed*
-    or *deferred* has not been built.
+
+!!! success "Status — 2026-09-05, branch `restructure-20260905`"
+    **Phases 0, 1 and 3 are done.** Phases 2, 4 and 5 are not started, and
+    §3 (task stream), the ScriptEngine rework and the `analysis` recipe were
+    explicitly deferred. Each phase in §5 carries its own status line.
+
+    The boot has **not** been verified end-to-end — see §5 Phase 0/3 for
+    exactly what was and was not tested.
 
 ---
 
@@ -36,29 +42,33 @@ follows:
 Findings from a survey of the tree, recorded here because several of them are
 load-bearing for the plan.
 
-### 2.1 The EXPENV hook already exists and is dead
+### 2.1 The EXPENV hook already existed and was dead ✅ *now live*
 
-`core/permaconfig/default_config.yaml:59` declares:
+`core/permaconfig/default_config.yaml:59` declared:
 
 ```yaml
 startup_recipie: core.startup  # Startup procedure that defines how the CLI environment is created.
 ```
 
-**No Python code reads this key.** The pluggable-environment design was
-specified in the config schema and never implemented. Phase 3 is finishing
-something already started, not inventing it.
+**No Python code read this key.** The pluggable-environment design was
+specified in the config schema and never implemented. Phase 3 finished
+something already started, rather than inventing it.
 
-### 2.2 `exec()`-based loading is the central structural problem
+As of Phase 3, `expenv.build()` reads this key. The legacy value
+`core.startup` is mapped to `freestyle`, so configs already deployed on the
+scopes keep working without edits.
+
+### 2.2 `exec()`-based loading was the central structural problem ✅ *removed*
 
 ```
 main.py:12          exec(open("core/startup/__init__.py").read())
   └─ startup:167    exec(open("core/startup/useractions.py").read())
 ```
 
-This is not a style wart. It is *why* environments cannot be swapped: both
-files only work because they are textually injected into `main.py`'s globals
-and depend on names (`exp`, `scope`) already existing there. That is not
-something you can select, parameterise, compose or test.
+This was not a style wart. It was *why* environments could not be swapped:
+both files only worked because they were textually injected into `main.py`'s
+globals and depended on names (`exp`, `scope`) already existing there. That is
+not something you can select, parameterise, compose or test.
 
 It also actively breaks ordinary Python. During this session, adding a single
 normal `import` that touched `core.startup` caused the import machinery to
@@ -73,24 +83,37 @@ re-execute the whole startup file in a fresh namespace, which crashed at
 
 ### 2.3 Layering violations, and how contained they are
 
-| Violation | Locations | Verdict |
+| Violation | Locations | Status |
 |---|---|---|
-| `core` → `expframework` / `hive` | all inside `core/startup/`, plus `core/argparser.py:128` | Fixed by a **move**, not a refactor |
-| `detectors` → `expframework` | `detectors/cameras/abstractcamera.py:12`, `detectors/cameras/rpi_hq_picam2.py:28` | Inverts the dependency rule; fixed by §3 |
+| `core` → `expframework` / `hive` | all inside `core/startup/`, plus `core/argparser.py:128` | ✅ **Fixed** (Phases 0/1). `core` has no upward imports; enforce with a CI grep. |
+| `detectors` → `expframework` | `detectors/cameras/abstractcamera.py:12`, `detectors/cameras/rpi_hq_picam2.py:28` | ⏳ Open — inverts the dependency rule; fixed by §3, deferred |
 
 ### 2.4 Byte-identical duplicate files
 
-- `core/external/pyboard.py` == `utilities/pyboard.py` — **identical**, 909 lines each
-- `core/utilities/fluff.py` == `utilities/fluff.py` — **identical**, 92 lines each
-- `core/installer/installer.py` (138) vs `utilities/installer.py` (90) — **diverged**; someone edited one copy
+- `core/external/pyboard.py` == `utilities/pyboard.py` — **identical**, 909 lines each ✅ *`utilities/` copy deleted; `core/external/` is the one `hive` imports*
+- `core/utilities/fluff.py` == `utilities/fluff.py` — **identical**, 92 lines each ✅ *`core/` copy deleted; see the lesson in §2.5*
+- `core/installer/installer.py` (138) vs `utilities/installer.py` (90) — **diverged**; someone edited one copy ⏳ *deliberately untouched, needs its own plan*
 
 ### 2.5 Caveat for any pruning work
 
-This codebase resolves classes from **dotted-path strings in YAML**
-(`kind: detectors.cameras.nullcamera.Camera`) through `import_module`.
-Static "who imports this" analysis therefore *undercounts*: a file can look
-dead while being live in a deployed config on M1–M8. Nothing is deleted, and
-no module is renamed, without grepping the YAML configs on every scope too.
+**Two blind spots, both of which have now drawn blood.**
+
+1. **YAML dotted paths.** This codebase resolves classes from strings in
+   config (`kind: detectors.cameras.nullcamera.Camera`) through
+   `import_module`. Static "who imports this" analysis *undercounts*: a file
+   can look dead while being live in a deployed config on M1–M8.
+
+2. **Relative imports.** In Phase 1 `core/utilities/fluff.py` was deleted
+   after grepping for `core.utilities` and finding nothing. It was reached by
+   `core/permaconfig/config.py` as `from ..utilities import fluff` — which no
+   absolute-path grep matches. It broke the whole config import chain and was
+   caught only by actually trying to import the recipes.
+
+!!! warning "Rule"
+    Nothing is deleted, and no module is renamed, without grepping for the
+    absolute path, the **relative** form (`from ..x`, `from .x`), and the
+    YAML `kind:` strings on every scope — and then actually importing the
+    affected modules.
 
 ---
 
@@ -331,28 +354,38 @@ day-level Metaexperiment logs. The analysis recipe should not reinvent that.
 
 Order reflects decisions taken on 2026-09-05.
 
-### Phase 0 — Replace `exec` module loading with an explicit namespace
+### Phase 0 — Replace `exec` module loading with an explicit namespace ✅ done
 
-The enabling change; nothing else is safely possible first.
+*Commit `363a347`.* The enabling change; nothing else was safely possible first.
 
 - `main.py` calls a builder and merges the result into `__main__` (§4.1, §4.2).
-- `ScriptEngine.run()` defaults to `vars(__main__)`; stop passing `globals()`.
-- **No script changes. No user-visible behaviour change.**
+  It is now two lines.
+- **Deferred:** `ScriptEngine.run()` still takes an explicit namespace argument
+  rather than defaulting to `vars(__main__)`. The recipe passes it the
+  namespace it just built, so no script changed — but the ScriptEngine rework
+  in §4.2 has not been done.
+- One constraint the script→function conversion forced: `from core.argparser
+  import *` had to become a plain import, because **`import *` is a
+  SyntaxError inside a function**. `Share` is now imported explicitly.
 
-### Phase 1 — Mechanical moves, zero behaviour change
+### Phase 1 — Mechanical moves, zero behaviour change ✅ done
 
-- `core/startup/` → `expenv/` — this alone removes the `core` → `expframework`
+*Commit `6cdef3f`.*
+
+- `core/startup/` → `expenv/` — this alone removed the `core` → `expframework`
   violation.
-- Fix `core/argparser.py:128`.
-- Delete the two byte-identical duplicates (§2.4).
-- Move `gui/fim.py` into `utilities/`.
+- Fixed `core/argparser.py:128`: it records the scriptlist in `Share.argparse`
+  and the recipe hands it to the ScriptEngine.
+- Deleted the two byte-identical duplicates (§2.4) — one of which broke the
+  build via a relative import; see the lesson in §2.5.
+- Moved `gui/fim.py` into `utilities/` (+5 import sites in `scripts/`).
 - **Explicitly out of scope: `installer.py`.** The diverged copies are a
   symptom of an unsolved problem — how installation should work at all — and
-  that needs its own plan. Not touched here.
-- **Checkpoint:** `core` imports nothing above it, enforced by a CI grep so it
-  cannot regress.
+  that needs its own plan. Not touched.
+- **Checkpoint met:** `core` imports nothing above it. Still worth a CI grep so
+  it cannot regress.
 
-### Phase 2 — Task stream (§3)
+### Phase 2 — Task stream (§3) ⏳ deferred
 
 - `TaskStream` + `@records` in the ABC layer.
 - `ScopeAssembly` owns one stream and injects it at `add_device`.
@@ -360,14 +393,30 @@ The enabling change; nothing else is safely possible first.
 - **Cameras stop importing `Experiment`** — the violation in §2.3 disappears.
 - This is additive: it does not move or rename any module.
 
-### Phase 3 — EXPENV for real (§4)
+### Phase 3 — EXPENV for real (§4) ✅ done (minus `analysis`)
 
-- Read `config.startup_recipie` and dispatch (the key already exists, §2.1).
-- Ship `freestyle`, `raw`, `analysis`.
-- `useractions` splits into explicitly registered tools rather than an
-  `exec`'d blob; keybindings become a tool a recipe opts into.
+*Commit `363a347`.*
 
-### Phase 4 — Eviction and pruning
+- `expenv.build()` reads `config.startup_recipie` and dispatches. Accepts a
+  short name, a full dotted path to any module exposing `build(config)`, or the
+  legacy `core.startup` → `freestyle` (§2.1).
+- Shipped `freestyle` and `raw`. **`analysis` deferred** — it needs a read-only
+  `Experiment.load(eid)` first (§4.4).
+- `useractions` is imported rather than `exec`'d, and gained the
+  `ScopeAssembly` import it always referenced but never had. **It has not been
+  split into separately registered tools** — that part of the phase is
+  outstanding.
+
+!!! warning "Not verified by booting"
+    The CLI was not started end-to-end: startup opens serial ports, starts an
+    RPyC server and can mount SMB shares. `expenv`, `raw` and `useractions`
+    import cleanly and all recipes compile and resolve, but `freestyle`'s
+    import chain cannot complete on a machine without `pypandoc`, `reportlab`
+    and `html2rml` — imported unconditionally by `expframework/report.py`, on
+    `main` too, so pre-existing rather than a regression. **Boot on a real
+    scope before trusting this.**
+
+### Phase 4 — Eviction and pruning ⏳ not started
 
 - `pico_firmware/` → its own repository. It is MicroPython, for a different
   interpreter on different hardware; it is not part of this package.
@@ -378,7 +427,7 @@ The enabling change; nothing else is safely possible first.
   (§2.5). First candidates: `_to_delete/`, `optics/old_cli/`, `gui/dev/`,
   `utilities/autocompleter.py`.
 
-### Phase 5 (last) — `hive` → `scopeparts`
+### Phase 5 (last) — `hive` → `scopeparts` ⏳ not started
 
 **Deliberately deferred to the end.** This is the most essential and most
 invasive change, and further work is expected to land on top of it that could
@@ -417,6 +466,17 @@ absorption coherent rather than just a bigger pile.
 - **Installers.** Two diverged copies and no agreed model. Needs its own plan.
 - **`utilities/`** is doing too much and is not really a category. Left alone
   for now; worth revisiting after Phase 4.
+- **`ScopeAssembly.close()` crashes at exit when no assembly was built.** The
+  `atexit` handler at `hive/assembly.py:72` iterates
+  `ScopeAssembly.current.devices` without checking that `current` is set, so
+  any process that imports the assembly and exits without building one dies
+  with `AttributeError: 'NoneType' object has no attribute 'devices'`.
+  Pre-existing; a one-line guard.
+- **Report dependencies are unconditional.** `expframework/report.py` imports
+  `pypandoc`, `reportlab` and `html2rml` at module scope, and
+  `Experiment` imports `ExpReport`, so a machine without those three cannot
+  import `Experiment` at all. Since `exp_report` is a config flag that
+  defaults to `false`, these should be imported lazily.
 - **`scripts/`** stays in-tree — a small curated script module is genuinely
   useful here — but the boundary between "example" and "production protocol"
   is undefined.
