@@ -47,6 +47,7 @@ from core.idioms.recordeditor import RecordSet
 ## and its __init__ set `self.events = ""`, shadowing Experiment.events().
 from .expsync import ExpSync
 from .expgit import ExpGit  # AI Generated
+from .exppolicy import ExpPolicy  # AI Generated -- declare_policy()/policies(), see exppolicy.py
 from .notebook import ExpNotebook
 from .clockgroup import ClockGroup
 
@@ -116,7 +117,7 @@ class ExpScheduler(schedule.Scheduler):
 		self.thread = Thread(name="exp.schedule.loop", target=callback)
 		self.thread.start()
 
-class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit):
+class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit, ExpPolicy):
 	"""
 
 	A Trappy-Scope Experiment.
@@ -705,7 +706,10 @@ class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit):
 		git_active = getattr(self, "_git_active", False)
 		statuses = git_file_statuses(self.exp_dir, tree) if git_active else {}
 		summary = git_summary(self.exp_dir) if git_active else None
-		data = {"name": self.name, **render_tree_yaml_data(tree, statuses, summary)}
+		## AI Generated -- per-file location, derived from the sync ledger.
+		data = {"name": self.name,
+				"policies": self.policies(),
+				**render_tree_yaml_data(tree, statuses, summary, self.locations())}
 		with open(os.path.join(self.exp_dir, Experiment.FILETREE_FILENAME), "w") as f:
 			yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 

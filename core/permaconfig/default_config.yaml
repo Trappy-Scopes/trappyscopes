@@ -121,6 +121,15 @@ Experiment:
     - postprocess
     - converted
     - analysis
+  policies:                           # Durable declarations about an experiment, detectable without
+    stub:                             # parsing experiment.yaml -- each emits a `.policy.<name>` marker
+      scope: copy                     # file whose content is a TSEvent (see expframework/exppolicy.py).
+      description: "Data files have been moved to the file server; this copy retains only the manifest."
+    contaminated:                     # scope: copy       -> per-copy, NEVER synced (would mislabel the
+      scope: experiment               #                      other copy)
+      description: "The experiment's course or data structure changed materially. Take into account before any further operation."
+                                       # scope: experiment -> per-experiment, always synced
+                                       # EXPANDS across layered config files, like sync.manifest below.
   sync:                               # How ExpSync classifies each file (see docs/notes/sync_rework.md §4).
     manifest:                         # Never moved, only ever copied -- so both the local copy and the
       - .experiment                   # server copy stay legible experiments. Data files (below) move

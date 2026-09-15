@@ -4,13 +4,17 @@ import os
 import logging as log
 import platform
 import subprocess  # AI Generated -- used by sync_file()'s destination-directory pre-creation
+import threading  # AI Generated -- guards the sync.yaml ledger append
 from concurrent.futures import ThreadPoolExecutor
 import time
 
 
 ## AI Generated -- `uid` and `datetime` imports removed with .sync/set_sync_logfile()
+from core.bookkeeping.yamlprotocol import YamlProtocol  # AI Generated -- sync.yaml ledger
 from core.permaconfig.config import TrappyConfig  # AI Generated -- Share/User imports removed, no longer used here (see template())
+from core.tsevents import TSEvent  # AI Generated -- ledger record shape
 import core.sync as sync
+from .exppolicy import ExpPolicy  # AI Generated -- per-copy marker scope, see _disposition()
 
 class ExpSync:
 	"""
@@ -162,6 +166,12 @@ class ExpSync:
 		written at the experiment root -- the normal case -- classify
 		correctly; data buried inside an otherwise-manifest directory would
 		be copied with it rather than moved."""
+		## AI Generated -- per-copy policy markers never leave this copy. `.policy.stub`
+		## describes *this* copy; copying it would make the full server-side copy
+		## falsely declare itself a stub (docs/notes/sync_rework.md §2).
+		if file.startswith(ExpPolicy.MARKER_PREFIX):
+			name = file[len(ExpPolicy.MARKER_PREFIX):]
+			return "skip" if ExpPolicy.scope_of(name) == "copy" else "copy"
 		if file in ExpSync.manifest:
 			return "copy"
 		for pattern in ExpSync.data_patterns:
@@ -227,6 +237,8 @@ class ExpSync:
 		manifest and then silently never synced them (§4).
 		"""
 		files = [f for f in os.listdir(os.getcwd())]
+		## AI Generated -- "skip" entries (per-copy policy markers) never transfer.
+		files = [f for f in files if ExpSync._disposition(f) != "skip"]
 
 		from functools import partial
 		sync_ = partial(self.sync_file, remove_source=remove_source)
@@ -237,6 +249,17 @@ class ExpSync:
 		for result in results:
 			if result is not None:
 				log.debug(result)
+
+		## AI Generated -- once data has moved out, this copy is a stub: it holds
+		## the full manifest and no bulk data. Declared here so the fact is
+		## detectable later without parsing anything (docs/notes/sync_rework.md
+		## §2). Only the depleted side is ever declared -- "more original" is
+		## deliberately left undefined.
+		moved = [attribs["path"] for attribs in
+				 (e.get("attribs", {}) for e in self.transfers())
+				 if attribs.get("disposition") == "moved" and attribs.get("ok", True)]
+		if moved and not self.has_policy("stub"):
+			self.declare_policy("stub", moved_files=len(moved))
 
 
 	def sync_file_bg(self, file, remove_source=None, delay_sec=0):
@@ -303,17 +326,79 @@ class ExpSync:
 			remove_source=remove_source,
 			prefix=ExpSync._sync_prefix(),
 		)
+		disposition = "moved" if remove_source else "copied"
 		if result.returncode != 0:
 			log.error(f"Error occurred with {file}: {result.stderr.strip()}")
+			## AI Generated -- failures are recorded too. This is the class of fact
+			## that leaves no trace in filetree.yaml's snapshot and is the main
+			## reason the ledger exists at all (docs/notes/sync_rework.md §6).
+			self.log_transfer(file, disposition, ok=False,
+							   error=result.stderr.strip()[:500])
 			return None
 
-		## AI Generated -- the `.sync` append that used to sit here (move-only,
-		## one bare text line) is gone with the rest of `.sync`. The durable,
-		## always-recorded ledger that replaces it is sync.yaml -- chunk C,
-		## docs/notes/sync_rework.md §7.
-		log.info(f"Rsync {'moved' if remove_source else 'copied'}: {file}")
-		print(f"Rsync {'moved' if remove_source else 'copied'}: {file}")
+		self.log_transfer(file, disposition, ok=True)
+		log.info(f"Rsync {disposition}: {file}")
+		print(f"Rsync {disposition}: {file}")
 		return result.stdout
+
+	## AI Generated -- the sync ledger (docs/notes/sync_rework.md §1/§7), the
+	## durable replacement for `.sync`. Append-only, TSEvent-shaped, and written
+	## with load-modify-dump rather than a logging handler: a held-open
+	## RotatingFileHandler is exactly the trap that silently lost logs.yaml
+	## records when that file was being moved out from under it.
+	LEDGER_FILENAME = "sync.yaml"
+
+	## AI Generated -- sync_dir() runs transfers in a ThreadPoolExecutor, and each
+	## one appends via load-modify-dump. At the default sync_max_threads=1 that is
+	## serial, but the parameter is caller-settable -- without this lock two
+	## workers could read the same list and the second write would drop the
+	## first's entry.
+	_ledger_lock = threading.Lock()
+
+	def log_transfer(self, file, disposition, ok=True, error=None, **attribs):
+		"""One ledger entry per transfer attempt. `disposition` is "moved" or
+		"copied"; a failed attempt is recorded with ok=False and the transport's
+		own error, so the ledger answers "what happened" and not merely "what
+		is where" -- the latter is filetree.yaml's job."""
+		record = TSEvent(kind="file_synced",
+						  attribs={"path": file,
+								   "disposition": disposition,
+								   "ok": ok,
+								   "destination": os.path.join(self.destination_dir or "", file),
+								   **({"error": error} if error else {}),
+								   **attribs})
+
+		path = os.path.join(self.exp_dir, ExpSync.LEDGER_FILENAME)
+		with ExpSync._ledger_lock:
+			existing = YamlProtocol.load(path) if os.path.exists(path) else []
+			if not isinstance(existing, list):
+				existing = []
+			existing.append(dict(record))
+			YamlProtocol.dump(path, existing)
+		return record
+
+	def transfers(self):
+		"""The ledger, as a plain list. Empty if nothing has ever synced."""
+		path = os.path.join(self.exp_dir, ExpSync.LEDGER_FILENAME)
+		if not os.path.exists(path):
+			return []
+		return YamlProtocol.load(path) or []
+
+	def locations(self):
+		"""AI Generated -- {relpath: "local" | "remote" | "both"} derived from the
+		ledger: the latest successful entry for each path decides. A move means
+		the bytes are only on the server now; a copy means both sides hold it.
+		This is what feeds filetree.yaml's `location` field -- current state
+		lives in the snapshot, the ledger stays a pure event log (§6)."""
+		latest = {}
+		for entry in self.transfers():
+			attribs = entry.get("attribs", {})
+			if not attribs.get("ok", True):
+				continue
+			if attribs.get("path"):
+				latest[attribs["path"]] = attribs.get("disposition")
+		return {path: ("remote" if disposition == "moved" else "both")
+				for path, disposition in latest.items()}
 
 
 

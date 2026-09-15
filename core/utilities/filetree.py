@@ -171,15 +171,24 @@ def render_tree(tree, statuses=None, summary=None):
 	return root
 
 
-def render_tree_yaml_data(tree, statuses=None, summary=None):
+def render_tree_yaml_data(tree, statuses=None, summary=None, locations=None):
 	"""Plain dict, ready for yaml.dump(): {"tree": <nested>, "git_status":
 	<summary block, or None if `summary` wasn't given>}. Each file entry
 	in the nested tree carries a "status" key when `statuses` has one for
 	it. The git_status block is explicit and separate from the per-file
 	tags -- head/commits/pending, plus every file grouped by status --
 	so the overall repo state is visible at a glance, not just scattered
-	across individual file entries."""
+	across individual file entries.
+
+	`locations` (AI Generated -- {relpath: "local"|"remote"|"both"}, from
+	ExpSync.locations()) adds a `location` field per file. This is the one
+	field that genuinely overlaps with the sync ledger, and it lives here
+	on purpose: current state belongs in the snapshot, which git already
+	versions, while the ledger stays a pure event log
+	(docs/notes/sync_rework.md §6). A file the ledger has never mentioned
+	is "local" -- it has not been anywhere else."""
 	statuses = statuses or {}
+	locations = locations or {}
 
 	def convert(node):
 		if node["type"] == "dir":
@@ -189,6 +198,7 @@ def render_tree_yaml_data(tree, statuses=None, summary=None):
 		status = statuses.get(node["path"])
 		if status:
 			entry["status"] = status
+		entry["location"] = locations.get(node["path"], "local")
 		return entry
 
 	git_status = None

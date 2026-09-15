@@ -52,6 +52,7 @@ from expframework.experiment import Experiment
 from expframework.protocol import Protocol
 from expframework.expsync import ExpSync
 from expframework.expgit import ExpGit  # AI Generated
+from expframework.exppolicy import ExpPolicy  # AI Generated
 from expframework.scriptengine import ScriptEngine
 from expframework.plotter import Plotter as plt
 
@@ -143,6 +144,7 @@ def build(config):
 
 	ExpSync.configure(device_metadata)
 	ExpGit.configure(device_metadata)  # AI Generated
+	ExpPolicy.configure(device_metadata)  # AI Generated
 
 	if scopeid == "MDev":
 		Reg.load()
