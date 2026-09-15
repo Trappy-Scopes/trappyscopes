@@ -91,7 +91,8 @@ With the creation of an experiment, the directory of the REPL changes to the `ex
 The `ExpSync` extension provides an interface to synchronise files using [`rsync`])(https://rsync.samba.org/). Rightnow the utility only supporst samba shares on linux and mac os. A `file_server` configuration block can be added to enable it:
 
 ```yaml
-file_server:
+Experiment:
+  file_server:
     active: true					 ### option switcg
     destination: "{date}"  ### destination folder from the root of the share [effify]
     server: 172.22.63.19   ### ip address of the server 

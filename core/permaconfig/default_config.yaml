@@ -25,16 +25,22 @@
 ## in this lib do not parse comments, so this text will not be pasted in the actual     ##
 ## configuration file.                                                                  ##
 ## -------------------------------------------------------------------------------------##
+## AI Generated -- keys added by Claude (Anthropic), 2026-09: config.keyboard_shortcuts, ##
+## Experiment.record_edit_history/protocols_dirs/protocols. config.trappydir and         ##
+## Experiment.protocols_dir (singular, stale) were removed as dead/superseded.           ##
+## -------------------------------------------------------------------------------------##
 
 name: <TrappySomething>            ## Name of the scope (scopeid)
-type: generic-scope                ## Type of device -> Selection of the abstraction
 
 
 ## Trappy-Scopes configuration options
 config:
-  trappydir: ~/trappyverse   # Directory where the configuration of the scope is stored.
   config_files: []           # Append more configuration files
   ui_mode: interactive       # User interaction mode
+  autostart_cli_after_reboot: false  # Reserved for a future feature. Not yet read by any code.
+  terminal_editor:           # Editor used to open the config file for editing (launcher's
+                              # "Edit the configuration file"). If unset: nano if installed,
+                              # else vi.
   venv:                      # Whether to use a virtual environment for 
       active: false          # Config block is active. The function is turned on.
       command: source ~/opt/miniconda3/bin/activate 
@@ -56,20 +62,110 @@ config:
   config_redact_fields:     # Fields that will be redacted, if the config file is copied
     - username
     - password
-  startup_recipie: core.startup  # Startup procedure that defines how the CLI environment is created. `core.startup.__init__.py` defines the default one.
-  startup_scripts: []            # Scripts to run by default when the CLI is started.   
+  startup_recipie: freestyle     # Experiment environment (EXPENV) that defines how the CLI session is created.
+                                 # `freestyle`: full assembly + experiment environment + user tools (default).
+                                 # `raw`: constructs the ScopeAssembly and nothing else, near-silently.
+                                 # Also accepts a dotted path to any module exposing `build(config)`.
+                                 # See `expenv/__init__.py`. The legacy value `core.startup` still maps to `freestyle`.
+  startup_scripts: []            # Scripts to run by default when the CLI is started.
+  micropython:                   # MicroPython device management (launcher's "MicroPython" submenu)
+    version:                     # Locked/supported MicroPython version, e.g. "1.20.0" -- a
+                                  # device already at this version is skipped when flashing.
+    firmware_image:              # Local path to that version's .uf2 firmware image.
+    firmware_dir:                 # Local path to the pico_firmware repo's ROOT (not a
+                                  # subfolder inside it) -- mirrored onto a device's own
+                                  # filesystem root, filtered by that repo's own
+                                  # sync_what.yaml if it declares one.
+  keyboard_shortcuts:             # Esc-prefixed REPL shortcuts -- see utilities/keyboard_shortcuts.py
+    active: false                 # Config block is active. The function is turned on.
+    scope_assembly: true          # Auto-bind Esc,s,<letter> per mounted device (only if active: true)
+    experiment: true              # Auto-bind the Esc,e,<letter> Experiment member table (only if active: true)
+    file:                         # Optional separate YAML file, its own top-level `bindings:` list
+    bindings: []                  # Optional inline list, e.g.:
+                                   #   - keys: "esc x"
+                                   #     code: "scope.draw_tree()"
+                                   #     submit: true
+                                   #     description: "My shortcut"
+
+## Recognized users -- keyed by the lab's two-letter login code (see
+## core/bookkeeping/user.py). An unrecognized code is refused by
+## User.login() unless called with force=True. Expands (unions) across
+## every layered config_files source -- see README's "Expanded config
+## fields" table -- so a lab-wide manifest can add users without
+## disturbing whatever a device's own config already declares.
+# Users:
+#   YB: {full_name: "Yatharth Bhasin", email: "yatharth.bhasin@gimm.pt", designation: "PI"}
+#   CC: {full_name: "...", email: "...", designation: "..."}
 
 ## Experiment configuration options
 Experiment:
+  scripts_dirs:                       # Directories ScriptEngine.find() offers when picking a script
+    - ~/trappyscopes/scripts/         # interactively. This one is already read by the code as-is
+    - ~/trappyscopes/tests/           # (expframework/scriptengine.py); the rest of this block below
+                                       # describes the target format and is not read yet -- see
+                                       # docs/notes/restructuring.md §12.
   exp_dir: ~/experiments              # Default directory where experiments are stored
-  protocols_dir: ~/lab_protocols      # Directory where protocols are stored, This can also be a git-address.
+  record_edit_history: true           # Whether editing a recordset() entry also appends to
+                                       # event_edits.yaml (a separate trail, not inline in
+                                       # experiment.yaml -- see docs/notes/protocols.md §8).
+  protocols_dirs: []                  # Local clone(s) expframework.protocol.Protocol resolves from --
+                                       # see config.git_dependencies to have one cloned automatically
+                                       # and docs/notes/protocols.md for the resolution/provenance design.
+  protocols:
+    publish_remote_link: true         # Record each loaded protocol's GitHub permalink (derived from
+                                       # local git metadata, no network call) in the experiment log.
+                                       # Overridable per file via that file's own frontmatter.
   calibration_dir: ~/calibration_dir  # Directory where calibrations are stored.
   exp_dir_structure:                  # This is the directory structure, that will be created within every experiment.
     - scripts
     - postprocess
     - converted
     - analysis
-  exp_report: false                   # Whether the pdf report functionality is turned on or not.
+  policies:                           # Durable declarations about an experiment, detectable without
+    stub:                             # parsing experiment.yaml -- each emits a `.policy.<name>` marker
+      scope: copy                     # file whose content is a TSEvent (see expframework/exppolicy.py).
+      description: "Data files have been moved to the file server; this copy retains only the manifest."
+    contaminated:                     # scope: copy       -> per-copy, NEVER synced (would mislabel the
+      scope: experiment               #                      other copy)
+      description: "The experiment's course or data structure changed materially. Take into account before any further operation."
+                                       # scope: experiment -> per-experiment, always synced
+                                       # EXPANDS across layered config files, like sync.manifest below.
+  sync:                               # How ExpSync classifies each file (see docs/notes/sync_rework.md §4).
+    manifest:                         # Never moved, only ever copied -- so both the local copy and the
+      - .experiment                   # server copy stay legible experiments. Data files (below) move
+      - experiment.yaml               # instead, freeing space on the acquisition machine.
+      - sessions.yaml                 #
+      - expstate.pickle               # EXPANDS across layered config files (unions, does not replace) --
+      - logs.yaml                     # a lab-wide manifest can add entries without disturbing a device's
+      - event_edits.yaml              # own. Anything matching neither this list nor git_tracking.exclude
+      - filetree.yaml                 # is copied too; this list's real job is to state what must never be
+      - sync.yaml                     # moved even if an exclude pattern would otherwise match it.
+      - .gitignore
+      - .git
+      - scripts
+    never:                            # Never transferred at all, in either direction. Checked BEFORE
+      - rclone.log                    # the data patterns -- these also appear in git_tracking.exclude
+                                       # so they are gitignored, and that same field decides what MOVES,
+                                       # so without this they would be shipped to the server as data.
+                                       # (`.policy.<name>` markers with scope: copy are skipped too, by
+                                       # scope rather than by name -- see Experiment.policies above.)
+                                       # What *moves* is not a second list -- it is git_tracking.exclude
+                                       # below, so .gitignore generation, git tracking and sync disposition
+                                       # can never drift apart.
+  git_tracking:                       # Optional per-experiment git repository (see expframework/expgit.py).
+    active: false                     # Local-only -- this never pushes anywhere on its own.
+    exclude:                          # Glob patterns kept out of the experiment's own repo -- same reasoning
+      - "*.mp4"                       # as this codebase's own top-level .gitignore: large binary media
+      - "*.h264"                      # doesn't belong in git history. ExpSync is still the mechanism for
+      - "*.png"                       # actually moving that media (to the file server), not this.
+      - "*.jpg"
+      - "*.tiff"
+      - rclone.log                  # rclone's own raw transfer log -- diagnostics, not a record.
+                                     # sync.yaml is the durable ledger; this is disposable.
+  exp_report: false                   # Unused as of 2026-09-15: ExpReport moved out to the
+                                       # trappy-explorer repo (explorer/report.py), parked for later
+                                       # development. Key kept so existing configs don't error; it is
+                                       # read by nothing.
   eid_generator: core.uid.uid         # This is the funtion that will be called to generate experiment IDs. By default is calls `nanoid.generate('1234567890abcdef', 10)`
   file_server:                        # File server for synchronisation of experiments
     active: false
@@ -78,6 +174,22 @@ Experiment:
     destination: "{date}"
     username: <username>
     password: <password>
+    protocol: smb                    # rclone backend: smb, sftp, ftp, webdav, s3... rclone speaks this
+                                     # directly -- there is no OS-level mount, so no /Volumes-vs-/mnt
+                                     # branch, no `sudo mount`, and no sudo in the transfer path.
+    remote_name: trappyserver        # Name rclone knows this remote by. Defined from THIS file at call
+                                     # time (env vars), not from an rclone.conf -- one credential store.
+    # bwlimit: 20M                   # Optional: throttle NETWORK bandwidth. Also accepts a schedule,
+                                     # e.g. "08:00,512k 22:00,off". Not a substitute for ionice, which
+                                     # is disk-IO priority -- that is what sync_prefix is still for.
+    # transfers: 4                   # Optional: rclone --transfers. Caps concurrency, which is the main
+                                     # lever on local disk read pressure during a live experiment.
+    # sync_prefix:                     # Optional: override the command rclone is launched with (see
+    #   - ionice                       # expframework/expsync.py's ExpSync._sync_prefix()). Left unset,
+    #   - -c2                          # defaults to ["ionice", "-c2", "-n4"] on Linux, [] elsewhere -- no
+    #   - -n4                          # `sudo` anywhere by default. Set this explicitly (e.g. to include
+                                        # "sudo") only if your deployment's capture files are root-owned and
+                                        # can't be fixed with group permissions instead.
 
 
 ## The main device assembly is described here
