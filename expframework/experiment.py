@@ -40,20 +40,35 @@ from core.idioms.clock import Clock
 from core.permaconfig.yaml_logger import create_yaml_logger, close_yaml_logger
 from core.idioms.recordeditor import RecordSet
 
-from .report import ExpReport
+## AI Generated -- ExpReport moved out to the trappy-explorer repo
+## (explorer/report.py) on 2026-09-15, parked for later development. Its
+## module-level pypandoc/reportlab/html2rml imports were unconditional, so
+## the whole experiment framework was unimportable without those installed;
+## and its __init__ set `self.events = ""`, shadowing Experiment.events().
 from .expsync import ExpSync
+from .expgit import ExpGit  # AI Generated
 from .notebook import ExpNotebook
 from .clockgroup import ClockGroup
 
 class ExpEvent(TSEvent):
-	def __init__(self, kind="expevent", attribs={}):
+	def __init__(self, kind="expevent", attribs={}, experiment=None):
 		super().__init__()
-		
+
+		## AI Generated -- `experiment` lets a caller that already has the
+		## owning Experiment instance in hand (Experiment.log(), see below)
+		## pass it explicitly instead of relying on Experiment.current --
+		## which isn't set yet during Experiment.__init__ itself (assigned
+		## only after ExpSync.__init__ runs, see the "Don't move this!"
+		## guard there), even though self.eid/scriptid/expclock are
+		## already valid by then. Defaults to Experiment.current so every
+		## other caller (e.g. Measurement's bare super().__init__()) is
+		## unaffected.
+		experiment = experiment or Experiment.current
 		self.update({
 					"type"       : kind, ## Can be overrided here.
-			 		"eid"        : Experiment.current.eid,
-					"scriptid"   : Experiment.current.scriptid,
-			  		"exptime"    : Experiment.current.expclock.time_elapsed()
+			 		"eid"        : experiment.eid,
+					"scriptid"   : experiment.scriptid,
+			  		"exptime"    : experiment.expclock.time_elapsed()
 		   			})
 		self.update(attribs)
 		
@@ -101,7 +116,7 @@ class ExpScheduler(schedule.Scheduler):
 		self.thread = Thread(name="exp.schedule.loop", target=callback)
 		self.thread.start()
 
-class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
+class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit):
 	"""
 
 	A Trappy-Scope Experiment.
@@ -153,7 +168,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	<Experiment_name>
 		|- .git                     (optional - git repository of the experiment)
 		|- .experiment 			    (identifier)
-		|- .sync                    (Experiment has been setup for synchronisation)
+		|- sync.yaml                (ledger of what has been copied/moved to the server)
 		|- .analysis                (Information about use in specific analyses)
 		|- <experiment_name>.yaml   (experiment logs)
 		|- <logs>
@@ -391,7 +406,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		self.lastwd = os.getcwd()
 		os.chdir(self.exp_dir)
 		print(f"Working directory changed to: {os.getcwd()}")
-		print(f"[cyan]{self.filetree()}[default]")
+		self.drawfiletree()  # AI Generated -- was print(f"[cyan]{self.filetree()}[default]")
 
 
 
@@ -401,7 +416,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 
 
 		## User Information
-		self.logs["user"] = User.info
+		self._log_user()  # AI Generated -- was `self.logs["user"] = User.info`, see _log_user()
 		if "results" not in self.logs:
 			self.logs["results"] = []
 		if "events" not in self.logs:
@@ -416,14 +431,8 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		self.scriptid = None
 
 		## Session
-		YamlProtocol.append_list("sessions.yaml", 
-								 {"eid": self.eid,
-					  			  **Session.current.__getstate__()}
-					  			)
-		
+		self._log_session()  # AI Generated -- see _log_session()
 
-		self.sessions = YamlProtocol.load("sessions.yaml")
-		
 		self.unsaved = False # Flag that indicates unsaved changes
 		self.active = True   # Flag that indicates whether the Experiment is currently active.
 		self.eventid = 0
@@ -442,8 +451,11 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		## Don't move this!
 		Experiment.current = self
 
-		## ExpReport
-		ExpReport.__init__(self, self.eid)
+		## AI Generated -- ExpReport.__init__(self, self.eid) removed here with
+		## the mixin itself (see the import block at the top of this file).
+
+		## ExpGit -- a no-op unless Experiment.git_tracking.active is set
+		ExpGit.__init__(self, self.exp_dir)  # AI Generated
 
 		## Start logging events
 		self.log("session", attribs={"sessionid": Session.current.__getstate__()["name"]})
@@ -453,7 +465,45 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		self.params = self.attribs
 
 		self.copy_payload()
-	
+
+	def _log_user(self):
+		"""AI Generated -- append a frozen copy of the current User.info to
+		this experiment's logs["users"] history. A frozen copy, not a live
+		reference: the old `self.logs["user"] = User.info` aliased the same
+		mutable dict User.login() mutates in place, so it silently tracked
+		"whoever is logged in globally right now" instead of who was
+		actually logged in at the time this was recorded. Called at open
+		(__init__) and again by User.login()/logout() whenever this
+		experiment is the one currently open, so a user change mid-run is
+		also captured, not just the user active when it was opened."""
+		self.logs.setdefault("users", []).append(dict(User.info))
+
+	def _log_session(self):
+		"""AI Generated -- append the current Session's full environment
+		snapshot to this experiment's sessions.yaml. Same calling pattern
+		as _log_user() above -- open, plus any mid-run session change.
+
+		Does its own load-compare-append-dump in one pass (not two separate
+		load/dump calls): if the new entry's pypkglist_hash matches the
+		just-loaded previous entry's, the new entry's pypkglist is set to
+		that SAME (just-parsed) list object, not a copy -- so yaml.dump()
+		below sees one object referenced twice and anchors/aliases it
+		instead of writing ~200 entries out again. That only works because
+		the load, the reuse, and the dump all happen together here; a
+		second, separate load of the file would hand back a different
+		object even for identical content and silently defeat this."""
+		entry = {"eid": self.eid, **Session.current.__getstate__()}
+
+		existing = YamlProtocol.load("sessions.yaml")
+		if not isinstance(existing, list):
+			existing = []
+		if existing and existing[-1].get("pypkglist_hash") == entry["pypkglist_hash"]:
+			entry["pypkglist"] = existing[-1]["pypkglist"]
+
+		existing.append(entry)
+		YamlProtocol.dump("sessions.yaml", existing)
+		self.sessions = existing
+
 	def __repr__(self):
 		return f"< Experiment: {self.name} :::: duration: {self.expclock.time_elapsed():.3f} s >"
 
@@ -564,6 +614,11 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		if self._edit_logger is not None:  # AI Generated
 			close_yaml_logger("event_edits.yaml", self._edit_logger)
 
+		## AI Generated -- a no-op unless Experiment.git_tracking.active is set.
+		## Everything above is already flushed to disk (pickle, experiment.yaml,
+		## logs), so this is the right point to snapshot the close.
+		self.git_commit(f"Session {Session.current.name}: experiment closed")
+
 		Experiment.current = None
 		if self.active:
 			self.active = False
@@ -608,13 +663,51 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 			return None
 
 	def filetree(self):
-		"""
-		Print the current file tree of the experiment.
-		TODO: pythonic way.
-		"""
-		from subprocess import run
-		out = run(["tree", "-a"], capture_output=True, text=True)
-		return out.stdout
+		"""AI Generated -- the current experiment directory's file tree as
+		a plain, nested data structure (core.utilities.filetree.build_tree()).
+		Returns data, doesn't print anything -- use drawfiletree() for a
+		formatted, directly-printed view. Replaces the old
+		subprocess.run(["tree", "-a"]) -- `tree` is a Linux-only CLI
+		dependency this doesn't need, and its raw stdout string was only
+		usable by printing it verbatim."""
+		from core.utilities.filetree import build_tree
+		return build_tree(self.exp_dir)
+
+	def drawfiletree(self):
+		"""AI Generated -- prints a formatted (rich) file tree of the
+		experiment directory. If this experiment is git-tracked
+		(self._git_active), each file is annotated with its git status
+		(committed/modified/staged/untracked/ignored) and the root label
+		shows a commit summary. Prints directly -- unlike filetree(), no
+		need to wrap this in print()."""
+		from core.utilities.filetree import build_tree, git_file_statuses, git_summary, render_tree
+		tree = build_tree(self.exp_dir)
+		statuses, summary = None, None
+		if getattr(self, "_git_active", False):
+			statuses = git_file_statuses(self._git_dir, tree)
+			summary = git_summary(self._git_dir)
+		print(render_tree(tree, statuses, summary))
+
+	FILETREE_FILENAME = "filetree.yaml"  # AI Generated
+
+	def generate_filetree(self):
+		"""AI Generated -- (re)writes FILETREE_FILENAME: a YAML snapshot of
+		this experiment directory's structure, each file's git status, and
+		an explicit git_status summary block. Called by ExpGit.git_commit()
+		right before every commit (baseline, manual, close, or an
+		on-the-spot enable_git_tracking()) -- see expgit.py's module
+		docstring for why this file exists at all: heavy data files are
+		deliberately excluded from the repo's actual content, so this is
+		the human-readable, git-tracked trail of what existed and changed
+		across sessions instead."""
+		from core.utilities.filetree import build_tree, git_file_statuses, git_summary, render_tree_yaml_data
+		tree = build_tree(self.exp_dir)
+		git_active = getattr(self, "_git_active", False)
+		statuses = git_file_statuses(self.exp_dir, tree) if git_active else {}
+		summary = git_summary(self.exp_dir) if git_active else None
+		data = {"name": self.name, **render_tree_yaml_data(tree, statuses, summary)}
+		with open(os.path.join(self.exp_dir, Experiment.FILETREE_FILENAME), "w") as f:
+			yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
 	@autosave
 	def dirstat(self):
@@ -622,26 +715,11 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		stat = {file:os.stat(file) for file in os.listdir(".")}
 		self.log("files_stat", attribs=stat)
 
-	def set_sync_flag(self):
-		"""
-		:depreciated
-		Mark the experiment for synchronisation.
-		"""
-		syncid = uid()
-		sync = {"sync": True, "syncid": syncid, "dt": datetime.datetime.now()}
-		YamlProtocol.dump(".sync", sync)
-		log.critical(f"Set experiment syncronisation with syncid: {syncid}")
-		self.log("set_sync", attribs={"syncid": syncid})
-
-	def unset_sync_flag(self):
-		"""
-		Umark the experiment **explicitly** for synchronisation.
-		Note: In the absence of .sync file, syncronisation is not performed.
-		"""
-		if os.path.isfile(".sync"):
-			os.remove(".sync")
-		log.critical("Unset experiment syncronisation.")
-		self.log("unset_sync")
+	## AI Generated -- set_sync_flag()/unset_sync_flag() removed here. Both were
+	## dead (no callers; set_sync_flag was already marked ":depreciated") and both
+	## wrote `.sync` in a *different* format than ExpSync.set_sync_logfile() did --
+	## two competing writers of one filename. `.sync` is gone entirely; the ledger
+	## that replaces it is sync.yaml (docs/notes/sync_rework.md §7).
 
 
 	#def log(self, action, attrib={}):
@@ -653,7 +731,7 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 	#	return action
 
 	def log(self, event, attribs={}):
-		self.logs["events"].append(dict(ExpEvent(kind=event, attribs=attribs)))
+		self.logs["events"].append(dict(ExpEvent(kind=event, attribs=attribs, experiment=self)))  # AI Generated -- see ExpEvent.__init__
 
 	## AI Generated -- events()/recordset()/measurements()/_log_edit()
 	## below, added by Claude (Anthropic) 2026-09-08/09 for the

@@ -87,6 +87,16 @@ config:
                                    #     submit: true
                                    #     description: "My shortcut"
 
+## Recognized users -- keyed by the lab's two-letter login code (see
+## core/bookkeeping/user.py). An unrecognized code is refused by
+## User.login() unless called with force=True. Expands (unions) across
+## every layered config_files source -- see README's "Expanded config
+## fields" table -- so a lab-wide manifest can add users without
+## disturbing whatever a device's own config already declares.
+# Users:
+#   YB: {full_name: "Yatharth Bhasin", email: "yatharth.bhasin@gimm.pt", designation: "PI"}
+#   CC: {full_name: "...", email: "...", designation: "..."}
+
 ## Experiment configuration options
 Experiment:
   scripts_dirs:                       # Directories ScriptEngine.find() offers when picking a script
@@ -111,7 +121,34 @@ Experiment:
     - postprocess
     - converted
     - analysis
-  exp_report: false                   # Whether the pdf report functionality is turned on or not.
+  sync:                               # How ExpSync classifies each file (see docs/notes/sync_rework.md §4).
+    manifest:                         # Never moved, only ever copied -- so both the local copy and the
+      - .experiment                   # server copy stay legible experiments. Data files (below) move
+      - experiment.yaml               # instead, freeing space on the acquisition machine.
+      - sessions.yaml                 #
+      - expstate.pickle               # EXPANDS across layered config files (unions, does not replace) --
+      - logs.yaml                     # a lab-wide manifest can add entries without disturbing a device's
+      - event_edits.yaml              # own. Anything matching neither this list nor git_tracking.exclude
+      - filetree.yaml                 # is copied too; this list's real job is to state what must never be
+      - sync.yaml                     # moved even if an exclude pattern would otherwise match it.
+      - .gitignore
+      - .git
+      - scripts
+                                       # What *moves* is not a second list -- it is git_tracking.exclude
+                                       # below, so .gitignore generation, git tracking and sync disposition
+                                       # can never drift apart.
+  git_tracking:                       # Optional per-experiment git repository (see expframework/expgit.py).
+    active: false                     # Local-only -- this never pushes anywhere on its own.
+    exclude:                          # Glob patterns kept out of the experiment's own repo -- same reasoning
+      - "*.mp4"                       # as this codebase's own top-level .gitignore: large binary media
+      - "*.h264"                      # doesn't belong in git history. ExpSync is still the mechanism for
+      - "*.png"                       # actually moving that media (to the file server), not this.
+      - "*.jpg"
+      - "*.tiff"
+  exp_report: false                   # Unused as of 2026-09-15: ExpReport moved out to the
+                                       # trappy-explorer repo (explorer/report.py), parked for later
+                                       # development. Key kept so existing configs don't error; it is
+                                       # read by nothing.
   eid_generator: core.uid.uid         # This is the funtion that will be called to generate experiment IDs. By default is calls `nanoid.generate('1234567890abcdef', 10)`
   file_server:                        # File server for synchronisation of experiments
     active: false
@@ -120,6 +157,12 @@ Experiment:
     destination: "{date}"
     username: <username>
     password: <password>
+    # sync_prefix:                     # Optional: override the command rsync is launched with (see
+    #   - ionice                       # expframework/expsync.py's ExpSync._sync_prefix()). Left unset,
+    #   - -c2                          # defaults to ["ionice", "-c2", "-n4"] on Linux, [] elsewhere -- no
+    #   - -n4                          # `sudo` anywhere by default. Set this explicitly (e.g. to include
+                                        # "sudo") only if your deployment's capture files are root-owned and
+                                        # can't be fixed with group permissions instead.
 
 
 ## The main device assembly is described here

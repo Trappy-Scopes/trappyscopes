@@ -18,6 +18,8 @@ def sys_perma_state():
 		   "mac_address" : mac_str,
 		   #"ip_address"  : gethostbyname(gethostname()),
 		   "hostname"    : gethostname(),
-		   "os"          : [platform.system(), platform.release()]
+		   "os"          : [platform.system(), platform.release()],
+		   "python_version" : platform.python_version(),  # AI Generated -- for Session's environment snapshot
+		   "machine"        : platform.machine(),          # AI Generated -- e.g. "arm64"/"x86_64"
 		  }
 	return ds

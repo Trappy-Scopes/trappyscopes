@@ -8,8 +8,8 @@ class Installer:
 	pylibs = ["rich", "pyyaml", "colorama", "nanoid", "art",
 			  "plotext", "asciichartpy", "prompt_toolkit", 
 			  "GitPython", "schedule", "websockets", 
-			  "pandas", "textual", "pyserial", "pypandoc",
-			  "confuse", "matplotlib", "scikit-image", "html2rml",
+			  "pandas", "textual", "pyserial",
+			  "confuse", "matplotlib", "scikit-image",
 			  "rpyc", 
 			  "numpy<2.0.0"]
 	

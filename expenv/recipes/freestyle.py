@@ -51,6 +51,7 @@ from core.installer.installer import Installer
 from expframework.experiment import Experiment
 from expframework.protocol import Protocol
 from expframework.expsync import ExpSync
+from expframework.expgit import ExpGit  # AI Generated
 from expframework.scriptengine import ScriptEngine
 from expframework.plotter import Plotter as plt
 
@@ -141,6 +142,7 @@ def build(config):
 	print("\nCall intro() to get an introduction.")
 
 	ExpSync.configure(device_metadata)
+	ExpGit.configure(device_metadata)  # AI Generated
 
 	if scopeid == "MDev":
 		Reg.load()

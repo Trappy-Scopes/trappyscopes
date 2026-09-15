@@ -803,6 +803,12 @@ which point an inactive block is simply absent and `ExpSync` reading a
 now-missing key is itself the "not configured" signal — no dedicated flag
 needed. Not done independently of §7.1.
 
+**Note (2026-09-15):** `ExpSync`'s *transfer model* — copy-vs-move
+disposition, the rclone migration, the sync ledger, and `ExpPolicy` — is a
+separate concern tracked in [sync_rework.md](sync_rework.md), not here.
+This section remains scoped to the `active:`/config question only. The
+config-key move itself (§12 #4) is done.
+
 ---
 
 ## 10. On the config file's location
@@ -847,7 +853,7 @@ template, and the README.
 | Host's own processor group | not declared; auto-created as `"node"` in `ScopeAssembly.__init__` | template shows a `<hostname>` entry *inside* `ScopeAssembly:` | same, §"Define devices" | **Open design question**, see §12 |
 | Abstraction | `abstraction:` (singular), half-wired | absent | not in the documented schema | **Drop** — already decided, §9.2 |
 | Experiment directory | `config.expdir` | `Experiment.exp_dir` | `Experiment.exp_dir` | **Rename**, see §12 |
-| Experiment data sync | `config.file_server` | `Experiment.file_server` | `Experiment.file_server` | **Rename + move**, see §12 |
+| Experiment data sync | `config.file_server` | `Experiment.file_server` | `Experiment.file_server` | **Done** (2026-09-15) — see §12 #4 |
 | Config-file sync | absent entirely | `config.config_server` | `config.config_server` | **New feature to build** (§7.3 step 2), not a rename |
 | Git sync | `config.git_sync` (bare bool) + `config.git_dependencies` (`{url: local_path}`) | `config.git_sync: {active, command, repos: []}` (`repos` is a list of local dirs, no URLs) | same | **Reshape, not rename** — different data shape, see §12 |
 | `active:` enforcement | ad hoc (`ExpSync` only); `git_sync` truthy-dict bug | assumed everywhere | documented as universal | **Depends on §7.1 landing first** |
@@ -878,7 +884,7 @@ template's convention instead.
 | 1 | `devices:` → `ScopeAssembly:` | [hive/assembly.py:113](hive/assembly.py:113) | `for device, device_params in scopeconfig["devices"].items():` → read `scopeconfig["ScopeAssembly"]` instead. |
 | 2 | Host device collision | [hive/assembly.py](hive/assembly.py) `__init__` (auto-adds `"node"`) vs. `open()` (would mount the config's own `<hostname>` entry) | **Not a mechanical fix — a design decision.** If the `ScopeAssembly:` block declares a host entry (as the template shows), does it *replace* the auto-created `"node"`, or do both exist under different names? Needs an answer before #1 is safe to make. |
 | 3 | `config.expdir` → `Experiment.exp_dir` | [expframework/experiment.py:163](expframework/experiment.py:163), [:197](expframework/experiment.py:197), [:294](expframework/experiment.py:294) | Three call sites, all `TrappyConfig.current["config"]["expdir"]` → `TrappyConfig.current["Experiment"]["exp_dir"]`. |
-| 4 | `config.file_server` → `Experiment.file_server` | [expframework/expsync.py:29-35](expframework/expsync.py:29) | Six keys (`active`, `server`, `share`, `username`, `password`, `destination`) all read off `scopeconfig["config"]["file_server"]`; move to `scopeconfig["Experiment"]["file_server"]`. **Caution:** do not conflate with the new `config.config_server` block (#6) — same-shaped sub-keys, different purpose (experiment data vs. the config file itself). |
+| 4 | `config.file_server` → `Experiment.file_server` | [expframework/expsync.py:25-29](expframework/expsync.py:25) | **Done** (2026-09-15) -- `ExpSync.configure()` now reads `TrappyConfig.optional_block(scopeconfig, "Experiment", "file_server")`. `config.config_server` (#6) is untouched, as intended -- different purpose (experiment data vs. the config file itself). |
 | 5 | `git_sync` reshape | [startup.py:12](startup.py:12), [:16](startup.py:16) | Not a rename: today `git_sync` is a bare bool gating a *separate* `git_dependencies` map (`{repo_url: local_path}`); the template's `git_sync: {active, command, repos: []}` is one block where `repos` is a list of local directories with no URL. Rewriting this also fixes the `if scopeconfig["config"]["git_sync"]:` truthy-dict bug (§7.1) — worth landing together since the same code changes either way. Decide first: does the new shape need to *clone* missing repos (needs the URL), or only `pull` ones assumed already checked out (the template's model)? |
 | 6 | Config-file sync | new code, no existing site | Nothing reads `config.config_server` today — this is new, feeding launcher step 2 (§7.3). Needs: reachability check, "has it changed" comparison, rewrite-local-file, and the re-validation caveat already flagged in §7.3. |
 | 7 | `active:` filtering | [core/permaconfig/config.py](core/permaconfig/config.py) (`TrappyConfig`) | New mechanism, not a rename: implement once per §7.1, so `venv`, the reshaped `git_sync` (#5), `file_server` (#4), and `config_server` (#6) all get it for free instead of each needing its own check. **Sequencing matters: doing #5 before this exists just recreates the current bug in the new shape.** |

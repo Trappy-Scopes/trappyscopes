@@ -18,5 +18,4 @@ apt_only:
                         # must match the exact Raspberry Pi OS image in use
 
 conda_forge:
-  - pandoc      # expframework/report.py
   - graphviz    # the `dot` binary (diagrams, graphviz python packages)
