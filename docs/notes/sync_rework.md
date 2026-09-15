@@ -1,12 +1,11 @@
 # ExpSync rework — two legible copies, policies, rclone
 
-**AI Generated** — design note, Claude (Anthropic), 2026-09-15. **For review.
-Nothing here has been built.**
+**AI Generated** — design note, Claude (Anthropic), 2026-09-15. **All three
+chunks are now built** — see *Build order* at the end for status and for
+what landed differently than designed.
 
-Revised twice after review. The organising principle is the **two-copy
-model** (§1), not a per-call `remove_source` flag. Most design questions
-are now settled — see **Decisions taken** at the end; four questions
-remain open.
+Revised twice during review. The organising principle is the **two-copy
+model** (§1), not a per-call `remove_source` flag.
 
 Grounded in a real deployment run (`MDev__YB__2026_09_04__23hh_19mm__
 test_experimentscripted_run_coin_toss__603ed0bb24`) after this session's
@@ -538,10 +537,29 @@ Three independently shippable chunks. **A is the one to do first** — it
 fixes three live bugs, needs no rclone, and both other chunks build on its
 classification.
 
-| | Chunk | Contents | Depends on |
+| | Chunk | Contents | Status |
 |---|---|---|---|
-| **A** | **Classification** | Manifest/data lists in config (expand fields); copy-vs-move disposition replacing `remove_source`; remove the dotfile filter; delete `.sync` and `set_sync_logfile()` | nothing |
-| **B** | **rclone migration** | Replace mount+rsync; delete `mount()`, `mkexpdir()`, `mount_addr`, the `sudo` path; `--bwlimit`/`--transfers`; harvest md5 | A |
-| **C** | **Ledger + policies** | `sync.yaml` ledger; `ExpPolicy` + `.policy.*` markers; `location` in `filetree.yaml` | A |
+| **A** | **Classification** | Manifest/data lists in config (expand fields); copy-vs-move disposition replacing `remove_source`; remove the dotfile filter; delete `.sync` and `set_sync_logfile()` | **Done** 2026-09-15 |
+| **B** | **rclone migration** | Replace mount+rsync; delete `mount()`, `mkexpdir()`, `mount_addr`, the `sudo` path; `--bwlimit`/`--transfers` | **Done** 2026-09-15 |
+| **C** | **Ledger + policies** | `sync.yaml` ledger; `ExpPolicy` + `.policy.*` markers; `location` in `filetree.yaml` | **Done** 2026-09-15 |
 
-B and C are independent of each other and can land in either order.
+### Landed differently than designed, or learned while building
+
+- **A third disposition, `skip`, was necessary.** The design had two
+  (copy/move). But `rclone.log` must be gitignored *and* never synced, and
+  git_tracking.exclude is the same field that decides what **moves** -- so
+  listing it there would have shipped the local diagnostics log to the
+  server as data. `Experiment.sync.never` is checked *before* the data
+  patterns; per-copy `.policy.*` markers resolve to `skip` by scope. This
+  is the first real cost of "one list, three consumers", and it is
+  ordering, not a second list.
+- **The ledger append is lock-guarded.** `sync_dir()` transfers inside a
+  ThreadPoolExecutor; the default `sync_max_threads=1` is serial, but the
+  parameter is caller-settable and two workers would otherwise drop each
+  other's entries via load-modify-dump.
+- **md5 harvesting was not built** -- deferred with DVC, per the decision
+  table. rclone can supply it at ≈0 cost when wanted.
+- **rclone must be installed on every scope.** `ExpSync.configure()`
+  deactivates sync with an actionable error if it is missing, rather than
+  failing per transfer. This is a real deployment step: the rsync path is
+  gone.

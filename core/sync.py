@@ -20,8 +20,54 @@ was never actually invoked by anything live.
 import logging as log
 import os
 import platform
+import shutil
 import subprocess
 import time
+
+
+## AI Generated -- rclone transport (docs/notes/sync_rework.md §5). rclone speaks
+## the remote protocol directly, so nothing here needs an OS-level mount: no
+## /Volumes-vs-/mnt branch, no `sudo mount`, no pre-creating remote directories,
+## and no sudo in the transfer path at all -- remote writes happen as the
+## authenticated remote user. The rsync helpers below are kept for the
+## launcher's trappyverse/ config sync, which genuinely does work on a local
+## folder pair; ExpSync no longer uses them.
+
+def rclone_available():
+	"""Is the rclone binary on PATH? ExpSync.configure() checks this so a
+	missing binary reports itself clearly instead of failing per transfer."""
+	return shutil.which("rclone") is not None
+
+
+def rclone_obscure(password):
+	"""AI Generated -- rclone stores passwords obscured, and rejects a plain one
+	in config/env. Fed via stdin rather than argv: `rclone obscure <password>`
+	would put the credential in the process list for anyone running `ps`."""
+	result = subprocess.run(["rclone", "obscure", "-"], input=password,
+							 capture_output=True, text=True)
+	if result.returncode != 0:
+		raise RuntimeError(f"rclone obscure failed: {result.stderr.strip()}")
+	return result.stdout.strip()
+
+
+def rclone(action, source, destination, flags=(), prefix=(), env=None):
+	"""Run one rclone transfer. `action` is "copyto" or "moveto" -- both take a
+	full destination path (rather than copying *into* a directory) and both
+	accept a file or a directory as the source, so one call shape covers every
+	entry sync_dir() walks.
+
+	`prefix` is prepended exactly as it is for rsync, so a Linux deployment can
+	still wrap the call in `ionice` -- rclone's own --bwlimit throttles the
+	network, which is a different axis from disk I/O priority.
+
+	Returns the CompletedProcess; does not raise on non-zero, so a failed
+	transfer doesn't take down its caller -- check `.returncode`.
+	"""
+	command = [*prefix, "rclone", action, source, destination, *flags]
+	result = subprocess.run(command, capture_output=True, text=True, env=env)
+	if result.returncode != 0:
+		log.error(f"rclone {action} failed ({result.returncode}): {result.stderr.strip()}")
+	return result
 
 
 def mount(server, share, username, password):

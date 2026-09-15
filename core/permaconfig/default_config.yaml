@@ -143,6 +143,12 @@ Experiment:
       - .gitignore
       - .git
       - scripts
+    never:                            # Never transferred at all, in either direction. Checked BEFORE
+      - rclone.log                    # the data patterns -- these also appear in git_tracking.exclude
+                                       # so they are gitignored, and that same field decides what MOVES,
+                                       # so without this they would be shipped to the server as data.
+                                       # (`.policy.<name>` markers with scope: copy are skipped too, by
+                                       # scope rather than by name -- see Experiment.policies above.)
                                        # What *moves* is not a second list -- it is git_tracking.exclude
                                        # below, so .gitignore generation, git tracking and sync disposition
                                        # can never drift apart.
@@ -154,6 +160,8 @@ Experiment:
       - "*.png"                       # actually moving that media (to the file server), not this.
       - "*.jpg"
       - "*.tiff"
+      - rclone.log                  # rclone's own raw transfer log -- diagnostics, not a record.
+                                     # sync.yaml is the durable ledger; this is disposable.
   exp_report: false                   # Unused as of 2026-09-15: ExpReport moved out to the
                                        # trappy-explorer repo (explorer/report.py), parked for later
                                        # development. Key kept so existing configs don't error; it is
@@ -166,7 +174,17 @@ Experiment:
     destination: "{date}"
     username: <username>
     password: <password>
-    # sync_prefix:                     # Optional: override the command rsync is launched with (see
+    protocol: smb                    # rclone backend: smb, sftp, ftp, webdav, s3... rclone speaks this
+                                     # directly -- there is no OS-level mount, so no /Volumes-vs-/mnt
+                                     # branch, no `sudo mount`, and no sudo in the transfer path.
+    remote_name: trappyserver        # Name rclone knows this remote by. Defined from THIS file at call
+                                     # time (env vars), not from an rclone.conf -- one credential store.
+    # bwlimit: 20M                   # Optional: throttle NETWORK bandwidth. Also accepts a schedule,
+                                     # e.g. "08:00,512k 22:00,off". Not a substitute for ionice, which
+                                     # is disk-IO priority -- that is what sync_prefix is still for.
+    # transfers: 4                   # Optional: rclone --transfers. Caps concurrency, which is the main
+                                     # lever on local disk read pressure during a live experiment.
+    # sync_prefix:                     # Optional: override the command rclone is launched with (see
     #   - ionice                       # expframework/expsync.py's ExpSync._sync_prefix()). Left unset,
     #   - -c2                          # defaults to ["ionice", "-c2", "-n4"] on Linux, [] elsewhere -- no
     #   - -n4                          # `sudo` anywhere by default. Set this explicitly (e.g. to include

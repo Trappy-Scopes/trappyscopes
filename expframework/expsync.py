@@ -3,7 +3,6 @@ import fnmatch  # AI Generated -- data-pattern matching in _disposition()
 import os
 import logging as log
 import platform
-import subprocess  # AI Generated -- used by sync_file()'s destination-directory pre-creation
 import threading  # AI Generated -- guards the sync.yaml ledger append
 from concurrent.futures import ThreadPoolExecutor
 import time
@@ -34,6 +33,14 @@ class ExpSync:
 	## for itself.
 	manifest = []       # never moved, only ever copied
 	data_patterns = []  # globs -> moved (transferred, then removed locally)
+	never_sync = []     # globs -> never transferred at all, in either direction
+
+	## AI Generated -- rclone transport (docs/notes/sync_rework.md §5).
+	protocol = "smb"              # any rclone backend: smb, sftp, ftp, webdav, s3...
+	remote_name = "trappyserver"  # the rclone remote's name; defined from config, not rclone.conf
+	bwlimit = None                # e.g. "20M", or a schedule like "08:00,512k 22:00,off"
+	transfers_limit = None        # rclone --transfers; also the main lever on local disk read pressure
+	_obscured = None              # cached obscured password, see _remote_env()
 
 	def configure(scopeconfig):
 		## AI Generated -- classification is read even when no file_server is
@@ -44,6 +51,7 @@ class ExpSync:
 			## .gitignore: one list, three consumers (.gitignore generation, git
 			## tracking, sync disposition), so they cannot drift apart.
 			ExpSync.data_patterns = list(TrappyConfig.current.expanded("Experiment", "git_tracking", "exclude") or [])
+			ExpSync.never_sync = list(TrappyConfig.current.expanded("Experiment", "sync", "never") or [])
 
 		## AI Generated -- moved from config.file_server to Experiment.file_server
 		## (docs/notes/restructuring.md §12 #4).
@@ -60,6 +68,20 @@ class ExpSync:
 		ExpSync.destination_fmt = block["destination"]
 		ExpSync.sync_prefix = block.get("sync_prefix")  # AI Generated -- explicit override, see _sync_prefix()
 
+		## AI Generated -- rclone transport settings (docs/notes/sync_rework.md §5).
+		ExpSync.protocol = block.get("protocol", "smb")
+		ExpSync.remote_name = block.get("remote_name", "trappyserver")
+		ExpSync.bwlimit = block.get("bwlimit")
+		ExpSync.transfers_limit = block.get("transfers")
+		ExpSync._obscured = None  # re-obscure on next use, in case the password changed
+
+		if not sync.rclone_available():
+			ExpSync.active = False
+			log.error("rclone is not installed, so experiment sync is disabled. "
+					  "Install it (e.g. `brew install rclone`, `apt install rclone`) "
+					  "and restart. ExpSync no longer uses rsync or an OS-level mount "
+					  "-- see docs/notes/sync_rework.md §5.")
+
 
 
 	def __init__(self, expname, sync_max_threads=1, destination_dir=None):
@@ -69,37 +91,15 @@ class ExpSync:
 		string in the configuration.
 		"""
 		self.sync_max_threads = sync_max_threads
-		
-		## Deduce a mount point for the remote share
-		if platform.system() == "Linux":
-			log.debug("Plateform is Linux.")
-			self.mount_addr = f"/mnt/{ExpSync.share}/"
-			# Todo fill for linux.
-		elif platform.system() == "Darwin":
-			log.debug("Plateform is Darwin (MacOS).")
-			self.mount_addr = f"/Volumes/{ExpSync.share}/"
-		else:
-			log.error("Operating system not implemented.")
 
-		#if not os.path.exists(self.mount_addr):
+		## AI Generated -- the platform mount-point branch (/Volumes vs /mnt),
+		## self.mount(), mkexpdir() and its `sudo mkdir -p` fallback are all gone
+		## with the rclone migration (docs/notes/sync_rework.md §5). rclone speaks
+		## the protocol directly, creates remote directories as part of the
+		## transfer, and writes as the authenticated remote user -- which is what
+		## removed the whole class of mount-permission failures this used to hit.
 		self.destination_dir = None
 		if ExpSync.active:
-			self.mount(ExpSync.server, ExpSync.share,
-					   ExpSync.username, ExpSync.password)
-
-			## AI Generated -- the `.sync` marker file and set_sync_logfile()
-			## were removed here (docs/notes/sync_rework.md §7): it was written
-			## once and only ever appended to on a move, so it never was the log
-			## its own docstring claimed. Experiment.set_sync_flag()/
-			## unset_sync_flag() -- a second, differently-formatted writer of the
-			## same filename -- went with it.
-
-			## AI Generated -- effify() used to be defined inline right
-			## here; centralized onto TrappyConfig.template() (Claude,
-			## Anthropic) so any config field wanting this same
-			## "{date}"-style templating can reuse it instead of a second
-			## private copy. See docs/notes/scripts_measurements_plotting.md §G.10.
-
 			## AI Generated -- destination_dir was computed fresh from
 			## today's date/time on every single open (Experiment.__init__
 			## looks for self.logs["destination_dir"] to reuse, but nothing
@@ -108,20 +108,25 @@ class ExpSync:
 			## reusing the one this experiment already has. Fixed: persist
 			## it, and log which of the two actually happened -- see
 			## docs/notes/experiment_architecture_and_actions.md §C.
+			##
+			## template() centralizes the old inline effify() -- see
+			## docs/notes/scripts_measurements_plotting.md §G.10.
 			reconnected = bool(destination_dir)
 			if not destination_dir:
 				templated = TrappyConfig.current.template(ExpSync.destination_fmt)
-				self.mkexpdir(templated, expname)
-				self.destination_dir = os.path.join(self.mount_addr, templated, expname)
+				self.destination_dir = ExpSync._remote_path(templated, expname)
 			else:
 				self.destination_dir = destination_dir
 
-			if not os.path.exists(self.destination_dir):
-				raise FileNotFoundError("exp.destination_dir not found. Check experiment.yaml file.")
+			## AI Generated -- the old `os.path.exists(self.destination_dir)` guard
+			## is gone: destination_dir is now an rclone remote path
+			## ("remote:share/..."), not something the local filesystem can stat.
+			## Nothing needs pre-creating either -- rclone makes the path on write.
 
 			self.logs["destination_dir"] = self.destination_dir
 			self.log("sync_reconnected" if reconnected else "sync_destination_negotiated",
-					 attribs={"destination_dir": self.destination_dir})
+					 attribs={"destination_dir": self.destination_dir,
+							  "protocol": ExpSync.protocol})
 
 		## Background executor
 		self.__executor = ThreadPoolExecutor(max_workers=sync_max_threads)
@@ -139,16 +144,44 @@ class ExpSync:
 		log.warning("[OK] Transfers complete...")
 
 	
-	def mkexpdir(self, scopeid, experiment):
-		"""
-		scopeid: Scopeid.
-		experiment: experiment name.
-		"""
-		try:
-			os.makedirs(os.path.join(self.mount_addr, scopeid, experiment), mode=0o777, exist_ok=True)
-		except:
-			os.system(f"sudo mkdir -p {os.path.join(self.mount_addr, scopeid, experiment)}")
-		log.info("Created / confirmed remote Experiment directory.")
+	def _remote_path(*parts):
+		"""AI Generated -- an rclone remote path: "<remote>:<share>/<parts...>".
+		`share` is the leading path segment (SMB's share name); backends with no
+		such concept (sftp, s3) leave it empty in config and it drops out."""
+		segments = [p for p in (ExpSync.share, *parts) if p]
+		return f"{ExpSync.remote_name}:{'/'.join(segments)}"
+
+	def _remote_env():
+		"""AI Generated -- the rclone remote, defined entirely from
+		trappyconfig at call time (docs/notes/sync_rework.md §3): no
+		rclone.conf, no second credential store to keep in step. rclone reads
+		`RCLONE_CONFIG_<REMOTE>_<KEY>` exactly as it would config-file keys,
+		which is why the password has to be obscured first."""
+		if ExpSync._obscured is None:
+			ExpSync._obscured = sync.rclone_obscure(ExpSync.password)
+
+		env = dict(os.environ)
+		tag = f"RCLONE_CONFIG_{ExpSync.remote_name.upper()}"
+		env[f"{tag}_TYPE"] = ExpSync.protocol
+		env[f"{tag}_HOST"] = ExpSync.server
+		env[f"{tag}_USER"] = ExpSync.username
+		env[f"{tag}_PASS"] = ExpSync._obscured
+		return env
+
+	def _rclone_flags(self):
+		"""AI Generated -- --bwlimit throttles the *network*; --transfers caps
+		concurrency, which is the real lever on local disk read pressure. Neither
+		replaces ionice's disk-priority control -- that is what sync_prefix still
+		exists for on Linux (docs/notes/sync_rework.md §5)."""
+		flags = []
+		if ExpSync.bwlimit:
+			flags += ["--bwlimit", str(ExpSync.bwlimit)]
+		if ExpSync.transfers_limit:
+			flags += ["--transfers", str(ExpSync.transfers_limit)]
+		## rclone's own transfer log -- raw diagnostics (bytes, retries, errors),
+		## distinct from sync.yaml's semantic ledger. Gitignored, disposable.
+		flags += ["--log-file", os.path.join(self.exp_dir, "rclone.log")]
+		return flags
 
 	def _disposition(file):
 		"""AI Generated -- 'move' or 'copy' for one top-level entry of the
@@ -166,6 +199,15 @@ class ExpSync:
 		written at the experiment root -- the normal case -- classify
 		correctly; data buried inside an otherwise-manifest directory would
 		be copied with it rather than moved."""
+		## AI Generated -- checked BEFORE the data patterns, and this ordering is
+		## load-bearing: `never` entries also appear in git_tracking.exclude (so
+		## they are gitignored), and that same field is what decides what *moves*.
+		## Without this check first, rclone.log -- purely local diagnostics --
+		## would be classified as data and shipped to the server.
+		for pattern in ExpSync.never_sync:
+			if fnmatch.fnmatch(file, pattern):
+				return "skip"
+
 		## AI Generated -- per-copy policy markers never leave this copy. `.policy.stub`
 		## describes *this* copy; copying it would make the full server-side copy
 		## falsely declare itself a stub (docs/notes/sync_rework.md §2).
@@ -179,17 +221,12 @@ class ExpSync:
 				return "move"
 		return "copy"
 
-	def mount(self, server, share, username, password):
-		"""
-		Mount an SMB share. See core.sync.mount -- not experiment-specific,
-		so the actual mounting logic lives there.
-		"""
-		mount_point = sync.mount(server, share, username, password)
-		print(f"Mounted //{server}/{share} at {mount_point}.")
-		self.server = f"{mount_point}/"
+	## AI Generated -- ExpSync.mount() removed with the rclone migration: there is
+	## no OS-level mount any more. core.sync.mount() itself stays, since the
+	## launcher's trappyverse/ config sync still uses it.
 
 	def _sync_prefix():
-		"""AI Generated -- the rsync command prefix (see sync_file()).
+		"""AI Generated -- the transfer command prefix (see sync_file()).
 		Experiment.file_server.sync_prefix in config, if set, always wins
 		-- e.g. a deployment where the capture process writes root-owned
 		files could set ["sudo", "ionice", "-c2", "-n4"] explicitly.
@@ -197,7 +234,7 @@ class ExpSync:
 		Otherwise, the default: `ionice` (I/O priority throttling, so a
 		sync doesn't compete with a live experiment still writing to the
 		same disk) on Linux -- it's util-linux, no macOS equivalent, and
-		running it there fails every transfer with "sudo: ionice: command
+		running it there failed every transfer with "sudo: ionice: command
 		not found". No `sudo` by default anywhere: setting the
 		best-effort I/O class (-c2) on a process you're launching
 		yourself doesn't need root (only the realtime class, or changing
@@ -275,7 +312,7 @@ class ExpSync:
 		"""
 		Note: Blocking function
 
-		Run rsync for a specific file or directory.
+		Run one rclone transfer for a specific file or directory.
 		file: filename (relative to exp_dir)
 		remove_source: AI Generated -- None (the default) classifies this
 		  file via _disposition(): data moves, everything else copies.
@@ -293,38 +330,23 @@ class ExpSync:
 		if remove_source is None:  # AI Generated
 			remove_source = ExpSync._disposition(file) == "move"
 
-		## AI Generated -- mkexpdir() only ever creates the top-level experiment
-		## folder remotely, never subdirectories (analysis/, scripts/, converted/,
-		## postprocess/). rsync then has to create a missing destination directory
-		## itself, and on at least one real deployment (SMB mount) that internal
-		## creation failed with "mkpath: Permission denied" -- pre-create it
-		## instead, the same way mkexpdir() does. Routed through the SAME
-		## configured prefix as the rsync call below (ExpSync._sync_prefix()) --
-		## a plain os.makedirs() runs as this process's own user no matter what
-		## the config says, so if the destination genuinely needs elevated
-		## permission (as confirmed on this deployment), a bare os.makedirs()
-		## here would always fail regardless of `sync_prefix`.
-		if os.path.isdir(file):
-			dest_dir = os.path.join(self.destination_dir, file)
-			prefix = ExpSync._sync_prefix()
-			if prefix:
-				subprocess.run([*prefix, "mkdir", "-p", dest_dir])
-			else:
-				os.makedirs(dest_dir, mode=0o777, exist_ok=True)
-
-		## -W --inplace: large binary experiment files (video, images) don't
-		## benefit from rsync's delta-transfer algorithm -- the whole-file
-		## copy is cheaper than the comparison overhead. Compression is
-		## already off by default (no -z/--compress passed) -- the old
-		## "--no-compress" here was just asserting that explicitly, and it's
-		## a GNU-rsync-only flag: macOS ships `openrsync` (BSD, no GPLv3),
-		## which doesn't recognize it and fails every transfer outright.
-		result = sync.sync(
+		## AI Generated -- no destination pre-creation any more. The old code had to
+		## mkdir the remote subdirectory itself (mkexpdir() only ever made the
+		## top-level folder, and rsync's own creation failed with "mkpath:
+		## Permission denied" against the SMB mount) -- rclone creates the path as
+		## part of the transfer, as the authenticated remote user, so the whole
+		## dance including its sudo fallback is gone.
+		##
+		## copyto/moveto rather than copy/move: both take a full destination path
+		## instead of copying *into* a directory, and both accept either a file or
+		## a directory, so one call shape covers every entry sync_dir() walks.
+		result = sync.rclone(
+			"moveto" if remove_source else "copyto",
 			os.path.join(os.getcwd(), file),
-			os.path.join(self.destination_dir, file),
-			flags=["-a", "-W", "--inplace"],
-			remove_source=remove_source,
+			f"{self.destination_dir}/{file}",
+			flags=self._rclone_flags(),
 			prefix=ExpSync._sync_prefix(),
+			env=ExpSync._remote_env(),
 		)
 		disposition = "moved" if remove_source else "copied"
 		if result.returncode != 0:
@@ -337,8 +359,8 @@ class ExpSync:
 			return None
 
 		self.log_transfer(file, disposition, ok=True)
-		log.info(f"Rsync {disposition}: {file}")
-		print(f"Rsync {disposition}: {file}")
+		log.info(f"rclone {disposition}: {file}")
+		print(f"rclone {disposition}: {file}")
 		return result.stdout
 
 	## AI Generated -- the sync ledger (docs/notes/sync_rework.md §1/§7), the
