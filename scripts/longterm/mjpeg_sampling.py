@@ -63,6 +63,7 @@ def create_exp():
 	exp.attribs["camera_mode"] = "vid_mjpeg_tpts"
 	exp.attribs["group"] = "red_light"
 	exp.attribs["sync_files"] = True
+	exp.attribs["auto_cleanup"] = True
 	exp.attribs["beacon_stabilization_delay_s"] = 1
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
@@ -163,6 +164,16 @@ def test_fov(tsec):
 					quality=exp.params["compression_quality_factor"])
 
 
+def cleanup():
+	global exp, scope
+	exp = Experiment.current
+	scope = ScopeAssembly.current
+	exp.logs.update(ScopeAssembly.current.get_config())
+	exp.schedule.clear() ## Clear scheduler -- that will remove the current job as well.
+	exp.__save__()
+	exp.sync_dir()
+	exp.close()
+
 def start_acq():
 	global exp, scope, capture
 	scope = ScopeAssembly.current
@@ -180,14 +191,13 @@ def start_acq():
 	scope.lit.setVs(*exp.params["light"])
 	capture()
 	Experiment.current.schedule.every(exp.params["sampling_period_hours"]).hours.until(timedelta(hours=exp.params["sampling_hours"])).do(capture)
+
+## Cleanup
+	if exp.attribs["auto_cleanup"]:
+		Experiment.current.schedule.every(exp.params["sampling_hours"]+1).hours.until(timedelta(hours=exp.params["sampling_hours"]+2)).do(cleanup)
 	
 
-def cleanup():
-	exp = Experiment.current
-	exp.logs.update(ScopeAssembly.current.get_config())
-	exp.__save__()
-	exp.sync_dir()
-	exp.close()
+
 
 if __name__ == "__main__":
 	global scope
