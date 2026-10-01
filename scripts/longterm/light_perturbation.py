@@ -39,14 +39,32 @@ Same sampling as mjpeg_sampling.py (60 s clip every 30 min for 22 h), but each
 microscope runs one of four light/reagent conditions. The same file is loaded on
 every scope; the only thing that differs is the condition passed to create_exp().
 
-    control   0.5 V red, continuous. Control vehicle only.
-    dark      Lights off between acquisitions; 0.5 V red only while recording.
-    dcmu      0.5 V red continuous, 5 umol/mL DCMU in the medium.
-    white     0.5 V red + green and blue at 3.0 V, continuous.
+                      between acquisitions        during acquisition
+    control       0.5 V red                   0.5 V red
+    dark          lights off                  0.5 V red
+    dcmu          0.5 V red (+ DCMU)          0.5 V red
+    white         0.5 V red + G,B at 3.0 V    0.5 V red
 
-Red is always the recorded channel. Green and blue mean intensity are measured
-per frame in every condition -- in control, dark and dcmu those channels are
-dark, so the numbers are the stray-light baseline the white arm is read against.
+Every arm is RECORDED under identical red-only illumination. The perturbation
+is what happens between acquisitions; the measurement is always made the same
+way. That is not a stylistic choice -- it is forced by the ISP.
+
+Measured on M1, 2026-10-01 (11af00e079, see
+scripts/calibration/camtests/ccm_crosstalk_test.py): imx477_scientific.json
+carries 19 colour correction matrices, none of them the identity, and WHICH one
+is applied depends on the AWB colour-temperature estimate, i.e. on the
+illumination spectrum. With the red LED held at 0.5 V throughout, the red
+channel reads 86.2 under red only, 25.5 with green added (-70%) and 146.8 with
+blue added (+70%). So a red-channel recording made under green and blue light
+is not comparable to one made under red alone -- not by a fixed offset, because
+the transform itself changes. Dropping to red for the 60 s acquisition removes
+the problem at the source and needs no change to the camera tuning.
+
+Green and blue mean intensity are still measured per frame in every condition.
+In every arm they should now read near zero during acquisition (reference:
+g=0.050, b=0.016). They are no longer a measurement of the perturbation -- they
+are the control that proves the lights actually came down before the clip was
+recorded. A white-arm clip with elevated g/b means the switch did not take.
 
     create_exp("dcmu")   open the experiment, name it, arm the condition
     start_acq()          begin sampling (this is when the lights are taken over)
@@ -57,7 +75,8 @@ dark, so the numbers are the stray-light baseline the white arm is read against.
 
 The lights are NOT touched until start_acq(). Trap cells under 0.5 V red for as
 long as you need after create_exp(); the condition only takes effect at the end
-of the first acquisition.
+of the first acquisition -- which for `white` means the perturbation starts
+after the first clip, exactly as `dark` goes dark after its first clip.
 """
 
 
@@ -93,10 +112,12 @@ CONDITIONS = {
 				"note": "DCMU condition. 0.5 V red continuous. Medium contains "
 						"5 umol/mL DCMU. See light_dcmu_perturbation.md."},
 
-	"white":   {"light_idle": WHITE, "light_acq": WHITE,
+	"white":   {"light_idle": WHITE, "light_acq": RED,
 				"note": "White condition. 0.5 V red with green and blue at "
-						"3.0 V, continuous. Medium contains the control "
-						"delivery vehicle only."},
+						"3.0 V between acquisitions; red only (0.5, 0, 0) "
+						"during the 60 s acquisition, so the recording is made "
+						"under the same illumination as every other arm. "
+						"Medium contains the control delivery vehicle only."},
 }
 
 

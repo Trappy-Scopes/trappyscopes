@@ -34,13 +34,44 @@ from hive.assembly import ScopeAssembly
 __description__ = \
 """Is the camera's red channel actually red, or a mix of all three?
 
-Motivated by a measurement from encoder_channel_tests on 2026-10-01 (M1,
-a95e8c7406): with the red LED held at 0.5 V in BOTH conditions, the mean red
-channel fell from 86.14 under red-only light to 52.19 under white light -- a
-39.4% drop -- while lux_estimate showed total illumination RISING 9.4x
-(53.8 -> 505.1). Adding light cannot remove red photons, so the ISP must be
-subtracting green and blue from red. That is what a colour correction matrix
-with negative off-diagonal terms does.
+ANSWERED 2026-10-01 (M1, 11af00e079). Keeping the script: it is the regression
+test for any change to the tuning.
+
+The red channel is not red. imx477_scientific.json carries 19 colour correction
+matrices and NONE of them is the identity. The red row varies with colour
+temperature in two ways at once:
+
+    ct=2000   R_out = +1.581R  -0.353G  -0.274B
+    ct=4100   R_out = +1.899R  -0.891G  -0.019B
+    ct=8600   R_out = +2.256R  -1.217G  -0.007B
+
+the green term grows from -0.35 to -1.22, AND the red gain itself grows from
+1.58 to 2.26. Which matrix is applied depends on the AWB colour-temperature
+estimate, which depends on the illumination spectrum. AwbEnable=False does not
+prevent this: rpi.awb still reports a CT for rpi.ccm to interpolate on.
+
+Measured, red LED at 0.5 V in every condition that contains red, box closed:
+
+    r        86.199
+    r+g      25.466     green SUBTRACTS  -60.75  (-70%)
+    r+b     146.752     blue  AMPLIFIES  +60.55  (+70%)
+    r+g+b    63.066     residual vs additive prediction -26.8%
+
+Blue amplifying red is not the Rb term (only -0.27 to +0.01) -- it is the red
+GAIN changing, because adding blue pushes the CT estimate up and selects a
+matrix with Rr=2.26 instead of 1.58.
+
+All three channels are badly non-additive: r -26.8%, g -58.9%, b +56.1%.
+The near-cancellation of green and blue in white light is a coincidence of this
+particular spectrum, not a property of the pipeline -- change the relative LED
+brightnesses and it breaks.
+
+An earlier figure from encoder_channel_tests (a95e8c7406) put the white-light
+red at 52.19, a 39.4% drop. That run had the box flaps open; stray room light
+shifts the CT estimate and therefore the matrix. Use 63.066 / -26.8% above. The
+red-only baseline is unaffected and agrees to 0.07% across both runs
+(86.14 vs 86.199), which is why the channel-index conclusion from that run
+still stands.
 
 It matters because the `white` arm of the light perturbation experiment records
 the red channel while green and blue are on. If red is contaminated by a
@@ -296,7 +327,7 @@ def inspect_tuning(path=TUNING_PATH, record=True):
 	verdict = ("[green]Every CCM is the identity -- the tuning is not the cause."
 			   if all_identity else
 			   "[red]At least one CCM is NOT the identity. This is consistent with "
-			   "the 39.4% red drop measured on 2026-10-01.")
+			   "the -70% green / +70% blue cross-talk measured on 2026-10-01.")
 	print(Panel(verdict, title="inspect_tuning"))
 
 	## Built from JSON and Python literals only -- no numpy, no objects. The
@@ -437,7 +468,7 @@ def measure_crosstalk():
 			print(f"  {name:6} {volts}  ->  r={r:7.3f}  g={g:7.3f}  b={b:7.3f}")
 
 			## Self-check on the red-only condition. With a working pipeline
-			## the reference measurement is r=86.1, g=0.054, b=0.028 -- three
+			## the reference measurement is r=86.199, g=0.050, b=0.016 -- three
 			## orders of magnitude apart. Three near-equal channels means
 			## something is broadcasting one channel over the others, i.e. a
 			## post_callback survived from an earlier script despite
@@ -487,8 +518,9 @@ def measure_crosstalk():
 		f"red with green added, residual   : {drop_g:+7.3f}\n"
 		f"red with blue  added, residual   : {drop_b:+7.3f}\n\n"
 		f"Negative residuals mean that channel is being subtracted from red.\n"
-		f"Compare against the 2026-10-01 result: red fell 86.14 -> 52.19\n"
-		f"(-39.4%) going from red-only to white at the same 0.5 V red drive.",
+		f"Reference (11af00e079, box closed, 0.5 V red throughout):\n"
+		f"  red alone 86.199   +green -60.75   +blue +60.55\n"
+		f"With identity CCMs both residuals should collapse towards zero.",
 		title="who subtracts from red"))
 
 	exp.note(f"ccm_crosstalk: red alone {r_alone:.3f}; residual on adding green "
