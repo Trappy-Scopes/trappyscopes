@@ -89,6 +89,13 @@ class Camera(Detector):
 		## ----- Indicate operation ----------
 		#ScopeAssembly.current.set_status("waiting")		
 
+		## False if any iteration failed. read() deliberately does not raise --
+		## it is called from scheduled jobs, and ExpScheduler.loop has no
+		## try/except, so an escaping exception kills the scheduler thread and
+		## with it the rest of an overnight run. Callers check the return value
+		## (and that the file exists) instead.
+		ok = True
+
 		for it in range(no_iterations):
 
 			## Begin iteration
@@ -105,8 +112,18 @@ class Camera(Detector):
 							 "iteration": it, "filename": local_filename})
 				self.post_action_callback(local_filename, iteration=it, **kwargs)
 			except Exception as e:
-				Camera.console.print_exception(e)
-				log.error("[green] EXCEPTION HANDLED [default] Exception caught in Camera.capture method.")
+				## print_exception() takes no positional arguments -- it reads
+				## the current exception from sys.exc_info(). Passing one raised
+				## a TypeError from inside the handler, which replaced the real
+				## error with "Console.print_exception() takes 1 positional
+				## argument but 2 were given" and escaped read() entirely. Every
+				## camera failure was masked that way.
+				ok = False
+				Camera.console.print_exception()
+				log.error(f"Camera action '{action}' failed: {type(e).__name__}: {e}")
+				Experiment.current.log("cam_acq_failed",
+					attribs={"action": action, "filename": local_filename,
+							 "iteration": it, "error": f"{type(e).__name__}: {e}"})
 				
 
 
@@ -118,7 +135,9 @@ class Camera(Detector):
 			gc.collect()
 			## End of iteration -----------------------------
 		gc.collect()
-		Experiment.current.log("cam_acq_finish", attribs={"filename": local_filename})
+		Experiment.current.log("cam_acq_finish", attribs={"filename": local_filename,
+														  "ok": ok})
+		return ok
 
 	def __process_filename__(self, *args, **kwargs):
 		"""

@@ -494,8 +494,14 @@ class Camera(AbstractCamera):
             self.cam.start_recording(encoder, FileOutput(filename))
             Experiment.current.delay("acq_delay", tsec)
         except Exception as e:
+            ## print_exception() takes no positional arguments; passing one
+            ## raised a TypeError that masked the real error. Re-raise so
+            ## read() records a cam_acq_failed event and returns False -- the
+            ## finally block below still runs. Swallowing here would make a
+            ## failed recording look like a successful one to the caller.
             print("TS::Camera::__video__ :: exception raised")
-            Camera.console.print_exception(e)
+            Camera.console.print_exception()
+            raise
         finally:
             try:
                 self.cam.stop_recording()
