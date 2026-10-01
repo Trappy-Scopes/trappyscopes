@@ -35,7 +35,7 @@ __decription__ = \
 
 print("Use create_exp() to open a new experiment. Use exp = findexp() to open an old one.")
 print("Use start_acq() to start acquiring.")
-print("Use cleanup() to close and sync experiment.")
+print("Use cleanup() to sync and offload. Then call exp.close() to finish.")
 """
 
 
@@ -152,27 +152,31 @@ def record_sensor():
 	r.panel()
 
 
-
-def test_fov(tsec):
-	print("DEPRECIATED!!!!")
-	scope = ScopeAssembly.current
-	scope.cam.read("prev_formatted", 
-					None, 
-					tsec=tsec, 
-					fps=exp.params["camera_fps"], 
-					exposure_ms=exp.params["camera_exposure_ms"], 
-					quality=exp.params["compression_quality_factor"])
-
-
 def cleanup():
+	"""Offload the experiment and stop the schedule. Does NOT close.
+
+	cleanup() is itself a scheduled job, so it runs on the exp.schedule.loop
+	thread. exp.close() ends with self.schedule.thread.join(), and a thread
+	cannot join itself -- that raised `RuntimeError: cannot join current
+	thread`, which killed the scheduler thread and skipped everything after the
+	join in close(): os.chdir(self.lastwd) and Share.updateps1().
+
+	So closing is left to the operator. Once this has run, type:
+
+	    exp.close()
+	"""
 	global exp, scope
 	exp = Experiment.current
 	scope = ScopeAssembly.current
 	exp.logs.update(ScopeAssembly.current.get_config())
-	exp.schedule.clear() ## Clear scheduler -- that will remove the current job as well.
+	exp.schedule.clear()            ## removes the current job as well
+	exp.schedule.end_thread = True  ## stop the loop once this job returns
 	exp.__save__()
 	exp.sync_dir()
-	exp.close()
+	exp.note("Data offloaded and schedule stopped. Experiment left open")
+	print(Panel("[yellow]Data offloaded, schedule stopped.\n"
+				"The experiment is still OPEN. Type [bold]exp.close()[/bold] "
+				"to finish it.", title="cleanup"))
 
 def start_acq():
 	global exp, scope, capture
