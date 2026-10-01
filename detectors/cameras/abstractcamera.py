@@ -15,6 +15,16 @@ from hive.detector import Detector
 # Used to print exceptions properly.
 
 
+## kwargs that hold live objects rather than parameters. read() writes its
+## kwargs into the experiment event log, and exp.logs is dumped to YAML on every
+## __save__(), so an object carrying a thread lock (any picamera2 encoder) raises
+## `TypeError: cannot pickle '_thread.lock' object` -- on that save and on every
+## save afterwards, long after the call that introduced it. Excluded from the log
+## only; the action still receives the real object.
+## See docs/notes/picamera2.md -- the proper fix belongs in Experiment.log().
+NOLOG_KWARGS = ("encoder",)
+
+
 class Camera(Detector):
 	"""
 	Abstract specialisation for TrappyScope Cameras.
@@ -90,7 +100,9 @@ class Camera(Detector):
 			try:
 				self.pre_action_callback(local_filename, iteration=it, **kwargs)
 				self.actions[action](local_filename, iteration=it, **kwargs)
-				Experiment.current.log(f"cam_acq_{action}", attribs={**kwargs, "iteration": it, "filename":local_filename})
+				Experiment.current.log(f"cam_acq_{action}",
+					attribs={**{k: v for k, v in kwargs.items() if k not in NOLOG_KWARGS},
+							 "iteration": it, "filename": local_filename})
 				self.post_action_callback(local_filename, iteration=it, **kwargs)
 			except Exception as e:
 				Camera.console.print_exception(e)

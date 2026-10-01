@@ -69,6 +69,19 @@ class JpegEncoderGrayChannel(JpegEncoder):
         self.intensities = []
         self._lock = Lock()
 
+    def __repr__(self):
+        """Readable identity for the experiment event log.
+
+        Camera.read() reduces non-primitive kwargs with str() before logging
+        them, so without this the recorded encoder is an unhelpful
+        `<...JpegEncoderGrayChannel object at 0x...>`.
+        """
+        return (f"{type(self).__name__}(channel={self.NAMES[self.channel]}, "
+                f"intensity_channels="
+                f"{tuple(self.NAMES[c] for c in self.intensity_channels)}, "
+                f"q={getattr(self, 'q', None)}, "
+                f"num_threads={getattr(self, 'num_threads', None)})")
+
     def encode_func(self, request, name):
         """Performs encoding
 

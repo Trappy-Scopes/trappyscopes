@@ -1,0 +1,340 @@
+% ---------------------------------------------------------------------------
+% trappyscopes -- manuscript draft
+%
+% TO COMPLETE BEFORE SUBMISSION (kept as comments so they do not print):
+%   * Author list and affiliations.
+%   * Fleet size and per-instrument configurations.
+%   * Totals: recorded experiments, acquisition hours, data volume.
+%   * Repository DOI and archived release version; license identifier.
+%   * Funding, acknowledgements, data/code availability statements.
+%   * A figure pairing the device tree with a rendered experiment record
+%     would carry Sections 2-3 far better than prose.
+%   * A comparison table against named alternatives would strengthen Sec. 4.
+%   * Replace the prose reference note with real numbered citations.
+%
+% Build:  pdflatex trappyscopes.tex  (twice)
+% ---------------------------------------------------------------------------
+
+\documentclass[10pt,a4paper,twocolumn]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1.75cm]{geometry}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{codebg}{gray}{0.96}
+\lstset{
+  basicstyle=\ttfamily\tiny,
+  backgroundcolor=\color{codebg},
+  frame=none,
+  xleftmargin=1em,
+  framexleftmargin=1em,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  aboveskip=0.5em,
+  belowskip=0.5em,
+}
+
+\setlength{\parskip}{0.18em}
+\setlength{\parindent}{0pt}
+
+\title{\vspace{-1.5em}\textbf{trappyscopes: software-defined laboratory instruments\\with the experiment as a versioned object}\vspace{-0.5em}}
+
+\author{
+  Yatharth Bhasin\thanks{Corresponding author: \texttt{yatharth.bhasin@gimm.pt}}\\
+  {\small [Co-author names to be completed]}\\
+  {\small [Institution and address to be completed]}
+}
+
+\date{\small\today}
+
+\linespread{0.97}\selectfont
+\begin{document}
+\twocolumn[\begin{@twocolumnfalse}
+\maketitle
+
+\begin{abstract}
+\noindent
+We present \texttt{trappyscopes}, a Python framework for building and operating
+laboratory instruments as \emph{software-defined assemblies}. An instrument is not
+implemented against a fixed driver API; it is declared in a configuration file as a
+tree of devices, where each device is an arbitrary Python object --- a camera
+binding, a microcontroller running MicroPython, or another networked machine ---
+instantiated directly from an import path, with no adapter layer to write. The
+framework's principal contribution is that the \emph{experiment}, rather than the
+dataset, is its primary versioned object. Every actuation, acquisition, operator
+note, protocol checkpoint and file movement is appended to the experiment's own
+event chain; each session records the computational environment that produced it;
+and the experiment directory can version-control itself, carrying a tracked
+manifest of the very files that are too large to commit. Provenance is therefore a
+by-product of operating the instrument rather than a curation step performed
+afterwards. We describe the architecture, the provenance model, and deployment
+across a fleet of parallel microscopes.
+\end{abstract}
+
+\vspace{0.4em}
+{\small\noindent\textbf{Keywords:} instrument control; research software; provenance;
+reproducibility; microscopy; laboratory automation}
+\vspace{0.8em}
+\end{@twocolumnfalse}]
+
+\section{Introduction}
+
+Two assumptions are built into most instrument-control software, and modern
+laboratory practice has outgrown both.
+
+\textbf{The instrument is assumed to be a known object.} Established acquisition
+packages expose hardware through a device-adapter layer: a supported device has an
+adapter, and an unsupported one is a porting project against the framework's own
+API. This is a reasonable trade for standard commercial hardware, but it prices out
+the instrument a laboratory actually builds --- a camera with a vendor Python
+binding, a pump driven by a microcontroller, an illumination board designed in
+house. The integration cost is paid precisely where the novelty is.
+
+\textbf{The computer is assumed to be one computer.} An instrument is increasingly a
+small distributed system: a single-board computer at the optics, microcontrollers at
+the actuators, a workstation for analysis, networked storage behind them. Frameworks
+written around a single host treat everything beyond it as an opaque peripheral
+behind a serial link, so a microcontroller's own filesystem, firmware revision and
+state fall outside the experimental record entirely.
+
+A third problem compounds both: \textbf{provenance is reconstructed rather than
+recorded}. At analysis time the questions are mundane and frequently
+unanswerable. Which revision of the acquisition script produced this file? Which
+protocol version was followed? Which package versions were installed that afternoon?
+Is this directory incomplete, or merely archived? The acquired file carries a
+timestamp; the code that made it sits in an uncommitted working tree; the protocol was
+a PDF. Electronic notebooks, workflow engines and data-versioning systems each address
+part of this, but act \emph{after} acquisition, on whatever the instrument left
+behind. What is missing is a record produced \emph{by} running the instrument.
+
+These pressures multiply with parallelism: operating several instruments concurrently
+--- the setting this framework was written for --- turns a per-machine configuration
+problem into a fleet-management one, in which laboratory-wide policy must coexist with
+device-specific settings.
+
+\texttt{trappyscopes} takes the position that an instrument should be \emph{declared}
+rather than implemented, and that an experiment should be a self-describing,
+self-versioning object rather than a folder of outputs.
+
+\section{Design and implementation}
+
+\subsection{Declarative assembly}
+The running instrument is a \texttt{ScopeAssembly}: a tree rooted at the host
+machine, whose nodes are devices. The tree is declared, not coded:
+
+\begin{lstlisting}[language=bash]
+ScopeAssembly:
+  cam:
+    kind: detectors.cameras.rpi_hq_picam2.Camera
+  pico:
+    kind: hive.processorgroups.micropython.SerialMPDevice
+    kwargs: {connect: autoconnect, handshake: true}
+\end{lstlisting}
+
+\texttt{kind} is a dotted import path that the framework instantiates directly.
+There is no adapter layer and no device interface to implement: any importable
+Python class is already a device. A vendor binding, a community driver, or a class
+written that morning all mount identically, so the instrument is assembled by import
+rather than by integration.
+
+Because devices differ in vocabulary, an optional wrapping layer assigns
+\emph{roles} without modifying the underlying object: declaring a detector role with
+\texttt{read\_method: capture} presents a third-party class through the same
+interface as every other detector, with arguments bound at declaration time.
+Uniformity is imposed at the edge rather than demanded of the driver.
+
+\subsection{Heterogeneous distribution}
+A node in the tree may be another machine. A remote group mounts a second host over
+RPyC, after which its devices address as ordinary attributes:
+
+\begin{lstlisting}[language=Python]
+scope.MS1.read()       # sensor on this machine
+scope.M2.MS2.read()    # sensor on another machine
+\end{lstlisting}
+
+MicroPython boards are first-class members of the same tree rather than serial
+peripherals behind it. The framework manages a board's own filesystem --- mirroring
+firmware, skipping unchanged files, honouring a manifest declared by the firmware
+repository --- so microcontroller code falls under the same version control and record
+as everything else.
+
+\subsection{Fleet configuration}
+A device's configuration may be extended by laboratory-wide files. Most keys
+\emph{replace}: the highest-priority source wins outright, correct for per-device
+settings such as a data directory. A small, documented set instead \emph{expands},
+unioning values across layers, so a laboratory manifest can add a shared protocol
+repository or a recognised operator without overwriting what an instrument declares for
+itself. Which keys expand is a statement about what each key means, recorded per key
+rather than inferred from its shape.
+
+\section{The experiment as a versioned object}
+
+An experiment is a directory, qualified by a marker file rather than a database entry.
+It can be read, copied, archived or inspected with ordinary tools, and carries its own
+record.
+
+\subsection{A single event chain}
+Every occurrence is appended to one chronological chain. Acquisitions, operator
+notes, protocol checkpoints, scheduled-task registrations, script executions and
+data transfers are the same kind of record, each stamped with instrument identity,
+session, experiment identifier, wall-clock time, elapsed experiment time and a
+monotonic machine time:
+
+\begin{lstlisting}[language=bash]
+- type: cam_acq_img
+  filename: chamber10.png
+  dt: 2025-09-29 16:17:32.973482
+  exptime: 652.70
+  eid: 9b400bd83c
+  scopeid: VWR
+- type: user_note
+  note: Focus set at Chamber 9. Moving towards 2.
+\end{lstlisting}
+
+Because an operator note and a machine acquisition are the same type of object, the
+narrative and the data share one timeline. Measurement streams build on the same record:
+typed, self-describing series accumulating into a dataframe while carrying per-field
+units, labels and descriptions.
+
+\subsection{Session-scoped environment capture}
+A \emph{session} is one sitting at the instrument, and its role is to capture what
+produced the data. At session start the framework records the operator, the commit
+of the control software itself, the complete list of installed Python distributions
+with versions, the interpreter version, and the host platform and identity. These are written into the experiment, so ``what code and what environment produced
+this?'' is answered by the experiment rather than from memory. An unchanged environment
+is stored once and referenced thereafter; a change --- an upgraded package, a different
+machine, a new commit --- produces a new full record, precisely the event worth
+noticing.
+
+\subsection{Protocol identity}
+Protocols are resolved from a version-controlled repository. On loading, the
+framework records the commit, whether the working tree was clean, and a permalink to
+that exact revision. The protocol that ran is therefore \emph{identified} rather than
+named --- the difference between ``we followed the staining protocol'' and ``we
+followed this revision of it, and it carried no uncommitted edits.''
+
+\subsection{Self-versioning directories}
+An experiment directory may optionally be its own version-control repository,
+committing when opened and closed, tagged with the session, so its metadata's evolution
+is inspectable with ordinary tooling.
+
+Bulk acquisition data is deliberately excluded from that repository: microscopy video
+and image stacks do not belong in commit history. This creates an obvious gap, which
+the framework closes with a tracked manifest of the directory that \emph{includes}
+the excluded files. The history of one small text file is therefore a readable record
+of what existed and how the experiment's structure changed, even where the content
+itself was never committed.
+
+\subsection{Two legible copies}
+Acquisition machines fill up, so data must move. The framework classifies each file by
+what it is: metadata --- identity marker, event log, session record, protocol payload,
+scripts --- is \emph{copied}, while bulk data is \emph{moved}. Both sides remain
+complete, legible experiments: storage holds everything, and the acquisition machine
+retains a full record of what happened with the bulk data removed.
+
+The depleted copy then declares itself. A \emph{policy} is a durable statement about
+an experiment, emitted both as an event and as a marker file whose \emph{name} carries
+the signal, so a tool recognises it from a directory listing with no parsing at all. A
+\texttt{stub} policy answers ``is this incomplete, or simply archived?'' immediately.
+The mechanism generalises: a \texttt{contaminated} policy marks an experiment whose
+course or data structure changed materially, so downstream analysis meets that fact
+before reading anything. Policies are scoped: \texttt{stub} describes one copy and
+never travels, while \texttt{contaminated} is true of the experiment everywhere and
+always does.
+
+\section{Novelty and relation to existing work}
+
+The individual mechanisms are not each unprecedented; the contribution is the position
+they are taken from and the fact that they compose.
+
+\textbf{Provenance as a by-product of operation.} This is the central claim. Code
+identity, computational environment, protocol revision, operator, instrument
+configuration and data location are captured because the instrument ran, not because
+someone later assembled them. Workflow engines, data-versioning tools and electronic
+notebooks address parts of this problem, but operate on the output of acquisition.
+\texttt{trappyscopes} places the record at the instrument, during acquisition, in the
+same object the data lands in.
+
+\textbf{The experiment directory as a self-versioning object.} We are not aware of
+another instrument-control framework in which the experiment directory is itself a
+repository that commits on open and close and carries a tracked manifest covering the
+files version control excludes. That manifest gives structural history to data too
+large to version, and is to our knowledge specific to this work.
+
+\textbf{A zero-adapter device model.} Declaring a device as an import path, and
+optionally assigning a role through method binding, removes the adapter-writing step
+entirely. The significance is coverage rather than convenience: self-built instruments
+become first-class without a porting effort, which is where adapter-based
+architectures impose their highest cost.
+
+\textbf{A heterogeneous device tree.} Single-board computers, workstations and
+microcontrollers are addressed through one uniform tree, with the microcontroller's
+filesystem managed and versioned rather than opaque. Distributed instrument control
+exists; folding the microcontroller into the same naming and provenance regime is less
+common. Finally, the two-copy model with a self-declared stub gives a machine-readable
+answer to a question normally resolved by asking a colleague.
+
+\subsection*{What is not claimed}
+No new imaging modality, optical design or analysis method is proposed, and no claim is
+made of faster acquisition or better image quality. We do not claim general superiority
+over mature acquisition software: those systems target broad commercial-hardware support
+and sophisticated acquisition control, whereas this framework targets heterogeneous,
+self-built, parallel instruments and provenance-first operation; for standard commercial
+hardware they remain the better choice. The provenance model records what the framework
+mediates \textemdash{} physical actions outside it are captured only if an operator notes
+them.
+
+\section{Availability and deployment}
+
+\texttt{trappyscopes} is implemented in pure Python (3.12 or later) and runs on
+Raspberry Pi OS, macOS and Linux. A device is configured by a single file, optionally
+layered with laboratory-wide ones. The operator-facing surface is an interactive Python
+session in which the assembly, the open experiment and the user tools are bound as
+ordinary names, so acquisition is scripted against live objects rather than through a
+separate macro language. Scripts executed through the framework are copied into the
+experiment as they run, versioned when they change, and recorded as events, so the code
+that produced a result travels with it.
+
+Assembly and device tree, the event and session model, measurement streams, protocol
+resolution, scripting with payload capture, per-experiment version control and
+synchronisation to laboratory storage are in routine use. Recorded experiments in the
+reference deployment date from 2025 onward, on Raspberry Pi--based microscopes operating
+in parallel alongside a development workstation. Live plotting and a restructuring of
+the assembly layer remain under development.
+
+\section{Limitations}
+
+The framework tracks a single current experiment and binds the process working
+directory to it, so parallelism is across machines rather than within a session. File
+classification is per top-level entry, so data nested inside an otherwise-metadata
+directory is copied with it rather than moved. Synchronisation currently shells out to
+an external binary outside the Python dependency set, which must be installed per
+machine; a pure-Python client would keep the dependency story within the package
+manager at the cost of reimplementing transfer logic. We report no acquisition-latency
+or overhead measurements: the provenance machinery writes small per-event records and
+is not expected to be significant against image acquisition, but this is unmeasured and
+is not asserted. Windows is untested.
+
+\section{Conclusion}
+
+Treating the experiment rather than the dataset as the primary versioned object changes
+what a laboratory has to remember. Code identity, environment, protocol revision and
+data location become properties the experiment carries, recorded as a consequence of
+running the instrument. Combined with a declarative, adapter-free device model that
+admits self-built and distributed hardware on equal terms, this offers a practical
+route to reproducible operation for the instruments laboratories increasingly build for
+themselves.
+
+\section*{References}
+\footnotesize
+To be completed with full bibliographic detail. The argument should engage:
+Micro-Manager and Pycro-Manager; workflow systems (Snakemake, Nextflow); data
+versioning (DVC, git-annex); provenance standards (W3C PROV, RO-Crate); the FAIR
+principles; the electronic laboratory notebook literature; and open-hardware
+microscopy (e.g.\ OpenFlexure).
+
+\end{document}
