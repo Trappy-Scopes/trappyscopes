@@ -67,6 +67,8 @@ are the control that proves the lights actually came down before the clip was
 recorded. A white-arm clip with elevated g/b means the switch did not take.
 
     create_exp("dcmu")   open the experiment, name it, arm the condition
+    test_acq_light()     measure the illumination clips are recorded under
+    test_standby_light() measure the illumination applied between clips
     start_acq()          begin sampling (this is when the lights are taken over)
     cleanup()            lights off, save, sync and stop the schedule
     exp.close()          finish the experiment (must be typed by the operator;
@@ -150,6 +152,11 @@ def create_exp(condition):
 		monitors=["split", "condition", "acq", "csv", "frames"],
 		measurements=["g_mean", "g_std", "b_mean", "b_std"])
 
+	## One row per test_acq_light() / test_standby_light() call.
+	exp.new_measurementstream("lightcheck",
+		monitors=["check", "condition", "rV", "gV", "bV", "passed", "detail"],
+		measurements=["r", "g", "b"])
+
 	exp.attribs["sampling_period_hours"] = 0.5
 	exp.attribs["sampling_hours"] = 22
 	exp.attribs["tandh_sampling_period_minutes"] = 5
@@ -169,6 +176,11 @@ def create_exp(condition):
 	## need longer to settle than the 1 s the always-on conditions get away
 	## with. AeEnable/AwbEnable are off, so this is LED warm-up only.
 	exp.attribs["light_stabilization_delay_s"] = 5
+
+	## A channel above this reads as lit, below it as dark. Measured reference
+	## (11af00e079, box closed): red-only gives r=86.2 with g=0.050, b=0.016,
+	## so 1.0 separates lit from dark by a wide margin on every condition.
+	exp.attribs["light_check_threshold"] = 1.0
 
 	set_condition(condition)
 
@@ -239,6 +251,113 @@ def set_condition(name, force=False):
 				f"applied at the end of the first acquisition.",
 				title="set_condition"))
 	return spec
+
+
+## --------------------------------------------------------------------------
+##  Light checks
+## --------------------------------------------------------------------------
+
+def _channel_means(frames):
+	"""Mean of each output channel over `frames` captured arrays, as plain
+	Python floats. capture_array returns a copy, so this sees the same pipeline
+	output the encoder sees -- no encoder, no files."""
+	global scope
+	acc = np.zeros(3, dtype=np.float64)
+	for _ in range(frames):
+		acc += scope.cam.cam.capture_array("main").reshape(-1, 3).mean(axis=0)
+	return [float(v) for v in (acc / frames)]
+
+
+def _test_light(label, volts, frames):
+	"""Apply one illumination regime, measure it, and say whether it is right.
+
+	A channel commanded ON must read lit; a channel commanded OFF must read
+	dark. The test is relative, not absolute: there is no calibration for
+	(0.5, 3.0, 3.0), and the CCM makes absolute values depend on the
+	illumination anyway (see ccm_crosstalk_test.py).
+
+	The OFF half doubles as a light-tightness check. On 2026-10-01 two runs
+	were contaminated by stray room light with the box flaps open, and it was
+	only caught by hand afterwards -- green-alone read 9.66 open vs 6.11
+	closed, a 37% error, while every other condition reproduced to under 1%.
+
+	Always leaves the lights at light_acq, so testing standby on the `dark` arm
+	does not walk away with the trapping light off.
+	"""
+	global exp, scope
+	exp = Experiment.current
+	scope = ScopeAssembly.current
+
+	if "condition" not in exp.attribs:
+		raise RuntimeError("No condition armed. Call create_exp(<condition>) first.")
+
+	volts = tuple(float(v) for v in volts)
+	thresh = exp.attribs["light_check_threshold"]
+	settle = exp.attribs["light_stabilization_delay_s"]
+
+	scope.cam.close()
+	scope.cam.open()
+	scope.cam.configure()
+	## An interrupted rpreview() leaves a callback installed that copies one
+	## channel over the other two, which would make every channel look lit.
+	scope.cam.cam.pre_callback = None
+	scope.cam.cam.post_callback = None
+	scope.cam.cam.start()
+	try:
+		scope.lit.setVs(*volts)
+		time.sleep(settle)
+		means = _channel_means(frames)
+	finally:
+		scope.cam.cam.stop()
+		scope.cam.close()
+		scope.lit.setVs(*exp.attribs["light_acq"])   ## back to the trapping light
+
+	bad = []
+	for i, name in enumerate(("r", "g", "b")):
+		if volts[i] > 0 and means[i] <= thresh:
+			bad.append(f"{name} commanded ON at {volts[i]} V but reads {means[i]:.3f}")
+		if volts[i] == 0 and means[i] > thresh:
+			bad.append(f"{name} commanded OFF but reads {means[i]:.3f} "
+					   f"-- light leak, or the box is open")
+	ok = not bad
+
+	exp.mstreams["lightcheck"](check=str(label), condition=str(exp.attribs["condition"]),
+							   rV=volts[0], gV=volts[1], bV=volts[2],
+							   r=round(means[0], 4), g=round(means[1], 4),
+							   b=round(means[2], 4),
+							   passed=bool(ok), detail="; ".join(bad))
+
+	print(Panel(f"condition  : {exp.attribs['condition']}\n"
+				f"commanded  : {volts}\n"
+				f"measured   : r={means[0]:.3f}  g={means[1]:.3f}  b={means[2]:.3f}\n\n"
+				+ ("[green]PASS" if ok else "[red]FAIL\n" + "\n".join(bad))
+				+ "\n\n[dim]Lights returned to light_acq.",
+				title=f"{label} light"))
+	exp.note(f"{label} light check ({exp.attribs['condition']}): "
+			 f"{'PASS' if ok else 'FAIL'} -- commanded {volts}, measured "
+			 f"r={means[0]:.3f} g={means[1]:.3f} b={means[2]:.3f}. "
+			 + "; ".join(bad))
+	return ok
+
+
+def test_acq_light(frames=20):
+	"""Check the illumination each clip is RECORDED under.
+
+	Identical on all four arms -- (0.5, 0, 0) -- which is the point: every arm
+	is measured the same way, so the red channel is comparable between them.
+	"""
+	return _test_light("acq", Experiment.current.attribs["light_acq"], frames)
+
+
+def test_standby_light(frames=20):
+	"""Check the illumination applied BETWEEN clips -- the perturbation itself.
+
+	This is what differs between the arms, and for `white` it is the only
+	direct evidence the perturbation is delivered at all, since it happens
+	entirely between acquisitions where nothing else is measured. For `dark` it
+	confirms the lights really go out.
+	"""
+	return _test_light("standby", Experiment.current.attribs["light_idle"], frames)
 
 
 ## --------------------------------------------------------------------------
