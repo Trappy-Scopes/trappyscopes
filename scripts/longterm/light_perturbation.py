@@ -257,6 +257,43 @@ def set_condition(name, force=False):
 ##  Light checks
 ## --------------------------------------------------------------------------
 
+def cam_cycle():
+	"""close -> open -> configure, leaving the camera OPEN, configured and
+	ready for the next thing -- including preview() / rpreview().
+
+	Every camera handoff in this script goes through here, because the two
+	obvious shortcuts are both wrong:
+
+	  * Leaving the camera CLOSED breaks the next preview. preview() and
+	    rpreview() go straight to start_preview()/start() on self.cam -- unlike
+	    the read() actions, they never open it themselves.
+	  * Leaving it OPEN breaks the next capture(). Camera.open() assigns a new
+	    Picamera2 over self.cam WITHOUT closing the old one, so opening an
+	    already-open camera leaks the first and the new one cannot acquire a
+	    device that is still held.
+
+	So: always close first, then reopen. open() also calls self.cam.configure()
+	with no argument, which does not apply self.config -- configure() has to be
+	called explicitly afterwards, as every acquisition script here does.
+
+	Callbacks are cleared because an interrupted rpreview() leaves a
+	post_callback installed that copies one channel over the other two, which
+	would make every channel in a light check look lit.
+	"""
+	global scope
+	for stop in (lambda: scope.cam.cam.stop(),
+				 lambda: scope.cam.cam.stop_preview()):
+		try:
+			stop()
+		except Exception:
+			pass          ## not running: nothing to stop
+	scope.cam.close()
+	scope.cam.open()
+	scope.cam.configure()
+	scope.cam.cam.pre_callback = None
+	scope.cam.cam.post_callback = None
+
+
 def _channel_means(frames):
 	"""Mean of each output channel over `frames` captured arrays, as plain
 	Python floats. capture_array returns a copy, so this sees the same pipeline
@@ -282,7 +319,8 @@ def _test_light(label, volts, frames):
 	closed, a 37% error, while every other condition reproduced to under 1%.
 
 	Always leaves the lights at light_acq, so testing standby on the `dark` arm
-	does not walk away with the trapping light off.
+	does not walk away with the trapping light off, and the camera open and
+	configured, so preview() / rpreview() work immediately afterwards.
 	"""
 	global exp, scope
 	exp = Experiment.current
@@ -295,22 +333,28 @@ def _test_light(label, volts, frames):
 	thresh = exp.attribs["light_check_threshold"]
 	settle = exp.attribs["light_stabilization_delay_s"]
 
-	scope.cam.close()
-	scope.cam.open()
-	scope.cam.configure()
-	## An interrupted rpreview() leaves a callback installed that copies one
-	## channel over the other two, which would make every channel look lit.
-	scope.cam.cam.pre_callback = None
-	scope.cam.cam.post_callback = None
+	cam_cycle()
 	scope.cam.cam.start()
 	try:
 		scope.lit.setVs(*volts)
 		time.sleep(settle)
 		means = _channel_means(frames)
 	finally:
-		scope.cam.cam.stop()
-		scope.cam.close()
+		try:
+			scope.cam.cam.stop()
+		except Exception:
+			pass
 		scope.lit.setVs(*exp.attribs["light_acq"])   ## back to the trapping light
+		## Hand the camera back open and configured. Without this the next
+		## preview() fails on a closed Picamera2.
+		try:
+			cam_cycle()
+		except Exception as e:
+			log.error(f"{label} light check: camera did not reopen: {e}")
+			print(Panel(f"[red]Camera did not reopen after the {label} check:\n"
+						f"{type(e).__name__}: {e}\n\n"
+						f"Run cam_cycle() by hand before previewing.",
+						title="camera"))
 
 	bad = []
 	for i, name in enumerate(("r", "g", "b")):
@@ -331,7 +375,8 @@ def _test_light(label, volts, frames):
 				f"commanded  : {volts}\n"
 				f"measured   : r={means[0]:.3f}  g={means[1]:.3f}  b={means[2]:.3f}\n\n"
 				+ ("[green]PASS" if ok else "[red]FAIL\n" + "\n".join(bad))
-				+ "\n\n[dim]Lights returned to light_acq.",
+				+ "\n\n[dim]Lights at light_acq; camera open and configured "
+				  "-- preview() is ready.",
 				title=f"{label} light"))
 	exp.note(f"{label} light check ({exp.attribs['condition']}): "
 			 f"{'PASS' if ok else 'FAIL'} -- commanded {volts}, measured "
@@ -436,8 +481,7 @@ def capture():
 
 	ok = True
 	try:
-		scope.cam.open()
-		scope.cam.configure()
+		cam_cycle()      ## never a bare open() -- see cam_cycle's docstring
 		scope.cam.read(exp.attribs["camera_mode"],
 					   filename,
 					   tsec=exp.attribs["chunk_size_sec"],
@@ -578,9 +622,7 @@ if __name__ == "__main__":
 	global scope
 	scope = ScopeAssembly.current
 	print("Lights ready...")
-	scope.cam.close()
-	scope.cam.open()
-	scope.cam.configure()
+	cam_cycle()
 	scope.beacon.off()
 	print(Panel(f'create_exp("<condition>") -> start_acq() -> cleanup()\n\n'
 				f'conditions: {", ".join(CONDITIONS)}',
