@@ -1,13 +1,15 @@
 import datetime
+import hashlib
 import os
 import logging as log
 from core.uid import uid
 import git
-import pkg_resources
+import importlib.metadata  # AI Generated -- pkg_resources is deprecated; stdlib replacement
 import time
 
 
 from core.permaconfig.sharing import Share
+from .systeminfo import sys_perma_state  # AI Generated
 from .user import User
 
 from rich.rule import Rule
@@ -35,10 +37,19 @@ class Session:
 
 	def __repr__(self):
 		return f"< Session : {self.name} >"
-		
+
 	def __getstate__(self):
-		return {"type": "session", "name": self.name, "id": self.name, "user": User.name(), 
-				"git_commit_id": self.git_commit_id_, "pypkglist": self.pypkglist_}
+		## AI Generated -- pypkglist_hash lets a reader (or _log_session(), see
+		## expframework/experiment.py) tell whether the environment changed since the
+		## last entry without comparing the full list. The full pypkglist is always
+		## included here -- deduping it against what's already on disk needs to happen
+		## where the file is actually loaded and re-dumped in one pass (_log_session()),
+		## not here: a class-level cache can't share object identity with whatever
+		## yaml.load() parses back from disk on a later, separate call.
+		pypkglist_hash = hashlib.sha256(repr(sorted(self.pypkglist_)).encode()).hexdigest()[:12]
+		return {"type": "session", "name": self.name, "id": self.name, "user": User.name(),
+				"git_commit_id": self.git_commit_id_, "sysperma": sys_perma_state(),
+				"pypkglist_hash": pypkglist_hash, "pypkglist": self.pypkglist_}
 	def reset(self, name=None):
 		new = Session(name=name)
 		self.name = new.name
@@ -65,8 +76,8 @@ class Session:
 		"""
 		pass
 
-	def pypkglist(self):
-		packages = [(pkg.key, pkg.version) for pkg in pkg_resources.working_set]
+	def pypkglist(self):  # AI Generated -- pkg_resources.working_set -> importlib.metadata.distributions()
+		packages = [(dist.metadata["Name"], dist.version) for dist in importlib.metadata.distributions()]
 
 		lst = []
 		for package, version in packages:
