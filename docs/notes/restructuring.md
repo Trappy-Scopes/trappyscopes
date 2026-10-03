@@ -986,3 +986,108 @@ its mixins (`ExpSync`, `ExpReport`, ...), and without touching
   `Experiment.new()`'s `uid()` call replaced with a dynamic import of
   whatever function the config names; `exp_report` would need to gate
   whether `ExpReport.__init__` runs at all.
+
+---
+
+## 14. Raised while drafting the manuscript (2026-10-03)
+
+Four items surfaced while writing `trappyscopes.tex` (kept in
+`~/localnotes/papers/`, not in this tree). Each is something the paper
+either claims or depends on, so each has a deadline that is not "someday":
+**before the manuscript is submitted.**
+
+### 14.1 Provenance standards — research RO-Crate, W3C PROV, FAIR ⏳ not started
+
+**We have never looked at these.** The record is bespoke YAML end to end, and
+that is a deliberate, defensible choice: YAML is machine-readable, carries
+structured objects rather than flat rows, and stays legible to a person with a
+text editor — which matters for a file that should still be readable in ten
+years by someone who has never heard of this framework. None of that is an
+argument against *also* emitting a standard format.
+
+The problem is specifically the publishability claim. An experiment directory
+that only `trappyscopes` can read is self-describing in a weak sense, and a
+reviewer will say so. Three things to read and then decide on:
+
+| Standard | What it is | Question for us |
+|---|---|---|
+| **RO-Crate** | A packaging convention — a directory plus `ro-crate-metadata.json` (JSON-LD) describing what the files are and how they relate | Closest fit by shape: we already *are* a directory with a metadata file. Could `ro-crate-metadata.json` be generated from `experiment.yaml` + `filetree.yaml` on close? |
+| **W3C PROV** | A data model (PROV-DM) for entity / activity / agent provenance, with several serialisations | Our event chain is already activity-shaped (`type`, `dt`, agent via `user`/`scopeid`). How close is the mapping, and is it lossy? |
+| **FAIR** | Principles, not a format — findable, accessible, interoperable, reusable | Mostly an argument we need to be able to make, not code to write. Identifiers and the interoperability leg are where we are weakest. |
+
+**Decide:** export-on-close vs. a separate `exp.export(format=...)` call;
+whether the event types get a versioned, published schema (they currently have
+none, which blocks any mapping being stable); and whether this lands before or
+after the analysis recipe.
+
+### 14.2 REPL history must not be optional ⏳ not started
+
+`core/utilities/repl_history.py` is **off by default** and requires an explicit
+`enable()` call, which also refuses unless an experiment is open.
+
+That is the wrong default. The freestyle experiment — one of the three kinds
+the paper names — is *defined* by the fact that there is no plan to record, so
+the prompt history is the only record of what happened. Leaving it opt-in means
+the one case that most needs the record is the case most likely not to have
+one, and it makes the paper's claim contingent on user discipline rather than
+on the software.
+
+**Change:** capture starts automatically whenever an experiment is open, into
+that experiment's own `repl_history.yaml`; `disable()` stays, as a deliberate
+opt-*out* rather than an opt-in. `HistoryLoggingConsole` already wraps the REPL
+unconditionally (`launcher/utilities/boot.py`), so this is a default flip plus
+a hook at experiment open/close, not new machinery. Check the close path: the
+handler is held open for the life of the experiment, so it needs the same
+treatment as `logs.yaml` on sync (see `sync_rework.md` §4, bug #1).
+
+### 14.3 `config_redact_fields` is declared but not implemented ⚠️ now load-bearing
+
+Already listed in §13.3 as a wiring task. Promoting it here because the
+manuscript's central claim depends on it: if an experiment directory is
+supposed to be publishable as-is, and it carries the configuration it ran
+under, then it carries the file-server and config-server credentials too.
+
+Current state, confirmed by grep: `config_redact_fields` appears in
+`core/permaconfig/default_config.yaml` and the README's config walkthrough, and
+**nowhere in any `.py` file**. There is no redaction method, and nothing yet
+writes a config copy into the experiment — so today the gap is latent rather
+than live, but it becomes real the moment §13.3's "every experiment carries a
+copy of the config it ran under" is built. Those two must land together, in
+that order, or the first one ships credentials into every experiment directory.
+
+The manuscript is worded to say the schema *declares* which fields are
+sensitive — true today — rather than that stripping happens. That wording has
+to change once this is built, and must not be strengthened before.
+
+### 14.4 Remote device mounting — `RemoteGroup` does not exist ⚠️ paper depends on it
+
+`README.md:69` documents `kind: hive.processorgroups.remote.RemoteGroup` and
+the `scope.M2.MS2.read()` example. **There is no `hive/processorgroups/remote.py`.**
+What exists: `hive/rpycserver.py` (the server really does start, from
+`ScopeAssembly.open()`), and `hive/laboratory.py`'s `Lab`/`RemoteLink`, which
+are skeletal — `Lab.start_process()` returns an undefined `stdout`, and
+`Lab.__connect__()` assigns to `self.device` instead of returning, so
+`Lab.open()`'s `self.devices[name] = self.__connect__(device)` stores `None`
+for every device it "connects".
+
+`hive/cluster.py` is worse: **it does not parse.** `Cluster.exec()`'s body is
+missing entirely (`IndentationError: expected an indented block`), and
+`Cluster.__init__` references an undefined `iplist`. It survives only because
+nothing imports it — its one importer,
+`detectors/optics/_actuators/alarms/remote.py`, does `from _hive.cluster import
+Cluster`, and there is no `_hive` package, so that path is dead too. Both files
+need a decision: finish or delete. A CI step that just `ast.parse`s every `.py`
+in the tree would have caught this years ago and is worth adding regardless.
+
+Decision taken while drafting: **the manuscript describes this as working**,
+because it is a central idea that hit implementation hiccups rather than a
+speculative one, and it will be built before submission. That makes it a hard
+dependency rather than a nice-to-have. The README is already wrong today
+regardless of the paper.
+
+**Minimum to make the claim true:** a `RemoteGroup` device kind that connects
+over RPyC and mounts the remote assembly's devices as children in the local
+tree, so attribute access resolves through it; plus whatever `ScopeAssembly`
+needs to walk a remote branch in `draw_tree()` and `assert_device()`. The
+peer-to-peer case (two machines each running their own assembly) already works
+and is not what is being claimed.
