@@ -28,7 +28,8 @@ from expframework.experiment import Experiment
 
 print(Panel(Markdown(
 """Use `create_exp()` to open a new experiment, or `findexp()` to reopen an old one.
-Use `new_count(name, *counts, mutant=...)` to log a cell count for a colony.
+Use `new_count(name, *counts, mutant=..., condition=...)` to log a cell count for a colony
+(`condition` is free text, e.g. "10 mM DCMU" - recorded with that count).
 Use `log_media_addition(name, volume_before_ml, media_added_ml)` whenever you add fresh media.
 Use `fit_curve(names)` or `analyse_growth()` to fit growth-curves and populate the `analysis/` folder.
 Use `growth_rate_segments(name)` / `plot_growth_rate_segments(name)` for a colony diluted repeatedly (a continuously-fed culture) - fit_curve calls this automatically for colonies with 2+ media additions.
@@ -115,7 +116,7 @@ def ensure_cell_counts_stream():
 		exp.new_measurementstream(
 			CELL_COUNTS_STREAM,
 			measurements=["counts"],
-			monitors=["df", "density", "label", "sep", "mutant"],
+			monitors=["df", "density", "label", "sep", "mutant", "condition"],
 		)
 	return exp.mstreams[CELL_COUNTS_STREAM]
 
@@ -141,6 +142,42 @@ def ensure_media_additions_stream():
 ## Recording counts and media additions
 ## ---------------------------------------------------------------------------
 
+def _clean_condition(condition):
+	"""
+	Normalise a user-supplied `condition` to either a stripped, non-empty
+	string or None (no condition). Anything else (e.g. a number) is
+	stringified, so `condition=10` doesn't silently become a numeric column.
+	"""
+	if condition is None:
+		return None
+	condition = str(condition).strip()
+	return condition or None
+
+
+def _condition_history(sub_df):
+	"""
+	One-line summary of the conditions a colony's counts were taken under,
+	in time order, with consecutive repeats collapsed - e.g. a culture
+	counted twice untreated and then twice with DCMU reads
+	"(none) -> 10 mM DCMU". Returns None if no count of this colony has a
+	condition at all (so an ordinary experiment stays blank rather than
+	filling with "(none)").
+
+	`sub_df` must already be sorted by timestamp (the colony's own rows).
+	"""
+	import pandas as pd
+	if "condition" not in sub_df.columns:
+		return None
+	steps = []
+	for value in sub_df["condition"]:
+		step = "(none)" if pd.isna(value) or not str(value).strip() else str(value).strip()
+		if not steps or steps[-1] != step:
+			steps.append(step)
+	if steps == ["(none)"]:
+		return None
+	return " -> ".join(steps)
+
+
 def _resolve_timestamp(date_override=None, time_override=None):
 	"""
 	Build a timestamp, allowing the caller to override the date (e.g. when
@@ -165,7 +202,7 @@ def _resolve_timestamp(date_override=None, time_override=None):
 	return datetime.datetime.combine(date_part, time_part)
 
 
-def new_count(name, *counts, df=2, sep=None, mutant=None,
+def new_count(name, *counts, df=2, sep=None, mutant=None, condition=None,
 			  date_override=None, time_override=None):
 	"""
 	Record a new cell count for a colony.
@@ -191,6 +228,16 @@ def new_count(name, *counts, df=2, sep=None, mutant=None,
 	mutant : str, optional
 		Mutant / strain name for this colony. Used to group and compare
 		growth across mutants in the analysis step.
+	condition : str, optional
+		Free-text treatment / condition this count was taken under, e.g.
+		"10 mM DCMU" (a growth inhibitor) or "lights off". Recorded with
+		*this count only* - it is not carried over to later counts, so pass
+		it on every count the condition applies to. Leading/trailing
+		whitespace is stripped; an empty string is treated as no condition.
+		Unlike `log_media_addition`, a condition does not change the
+		density or the dilution compensation in any way - it is a label,
+		shown in the console panel, the per-colony plot title, the fit
+		summary and the exported csv.
 	date_override : str or datetime.date, optional
 		Use this instead of today's date, e.g. when logging a count after the
 		experiment has already finished and you're not sure of the exact time
@@ -207,17 +254,21 @@ def new_count(name, *counts, df=2, sep=None, mutant=None,
 	import numpy as np
 	counts_stream = ensure_cell_counts_stream()
 	timestamp = _resolve_timestamp(date_override, time_override)
+	condition = _clean_condition(condition)
 	c = counts_stream(
 		counts=counts,
 		label=name,
 		df=df,
 		sep=sep,
 		mutant=mutant,
+		condition=condition,
 		dt=timestamp,  # overrides the auto-set "dt" field when back-filling
 		density=float(np.mean(counts) * 10000 * df),
 	)
 	c.panel()
 	subtitle = f"mutant={mutant}" if mutant else "mutant=(none)"
+	if condition:
+		subtitle += f", condition={condition}"
 	print(Panel(
 		f"Culture density is: {c['density']:.2e}\n"
 		f"Recorded at: {timestamp.isoformat(sep=' ', timespec='minutes')}",
@@ -297,7 +348,11 @@ def _counts_dataframe():
 	if CELL_COUNTS_STREAM not in exp.mstreams:
 		raise Exception("No `cell_counts` measurement stream found on this experiment yet - use new_count() first.")
 	raw = exp.mstreams[CELL_COUNTS_STREAM].df
-	counts_df = raw[["label", "mutant", "df", "density", "dt"]].copy()
+	if "condition" not in raw.columns:
+		# experiments whose stream was created before `condition` existed (or
+		# where no count has been given one yet) simply have no such column
+		raw = raw.assign(condition=None)
+	counts_df = raw[["label", "mutant", "condition", "df", "density", "dt"]].copy()
 	counts_df = counts_df.rename(columns={"dt": "timestamp"})
 	counts_df = counts_df.dropna(subset=["timestamp"]).sort_values(["label", "timestamp"]).reset_index(drop=True)
 	return counts_df
@@ -313,6 +368,11 @@ def _media_additions_dataframe():
 	if MEDIA_ADDITIONS_STREAM not in exp.mstreams:
 		return pd.DataFrame(columns=["label", "volume_before_ml", "media_added_ml", "dilution_fraction", "timestamp"])
 	raw = exp.mstreams[MEDIA_ADDITIONS_STREAM].df
+	if raw.empty:
+		# the stream always exists (populate_exp creates it), but with no media
+		# logged yet its DataFrame has no columns at all - without this, fit_curve
+		# raised a KeyError on any experiment that has never had media added.
+		return pd.DataFrame(columns=["label", "volume_before_ml", "media_added_ml", "dilution_fraction", "timestamp"])
 	df = raw[["label", "volume_before_ml", "media_added_ml", "dilution_fraction", "dt"]].copy()
 	df = df.rename(columns={"dt": "timestamp"})
 	df = df.dropna(subset=["timestamp"]).sort_values(["label", "timestamp"]).reset_index(drop=True)
@@ -478,6 +538,7 @@ def fit_curve(names=None, show=False, t_start_hr=None, t_end_hr=None, min_points
 		hours = sub["timestamp"].apply(lambda t: (t - t0).total_seconds() / 3600.0)
 		mutant = sub["mutant"].dropna().iloc[0] if sub["mutant"].notna().any() else None
 		perturbed_any = bool(sub["perturbed"].iloc[0])
+		condition_hist = _condition_history(sub)
 		fit = _fit_growth_rate(sub, density_col="compensated_density",
 							   t_start_hr=t_start_hr, t_end_hr=t_end_hr,
 							   min_points=min_points)
@@ -492,6 +553,8 @@ def fit_curve(names=None, show=False, t_start_hr=None, t_end_hr=None, min_points
 		title = f"{name}"
 		if mutant:
 			title += f" ({mutant})"
+		if condition_hist:
+			title += f" [{condition_hist}]"
 		fit_hours = None
 		if fit:
 			fit_hours = hours[
@@ -515,7 +578,8 @@ def fit_curve(names=None, show=False, t_start_hr=None, t_end_hr=None, min_points
 		## Combined plot: this colony's compensated trace, its own fit (dashed,
 		## same color), and small triangles marking its own media additions.
 		line_all, = ax_all.plot(hours, sub["compensated_density"], marker="o",
-								 label=f"{name}" + (f" ({mutant})" if mutant else ""))
+								 label=f"{name}" + (f" ({mutant})" if mutant else "")
+									   + (f" [{condition_hist}]" if condition_hist else ""))
 		color = line_all.get_color()
 		if fit and fit_hours is not None:
 			ax_all.plot(fit_hours, np.exp(fit["slope"] * fit_hours + fit["intercept"]),
@@ -530,6 +594,7 @@ def fit_curve(names=None, show=False, t_start_hr=None, t_end_hr=None, min_points
 		summary_rows.append({
 			"label": name,
 			"mutant": mutant,
+			"condition": condition_hist,
 			"perturbed": perturbed_any,
 			"n_points": len(sub),
 			"growth_rate_per_hr": fit["growth_rate_per_hr"] if fit else None,
@@ -717,14 +782,17 @@ def analyse_growth(show=False, t_start_hr=None, t_end_hr=None, min_points=3):
 	plot_df = summary.dropna(subset=["growth_rate_per_hr"]).copy()
 	if not plot_df.empty:
 		plot_df["mutant"] = plot_df["mutant"].fillna("(unlabelled)")
-		plot_df["condition"] = plot_df["perturbed"].map({True: "media added", False: "no media"})
+		# (named media_status, not "condition": `condition` is now the
+		# per-count treatment label carried in the summary - this is just the
+		# media-added / no-media split this bar chart has always used.)
+		plot_df["media_status"] = plot_df["perturbed"].map({True: "media added", False: "no media"})
 		mutants = sorted(plot_df["mutant"].unique())
 
 		# Only include conditions that actually have data for at least one
 		# mutant - otherwise a mutant where every colony was (or wasn't)
 		# perturbed leaves a phantom, empty legend entry with no visible bar.
 		all_conditions = ["no media", "media added"]
-		conditions = [c for c in all_conditions if (plot_df["condition"] == c).any()]
+		conditions = [c for c in all_conditions if (plot_df["media_status"] == c).any()]
 
 		n_cond = len(conditions)
 		width = 0.8 / n_cond
@@ -735,7 +803,7 @@ def analyse_growth(show=False, t_start_hr=None, t_end_hr=None, min_points=3):
 		for offset, cond in zip(offsets, conditions):
 			vals, counts_n = [], []
 			for m in mutants:
-				rows = plot_df[(plot_df["mutant"] == m) & (plot_df["condition"] == cond)]
+				rows = plot_df[(plot_df["mutant"] == m) & (plot_df["media_status"] == cond)]
 				vals.append(rows["growth_rate_per_hr"].mean() if not rows.empty else np.nan)
 				counts_n.append(len(rows))
 			bars = ax.bar(x + offset, vals, width, label=cond)
@@ -779,8 +847,9 @@ def analyse_growth(show=False, t_start_hr=None, t_end_hr=None, min_points=3):
 def export_csv(path=None):
 	"""
 	Export every recorded cell count to a csv file (one row per count, with
-	columns: label, mutant, df, density, compensated_density, perturbed,
-	timestamp).
+	columns: label, mutant, condition, df, density, timestamp,
+	compensated_density, perturbed). `condition` is blank for counts logged
+	without one.
 
 	By default writes to `analysis/cell_counts.csv` inside the experiment
 	folder; pass `path` to write somewhere else instead.

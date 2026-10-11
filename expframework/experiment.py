@@ -402,6 +402,7 @@ class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit, ExpPolicy):
 			log.warning("Experiment state not found. Not a problem if this is a new experiment.")
 
 
+
 		# Changing Working Directory to Experiment Directory		
 		Share.updateps1(exp=self.name)
 		self.lastwd = os.getcwd()
@@ -782,7 +783,15 @@ class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit, ExpPolicy):
 	def measurements(self):
 		"""A RecordSet over this experiment's own measurement results --
 		only "success" is editable here, on request (a measurement's
-		actual recorded values shouldn't be touched after the fact)."""
+		actual recorded values shouldn't be touched after the fact).
+
+		NOT the way to change a reading's values. This edits the rows already
+		serialised into logs["results"], which is a copy -- the stream's own
+		self.readings is unaffected and will overwrite nothing. To correct
+		what a stream recorded, use MeasurementStream.edit(): set
+		auto_update_explogs False so readings are the only copy, edit the
+		table, then write() the frame. This stays for marking a row's
+		`success` after the fact, which is what the field is for."""
 		return RecordSet(self.logs["results"], allowed_fields={"success"},
 						  on_change=self.__save__, on_edit=self._log_edit)
 
@@ -896,9 +905,29 @@ class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit, ExpPolicy):
 
 		self.mstreams[name] = ms
 		log.info(f"Added measurment stream: {name}")
-		self.log("measurement_stream", attribs={"name":name, "measureid": ms.uid, 
-				 "detections":ms.detections, "measurements":ms.measurements,
-				 "monitors":ms.monitors})
+
+		## AI Generated -- the stream's full schema, into experiment.yaml.
+		##
+		## Stored BY REFERENCE, not copied: fields are often declared after the
+		## stream exists (`ms = exp.new_measurementstream("tosses")` then
+		## `ms.add_measurement(...)`), so a snapshot taken here would record an
+		## empty schema for exactly those streams. descriptors is mutated in
+		## place by add_field, and __save__() re-dumps self.logs whole, so this
+		## one binding keeps experiment.yaml current for the life of the run --
+		## the same trick as logs["attribs"] = self.attribs.
+		##
+		## Until now only field NAMES were recorded, so units, axis labels,
+		## descriptions and dtypes died with the process and a finished
+		## experiment could not say that `density` was in cells/mL.
+		self.logs.setdefault("mstreams", {})[name] = ms.descriptors
+
+		## The EVENT shape is deliberately unchanged -- every reader of a
+		## recorded experiment, including the legacy explorer, joins results to
+		## streams through these three keys. The schema above is additive.
+		self.log("measurement_stream", attribs={"name":name, "measureid": ms.uid,
+				 "detections":ms.fields("detection"),
+				 "measurements":ms.fields("measurement"),
+				 "monitors":ms.fields("monitor")})
 		print(Panel(Pretty(self.mstreams[name]), 
 					title=f"Measurement stream created: {name}", style="white on blue"))
 		return self.mstreams[name]

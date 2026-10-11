@@ -2,15 +2,7 @@ import ast
 import os
 import shelve
 
-from prompt_toolkit.application import Application
-from prompt_toolkit.application.current import get_app
-from prompt_toolkit.cursor_shapes import CursorShape
-from prompt_toolkit.key_binding.bindings.focus import focus_next, focus_previous
-from prompt_toolkit.key_binding.defaults import load_key_bindings
-from prompt_toolkit.key_binding.key_bindings import KeyBindings, merge_key_bindings
-from prompt_toolkit.layout import Layout
-from prompt_toolkit.layout.containers import HSplit, VSplit
-from prompt_toolkit.widgets import Button, Dialog, Label, TextArea
+from core.idioms.formdialog import Field, form_dialog
 
 from rich.console import Console
 from rich.panel import Panel
@@ -103,7 +95,7 @@ class PhysicalObject(object):
 
 	def update(self, new_field_slots=3):
 		"""
-		Edit this object's fields in a bordered dialog box — the same
+		Edit this object's fields in a bordered dialog box -- the same
 		`Dialog` widget that backs prompt_toolkit's built-in
 		input_dialog / message_dialog / etc. (see
 		https://python-prompt-toolkit.readthedocs.io/en/stable/pages/dialogs.html),
@@ -114,94 +106,41 @@ class PhysicalObject(object):
 		fields. Clear a value entirely and press Save to delete that
 		field. A few blank rows at the bottom let you add new fields
 		(fill in both the name and the value). 'kind' is shown for
-		reference but is immutable — it has no input box here.
+		reference but is immutable -- it has no input box here.
 
 		Press Save to apply changes, or Cancel to discard them.
 
 		If this object is persistent, changes are synced to disk
 		automatically after a successful save.
+
+		AI Generated -- the dialog machinery moved to
+		core.idioms.formdialog when MeasurementStream.input() needed the
+		same widget; this method keeps its own semantics (free-form keys,
+		blank deletes) and only the rendering is shared. Behaviour here is
+		unchanged.
 		"""
-		editable_keys = [key for key in self.attribs.keys() if key != "kind"]
-		label_width = max([len(key) for key in self.attribs.keys()] + [8]) + 2
-
-		field_areas = {}
-		rows = []
-
+		fields = []
 		if "kind" in self.attribs:
-			rows.append(VSplit([
-				Label(text=f"{'kind':<{label_width}}", width=label_width),
-				Label(text=f"{self.attribs['kind']!s}  (immutable)"),
-			]))
+			fields.append(Field("kind", value=self.attribs["kind"], editable=False))
+		for key in self.attribs:
+			if key != "kind":
+				fields.append(Field(key, value=self.attribs[key]))
 
-		for key in editable_keys:
-			area = TextArea(text=str(self.attribs[key]), multiline=False)
-			field_areas[key] = area
-			rows.append(VSplit([
-				Label(text=f"{key:<{label_width}}", width=label_width),
-				area,
-			]))
+		raw = form_dialog(
+			f"Update {self.attribs.get('name', 'PhysicalObject')}",
+			fields, free_rows=new_field_slots)
 
-		rows.append(Label(text=""))
-		rows.append(Label(text="Add new fields:"))
-
-		new_rows = []
-		for _ in range(new_field_slots):
-			key_area = TextArea(text="", multiline=False)
-			val_area = TextArea(text="", multiline=False)
-			new_rows.append((key_area, val_area))
-			rows.append(VSplit([
-				key_area,
-				Label(text=" = ", width=3),
-				val_area,
-			]))
-
-		result = {"saved": False}
-
-		def save_handler():
-			result["saved"] = True
-			get_app().exit()
-
-		def cancel_handler():
-			result["saved"] = False
-			get_app().exit()
-
-		dialog = Dialog(
-			title=f"Update {self.attribs.get('name', 'PhysicalObject')}",
-			body=HSplit(rows, padding=0),
-			buttons=[
-				Button(text="Save", handler=save_handler),
-				Button(text="Cancel", handler=cancel_handler),
-			],
-			with_background=True,
-		)
-
-		bindings = KeyBindings()
-		bindings.add("tab")(focus_next)
-		bindings.add("s-tab")(focus_previous)
-
-		app = Application(
-			layout=Layout(dialog),
-			key_bindings=merge_key_bindings([load_key_bindings(), bindings]),
-			mouse_support=True,
-			full_screen=True,
-			cursor=CursorShape.BLINKING_BLOCK,
-		)
-		app.run()
-
-		if not result["saved"]:
+		if raw is None:
 			return
 
-		for key, area in field_areas.items():
-			raw = area.text
-			if raw.strip() == "":
-				del self.attribs[key]
+		for key, text in raw.items():
+			if text.strip() == "":
+				## A blank clears the field -- but only one that already
+				## existed; a blank free row was never a field at all.
+				if key in self.attribs:
+					del self.attribs[key]
 			else:
-				self.attribs[key] = self._parse_value(raw)
-
-		for key_area, val_area in new_rows:
-			new_key = key_area.text.strip()
-			if new_key:
-				self.attribs[new_key] = self._parse_value(val_area.text)
+				self.attribs[key] = self._parse_value(text)
 
 		if self.persistent:
 			self.attribs.sync()

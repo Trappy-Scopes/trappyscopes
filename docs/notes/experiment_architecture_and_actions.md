@@ -334,3 +334,70 @@ one — not recommending it here.
 5. §F — comfortable wrapping mounted devices in a `wrapt` proxy for
    automatic call-logging, or does that feel like too much magic
    happening behind `scope.<device>.<method>()` calls?
+
+
+---
+
+# RESTRUCTURE: experiment ↔ stream lifetime
+
+**Recorded 2026-10-11**, from a session where twelve recorded readings were
+reachable in `experiment.yaml` but not through
+`exp.mstreams["tosses"].readings`.
+
+## R1 — Two persistence paths, written at different times ⏳ *open, deliberately*
+
+| | what | when written |
+|---|---|---|
+| `experiment.yaml` | `logs["results"]` | every `__save__()` — continuously |
+| `expstate.pickle` | `mstreams`, with their `readings` | **only in `close()`** |
+
+`__setstate__` restored streams from the pickle, so a reopened experiment's
+`readings` was a snapshot from the last clean close while the YAML held
+everything ever recorded. Worse: when `close()` did not complete there was no
+pickle at all, and every recorded reading came back orphaned from its stream —
+which happened twice this week, once from `RuntimeError: cannot join current
+thread` and once from `TypeError: cannot pickle '_thread.RLock' object`.
+
+**Considered and rejected, 2026-10-11**: rebuilding each stream's `readings`
+from `logs["results"]` on reopen (filtered on `measureid`, resuming
+`measureidx` from the highest index found), demoting the pickle to a cache for
+what YAML cannot hold. Implemented, then reverted on Yatharth's call -- the
+pickle stays the restore path for streams.
+
+Left open rather than closed, because the failure is real: a run whose
+`close()` does not complete leaves every recorded reading in `experiment.yaml`
+orphaned from its stream, and there is currently no way to get them back onto
+one. Whatever fixes it should not make the YAML authoritative by default.
+
+## R2 — `findexp()` orphans references scripts are holding ⏳ *open*
+
+Reopening replaces `exp.mstreams` with different objects carrying the *same*
+`measureid`. Any stream a script captured at `create_exp()` time keeps
+receiving readings while `exp.mstreams` holds the new one — so
+`exp.mstreams[name].readings` reads 0 while recording is plainly working, and
+the two objects are indistinguishable by measureid.
+
+Worked around locally rather than fixed, twice: `metaexperiment.py` has
+`link_objects()` and `cointoss_input.py` now has `link()`, both rebinding
+globals by hand. R1 reduces the damage (a relinked stream now has its
+readings), but the trap remains.
+
+Two candidate fixes, not chosen: have `findexp()` mutate the existing
+`MeasurementStream` objects in place rather than rebinding `self.mstreams`; or
+document `Experiment.current.mstreams[name]` as the only supported way to
+reach a stream and stop scripts caching them. The second is what the scripts
+now do internally.
+
+## R3 — A reading exists twice while it is being recorded ⏳ *open by design*
+
+`__call__` appends `dict(reading)` to `logs["results"]` — a copy, because
+`Measurement` is a dict SUBCLASS and `yaml.safe_dump` refuses it outright
+while `yaml.dump` tags it `!!python/object/new:`, which a plain read cannot
+construct. Only a plain dict round-trips.
+
+So while `auto_update_explogs` is on, editing `stream.readings` changes a copy
+that is never written again. That is why `MeasurementStream.edit()` refuses to
+run unless the flag is off: with it off nothing is written until `write()`, and
+`readings` is the single copy. Deliberate, and the reason `edit()` never calls
+`write()` itself — `write()` appends the whole frame, so an edit that wrote on
+its own would duplicate the stream on every use.

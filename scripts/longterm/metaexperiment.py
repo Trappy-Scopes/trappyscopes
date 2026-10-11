@@ -58,15 +58,34 @@ def link_objects():
 
 
 def new_count(label, *args, df=2, sep=None, sample_media_ratio=(1.5, 18.5)):
+	"""
+	Log a cell count. For a separator reading (`sep=True`), `scaled_density` is
+	the density corrected back for the sample having been diluted into media
+	at `sample_media_ratio = (sample, media)` (same volume units for both):
+	density * (sample + media) / sample. The (sample, media) pair actually used
+	is recorded with the reading as `sample_media_ratio`; for any other reading
+	(sep False/None) there is no such dilution, so it is left unset (NaN) and
+	`scaled_density` equals `density`.
+	"""
 	import numpy as np
-	c = Experiment.current.mstreams["cell_counts"](counts=args, label=label, df=df, sep=sep,
-									density=float(np.mean(args)*10000*df))
+	density = float(np.mean(args)*10000*df)
 
+	## Everything is worked out *before* the stream call and passed into it.
+	## The stream copies each reading into the experiment log
+	## (experiment.yaml) at call time, so a field assigned to the returned
+	## reading afterwards (c["scaled_density"] = ...) reaches the in-memory
+	## table / csv export but never the log - and a declared field that is
+	## never passed at all (sample_media_ratio used to be one) is NaN.
+	fields = {}
 	if sep is True:
 		sample, media = sample_media_ratio
-		c["scaled_density"] = c["density"] * (sample + media) / sample
+		scaled_density = density * (sample + media) / sample
+		fields["sample_media_ratio"] = (sample, media)
 	else:
-		c["scaled_density"] = c["density"]
+		scaled_density = density
+
+	c = Experiment.current.mstreams["cell_counts"](counts=args, label=label, df=df, sep=sep,
+									density=density, scaled_density=scaled_density, **fields)
 
 	c.panel()
 	print(Panel(f"Culture density is: {c['density']:.2e}"))
