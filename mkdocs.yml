@@ -11,6 +11,16 @@ nav:
       - API Reference: hive/hive.md
   - expframework:
       - Overview: expframework/index.md
+      - Experiment: expframework/experiment.md
+      - Measurement streams: expframework/measurement.md
+      - Scheduler: expframework/scheduler.md
+      - Clocks: expframework/clocks.md
+      - Notebook: expframework/notebook.md
+      - File sync: expframework/sync.md
+      - Protocols: expframework/protocol.md
+      - Script engine: expframework/scriptengine.md
+      - Reports: expframework/report.md
+      - Plotting: expframework/plotter.md
       - API Reference: expframework/api.md
   - core:
       - Overview: core/index.md
@@ -38,6 +48,19 @@ plugins:
   - blogging
   - external-markdown
   - mermaid2
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: sphinx
+            members_order: source
+            merge_init_into_class: true
+            filters: ["!^_"]
+            show_source: true
+            show_if_no_docstring: true
+            show_root_heading: true
+            heading_level: 2
 
 #  - autorefs
 #  - redirects
