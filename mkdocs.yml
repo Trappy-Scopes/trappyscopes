@@ -8,7 +8,7 @@ nav:
   - Introduction: notes/intro.md
   - hive:
       - Overview: hive/index.md
-      - API Reference: hive/hive.md
+      - API Reference: hive/api.md
   - expframework:
       - Overview: expframework/index.md
       - Experiment: expframework/experiment.md
