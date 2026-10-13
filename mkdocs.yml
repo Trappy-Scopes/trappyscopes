@@ -25,9 +25,6 @@ nav:
   - core:
       - Overview: core/index.md
       - API Reference: core/api.md
-  - optics:
-      - Overview: optics/index.md
-      - API Reference: optics/api.md
   - Notes:
       - Introduction: notes/assmble_trappy_scopes.md
       - Hive: notes/hive.md       
