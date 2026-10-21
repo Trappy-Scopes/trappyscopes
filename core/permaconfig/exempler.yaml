@@ -43,6 +43,19 @@ devices:
         exec_main: True
         handshake: True
 
+  ## AI Generated (2026-10) -- poseidon syringe pumps on an Arduino Uno, from the
+  ## separate poseidon_pumps repository. Commented out: it needs that package and
+  ## a real board. serial_number comes from SerialDevice.print_all_ports().
+  # syringes:
+  #   description: "Poseidon 3-axis syringe pump"
+  #   kind: poseidon_pumps.arduino.PoseidonController
+  #   args: []
+  #   kwargs:
+  #     serial_number: "75633313133351F0E1A1"
+  #     microsteps: 32          ## must match the CNC shield's jumpers
+  #     pumps:
+  #       1: {syringe: "BD 10 mL", rate: 900, unit: "µL/hr", accel: 50}
+
 
 
 lit: ## Additional information that is bound to the Proxy as a physical object.

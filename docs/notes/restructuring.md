@@ -1091,3 +1091,79 @@ tree, so attribute access resolves through it; plus whatever `ScopeAssembly`
 needs to walk a remote branch in `draw_tree()` and `assert_device()`. The
 peer-to-peer case (two machines each running their own assembly) already works
 and is not what is being claimed.
+
+---
+
+## 15. Serial devices that are not MicroPython boards (2026-10-13)
+
+!!! note "Provenance"
+    Written by **Claude** (Anthropic) with Yatharth on 2026-10-13, while
+    integrating the poseidon syringe pumps (`Trappy-Scopes/poseidon_pumps`, a
+    fork of `pachterlab/poseidon`). All code named here is tagged *AI Generated*.
+
+### 15.1 What was built ✅
+
+| Where | What |
+|---|---|
+| `hive/processorgroups/serialdevice.py` | `SerialDevice`: the shared base. It lists ports and finds boards by USB VID, PID and serial number without opening any port. `SerialMPDevice` now inherits it, so `print_all_ports()` shows those three fields for every board. `FixedVocabSerialDevice` is the sealed-firmware processor group. Its interface is in `docs/notes/fixedvocab_serial_device.pdf`. |
+| `actuators/stepper.py` | `StepperAxis`: a generic stepper whose position is counted on the host. It has limits, jog and move, and STOP with a time-based position estimate. `MotorState` persists the position as a shelve-backed `PhysicalObject`, and a crash mid-move is detected on the next load. |
+| `core/idioms/deck.py` | `Deck` and `Deckable`: a touch-friendly terminal control deck that any device describes in `deck_spec(d)`. Widgets read and write through `get`/`set` callables on the device. Fields are validated while typing, on commit, and by the device. |
+| `scripts/toyexps/poseidon_deck_dummy.py` | A layout mock-up of the deck, with no device behind it. |
+| `scripts/toyexps/poseidon_sim_deck.py` | The real `PoseidonController` deck, driving the simulated sketch. |
+| `poseidon_pumps` (separate repo) | `PoseidonController` on the unchanged upstream Arduino sketch, `calibration`, the `sim` port of the sketch, and tests. |
+
+### 15.2 Decisions
+
+- **Identity comes from USB descriptors, not from the board.** A genuine Uno's
+  serial number is factory-set in its ATmega16U2 and unique per board. The OS
+  reads it at enumeration, so no port is opened. That matters because opening an
+  Uno's port pulses DTR and reboots it. The serial number is the key; VID and PID
+  are only a guard against a config typo landing on the wrong kind of device.
+  Boards with no serial number (CH340 clones) fall back to an explicit `port`.
+- **Composition, not mounting.** `PoseidonController` owns its
+  `FixedVocabSerialDevice` as `.link` and is mounted directly. The Arduino is
+  never a device of its own, because the controller owns the whole processor.
+- **A sealed device emits no proxies.** `ProcessorGroup.__getattr__` returns a
+  proxy for any missing attribute, which suits a MicroPython REPL. A sealed
+  board has nothing to forward to, so `FixedVocabSerialDevice.__getattr__`
+  raises instead, and typos fail loudly.
+- **A device-specific controller lives in its own repository** (`poseidon_pumps`).
+  The generic pieces it builds on (serial layer, stepper, deck) live here.
+- **Positions are the host's.** The Poseidon board has no position feedback and
+  zeroes its own counters on every settings command, so `MotorState` is the
+  only source of truth.
+
+### 15.3 Wire protocol for future Arduino-class firmware ⏳ not started
+
+Firmware written in-house from now on should follow one convention, so that
+only the vocabulary differs between devices:
+
+- One command per line, newline-terminated: `ID CMD key=val ...`
+- Replies: `ID OK ...` or `ID ERR reason`. IDs allow more than one command in flight.
+- Unsolicited events are prefixed with `!`, e.g. `! DONE pump=1 pos=-12000` and `! POS ...`.
+  With these, the host never has to estimate when a move ends.
+- A mandatory `HELLO` that answers `fw=<name> v=<version> axes=<n>` (the
+  equivalent of `board.name`), plus the microstepping or other jumper-set
+  values when the firmware can read them.
+- No unframed debug output.
+
+`FixedVocabSerialDevice` already handles line framing (`frame="\n"`). Several
+commands in flight at once would need the pending-ack table to be keyed by ID.
+
+### 15.4 Shelved ⏳
+
+- **Pluggable framing and encoding** for `FixedVocabSerialDevice`: a `Framer`
+  (delimiter, line, or length-prefixed with CRC) and a `Codec` (text template or
+  `struct`). Needed only for binary protocols such as Firmata or Modbus RTU.
+- **An Arduino category in `core/idioms/devicetree.py`**, so Unos show up with
+  their registered role, like Picos do.
+- **A flashing utility next to `launcher/utilities/flash_firmware.py`.**
+  `arduino-cli` or PlatformIO, still undecided. Flashing is manual for now (the
+  steps are in the `poseidon_pumps` README).
+- **A Pico-based poseidon controller:** its own class
+  (`poseidon_pumps.micropython`?) on `SerialMPDevice`, possibly with PIO step
+  generation. It would share `actuators.stepper` and the deck.
+- **Firmware fixes for the poseidon sketch.** It is kept unchanged on purpose.
+  `PoseidonController` works around its behaviour (see the `poseidon_pumps`
+  README and the `arduino.py` docstring). A rewrite to the §15.3 protocol would
+  remove all of those workarounds.

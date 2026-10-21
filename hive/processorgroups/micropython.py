@@ -7,6 +7,7 @@ from core.external import pyboard
 from rich import print
 
 from .abstractprocessorgroup import ProcessorGroup as AbstractProcessorGroup
+from .serialdevice import SerialDevice
 
 
 class MicropythonDevice(AbstractProcessorGroup):
@@ -68,7 +69,10 @@ class MicropythonDevice(AbstractProcessorGroup):
 			return output.decode('utf-8')
 
 
-class SerialMPDevice(MicropythonDevice):
+## AI Generated (2026-10): SerialDevice added as a second base for the shared
+## port discovery. MRO is SerialMPDevice -> MicropythonDevice -> SerialDevice
+## -> ProcessorGroup, so proxies still come from ProcessorGroup.__getattr__.
+class SerialMPDevice(MicropythonDevice, SerialDevice):
 	exclusion_list = []
 	def __init__(self, name=None, connect=True, port=None, exec_main=False, handshake=False, search_name=False):
 		MicropythonDevice.__init__(self, name=name, connect=connect, port=port, exec_main=False, handshake=False,)
@@ -92,12 +96,10 @@ class SerialMPDevice(MicropythonDevice):
 		all_ports = list(list_ports.comports())
 		return [str(port) for port in all_ports]
 
-	def print_all_ports():
-		print("All availbale ports:")
-		all_ports = SerialMPDevice.all_ports()
-		for port in all_ports:
-			print(port)
-		print("-"*10)
+	## print_all_ports() is inherited from SerialDevice (AI Generated, 2026-10):
+	## the same table for every serial board, now with VID / PID / serial
+	## number. all_ports() / potential_ports() stay here unchanged -- they
+	## return the "path - description" strings auto_connect() parses.
 
 	def potential_ports():
 		import serial.tools.list_ports as list_ports
