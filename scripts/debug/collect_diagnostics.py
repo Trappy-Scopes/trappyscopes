@@ -29,13 +29,14 @@ journal rotates, writes a readable report, and tars the lot up for transfer.
     python3 scripts/debug/collect_diagnostics.py --exp-dir ~/data/M1__YB__... \\
                                                  --server slurmnas.igc.gulbenkian.pt
 
-Output (under --out, default ./diagnostics):
+Output (under --out, default ~/diagnostics):
 
-    diag_<host>_<stamp>/
+    diag_<scopeid-or-host>__<stamp>/
         REPORT.md          triage first, then every command with its output
         index.json         machine-readable: command, rc, duration, raw path
         raw/<slug>.txt     one file per command, untruncated
-    diag_<host>_<stamp>.tar.gz
+        config/            the scope's config, secrets redacted
+    diag_<scopeid-or-host>__<stamp>.tar.gz
 
 REPORT.md leads with a TRIAGE section: a short list of findings for the
 problems this lab actually hits -- under-voltage, thermal throttling, ethernet
@@ -53,8 +54,11 @@ Design notes
   worth far more than a traceback.
 * **Every command is timed out.** `ping`, `rclone` and `smartctl` can all block
   indefinitely against dead hardware or a dead link.
-* **No credentials are written.** The file server host is read from config only
-  to test reachability; the config file itself is never copied into the bundle.
+* **Configs are copied, secrets are not.** The scope's configuration is copied
+  into `config/` because almost every sync or device fault is explained by it --
+  but every password/token/key VALUE is replaced by whether it was set. The
+  bundle is made to be attached to tickets and chats; a verbatim copy would
+  publish the file-server password.
 """
 
 import argparse
@@ -454,26 +458,114 @@ def exp_checks(exp_dir):
 	]
 
 
-def discover_server(paths):
-	"""Hostname of the configured file server, or None.
+CONFIG_PATHS = ["~/.trappyscopes/config.yaml",
+				"core/permaconfig/config.txt",
+				"core/permaconfig/default_config.yaml"]
 
-	Deliberately a line-scan rather than a YAML parse: the config holds a
-	password, and parsing it into memory alongside a bundle writer is a way to
-	leak one by accident. Only the `server:` value is ever touched.
+
+def _config_scan(pattern):
+	"""First capture of `pattern` across the known config files, or None.
+
+	Deliberately a line-scan rather than a YAML parse: the config holds the
+	file-server password, and loading it into memory alongside a bundle writer
+	is a way to leak one by accident. Only the matched value is ever touched,
+	and placeholders (`<like-this>`) are rejected.
 	"""
-	for path in paths:
+	rx = re.compile(pattern)
+	for path in CONFIG_PATHS:
 		path = os.path.expanduser(path)
 		if not os.path.exists(path):
 			continue
 		try:
 			with open(path, errors="replace") as f:
 				for line in f:
-					m = re.match(r"\s*server\s*:\s*([^\s#]+)", line)
+					m = rx.match(line)
 					if m and not m.group(1).startswith("<"):
 						return m.group(1).strip("\"'")
 		except Exception:
 			continue
 	return None
+
+
+def discover_server():
+	"""Hostname of the configured file server, or None."""
+	return _config_scan(r"\s*server\s*:\s*([^\s#]+)")
+
+
+def discover_scopeid():
+	"""The scope name (M1..M8), or None.
+
+	Anchored at column 0: `name:` is the top-level scope name, but the same key
+	appears indented under every device in the assembly, so an unanchored match
+	would return `pico`.
+	"""
+	return _config_scan(r"^name\s*:\s*([^\s#]+)")
+
+
+## ---------------------------------------------------------------------------
+##  Configuration copies
+## ---------------------------------------------------------------------------
+
+## Keys whose VALUE is redacted before a config is copied into the bundle. The
+## bundle gets attached to tickets and chats, so a verbatim copy would publish
+## the file-server password. Matched on the key name, so a value that merely
+## looks secret is left alone.
+SECRET_KEY = re.compile(
+	r"^(\s*-?\s*)([A-Za-z0-9_.-]*"
+	r"(?:password|passwd|secret|token|api[_-]?key|access[_-]?key|credential)"
+	r"[A-Za-z0-9_.-]*)(\s*:\s*)(.*)$", re.I)
+
+EXTRA_CONFIGS = ["~/.config/rclone/rclone.conf", "~/.rclone.conf"]
+
+
+def redact_line(line):
+	"""Return (line, was_redacted). The value is replaced by a description of
+	itself -- whether it was set at all is the diagnostic fact ("is the password
+	even configured?"), and that survives redaction. The value does not."""
+	m = SECRET_KEY.match(line.rstrip("\n"))
+	if not m:
+		return line, False
+	raw = m.group(4).strip().strip("\"'")
+	if not raw:
+		state = "<redacted: EMPTY>"
+	elif raw.startswith("<") and raw.endswith(">"):
+		state = "<redacted: PLACEHOLDER, never configured>"
+	else:
+		state = "<redacted: set>"
+	return f"{m.group(1)}{m.group(2)}{m.group(3)}{state}\n", True
+
+
+def copy_configs(root):
+	"""Copy the scope's configuration into the bundle, with secrets redacted.
+
+	Worth having: almost every sync or device fault is explained by the config,
+	and a bundle collected weeks ago is useless if the config has since been
+	edited. Never copied verbatim -- see SECRET_KEY.
+	"""
+	dest = os.path.join(root, "config")
+	os.makedirs(dest, exist_ok=True)
+	copied = []
+	for path in [os.path.expanduser(p) for p in CONFIG_PATHS + EXTRA_CONFIGS]:
+		if not os.path.isfile(path):
+			continue
+		out_name = path.lstrip("/").replace("/", "__")
+		try:
+			n_red, lines = 0, []
+			with open(path, errors="replace") as f:
+				for line in f:
+					line, red = redact_line(line)
+					n_red += red
+					lines.append(line)
+			with open(os.path.join(dest, out_name), "w") as f:
+				f.write(f"## source: {path}\n")
+				f.write(f"## {n_red} value(s) redacted by collect_diagnostics.py\n")
+				f.writelines(lines)
+			copied.append({"source": path, "file": f"config/{out_name}",
+						   "redacted": n_red, "error": None})
+		except Exception as e:
+			copied.append({"source": path, "file": None, "redacted": 0,
+						   "error": f"{type(e).__name__}: {e}"})
+	return copied
 
 
 ## ---------------------------------------------------------------------------
@@ -486,10 +578,11 @@ BADGE = {"CRITICAL": "[CRITICAL]", "WARN": "[WARN]    ",
 
 def write_report(path, meta, groups, results, findings):
 	w = []
-	w.append(f"# Scope diagnostics -- {meta['host']}")
+	w.append(f"# Scope diagnostics -- {meta.get('scopeid') or meta['host']}")
 	w.append("")
 	w.append(f"- **Collected** {meta['stamp_human']}")
-	w.append(f"- **Host** `{meta['host']}`  **Model** {meta['model']}")
+	w.append(f"- **Scope** `{meta.get('scopeid') or 'unknown'}`  "
+			 f"**Host** `{meta['host']}`  **Model** {meta['model']}")
 	w.append(f"- **Kernel** {meta['kernel']}")
 	w.append(f"- **Collector** `collect_diagnostics.py` v{VERSION}")
 	if meta.get("server"):
@@ -523,6 +616,25 @@ def write_report(path, meta, groups, results, findings):
 			w.append(f"            -> raw/{slug}.txt")
 			w.append("")
 		w.append("```")
+	w.append("")
+
+	## -- configuration -----------------------------------------------------
+	w.append("## Configuration")
+	w.append("")
+	configs = meta.get("configs") or []
+	if not configs:
+		w.append("*No configuration file was found at any known path.*")
+	else:
+		w.append("Copied into this bundle with secrets redacted by key name. "
+				 "Values are replaced by whether they were set, which is the "
+				 "diagnostic fact; the values themselves are not in the bundle.")
+		w.append("")
+		for c in configs:
+			if c["error"]:
+				w.append(f"- `{c['source']}` -- **not copied**: {c['error']}")
+			else:
+				w.append(f"- `{c['source']}` -> `{c['file']}` "
+						 f"({c['redacted']} value(s) redacted)")
 	w.append("")
 
 	## -- detail ------------------------------------------------------------
@@ -580,8 +692,12 @@ def _wrap(text, width):
 def main():
 	ap = argparse.ArgumentParser(
 		description="Collect Raspberry Pi system diagnostics into one bundle.")
-	ap.add_argument("--out", default="diagnostics",
-					help="parent directory for the bundle (default: ./diagnostics)")
+	ap.add_argument("--out", default="~/diagnostics",
+					help="parent directory for the bundle (default: ~/diagnostics). "
+						 "Absolute on purpose: an open Experiment chdirs into its "
+						 "own directory, so a relative default would drop the "
+						 "bundle inside the experiment. Pass --out . if that is "
+						 "what you want.")
 	ap.add_argument("--exp-dir", default=None,
 					help="an experiment directory to inspect (sync evidence)")
 	ap.add_argument("--server", default=None,
@@ -600,10 +716,11 @@ def main():
 			  file=sys.stderr)
 
 	host = socket.gethostname()
+	scopeid = discover_scopeid()
 	now = datetime.datetime.now()
 	stamp = now.strftime("%Y_%m_%d__%Hhh_%Mmm_%Ss")
-	name = f"diag_{host}_{stamp}"
-	root = os.path.join(os.path.expanduser(args.out), name)
+	name = f"diag_{scopeid or host}__{stamp}"
+	root = os.path.abspath(os.path.join(os.path.expanduser(args.out), name))
 	raw = os.path.join(root, "raw")
 	os.makedirs(raw, exist_ok=True)
 
@@ -611,9 +728,7 @@ def main():
 
 	server = args.server
 	if not server and not args.no_server:
-		server = discover_server(["~/.trappyscopes/config.yaml",
-								  "core/permaconfig/config.txt",
-								  "core/permaconfig/default_config.yaml"])
+		server = discover_server()
 	if server and not args.no_server:
 		for g in groups:
 			if g[0] == "sync":
@@ -629,6 +744,7 @@ def main():
 
 	total = sum(len(g[2]) for g in groups)
 	print(f"Collecting {total} checks into {root}")
+	print(f"  scope: {scopeid or '(scopeid not in config)'}   host: {host}")
 
 	results, done = {}, 0
 	for gslug, gtitle, checks in groups:
@@ -648,6 +764,7 @@ def main():
 
 	meta = {
 		"host": host,
+		"scopeid": scopeid,
 		"stamp": stamp,
 		"stamp_human": now.strftime("%Y-%m-%d %H:%M:%S"),
 		"kernel": (results.get("uname") or {}).get("out", "").strip(),
@@ -657,6 +774,7 @@ def main():
 		"exp_dir": exp_dir,
 	}
 
+	meta["configs"] = copy_configs(root)
 	findings = triage(results)
 
 	with open(os.path.join(root, "index.json"), "w") as f:
