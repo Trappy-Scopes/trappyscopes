@@ -54,15 +54,16 @@ Design notes
   worth far more than a traceback.
 * **Every command is timed out.** `ping`, `rclone` and `smartctl` can all block
   indefinitely against dead hardware or a dead link.
-* **Configs are copied, secrets are not.** The scope's configuration is copied
-  into `config/` because almost every sync or device fault is explained by it --
-  but every password/token/key VALUE is replaced by whether it was set. The
-  bundle is made to be attached to tickets and chats; a verbatim copy would
-  publish the file-server password.
+* **Configs are copied verbatim**, into `config/`, because almost every sync or
+  device fault is explained by them. That includes the NetworkManager keyfiles,
+  so the bundle contains the file-server password and the Wi-Fi PSK. It is an
+  internal artefact; treat it as one. `--redact` replaces those values with
+  whether they were set, for a bundle that has to leave the lab.
 """
 
 import argparse
 import datetime
+import glob
 import json
 import os
 import platform
@@ -130,12 +131,22 @@ GROUPS = [
 	("fstrim_timer",     "fstrim timer",               "systemctl status fstrim.timer --no-pager 2>&1 | head -20", 20),
 	("fstrim_last",      "Last fstrim run",            "journalctl -u fstrim.service --no-pager -n 20 2>/dev/null", 20),
 	("smart",            "SMART attributes",           "for d in /dev/sd? /dev/nvme?n?; do [ -e \"$d\" ] && echo \"== $d\" && smartctl -A \"$d\" 2>&1; done", 50),
+	("mnt_dirs",         "Mountpoint dirs (ghost-mount check)",
+	 'for p in /mnt/* /media/* /media/*/*; do [ -d "$p" ] || continue; '
+	 'if mountpoint -q "$p" 2>/dev/null; then echo "MOUNTED      -      $p"; '
+	 'else echo "NOT-MOUNTED  $(du -sh "$p" 2>/dev/null | cut -f1)  $p"; fi; done; '
+	 'echo "== loose files directly in /mnt =="; '
+	 'find /mnt -maxdepth 1 -type f 2>/dev/null | head -20', 30),
 	("dmesg_storage",    "Kernel storage errors",      "dmesg -T 2>/dev/null | grep -iE 'EXT4-fs|I/O error|uas_|usb [0-9-]+: reset|sd [a-z]:|nvme' | tail -80", 60),
  ]),
 
  ("network", "Link, addressing and NetworkManager", [
 	("nmcli_con",        "Connection profiles",        "nmcli -f NAME,DEVICE,AUTOCONNECT,AUTOCONNECT-PRIORITY con show", 30),
 	("nmcli_dev",        "Device status",              "nmcli device status", 20),
+	## FILENAME is the field that settles "my static IP does not survive a
+	## reboot": a profile stored under /run is on tmpfs and is gone at boot.
+	("nmcli_files",      "Where profiles are stored",  "nmcli -f NAME,UUID,TYPE,FILENAME con show", 30),
+	("nm_keyfile_dir",   "NM profile directory",       "ls -la /etc/NetworkManager/system-connections/ /run/NetworkManager/system-connections/ 2>&1", 30),
 	("ip_addr",          "Addresses",                  "ip -br addr", 20),
 	("ip_route",         "Routes",                     "ip route", 20),
 	("carrier",          "Link carrier state",         "for i in /sys/class/net/*/; do n=$(basename $i); [ \"$n\" = lo ] && continue; echo \"$n carrier=$(cat $i/carrier 2>/dev/null) operstate=$(cat $i/operstate 2>/dev/null)\"; done", 15),
@@ -332,6 +343,26 @@ def triage(results):
 							  "bridge, set provisioning_mode to unmap.",
 							  "lsblk_discard"))
 
+	## A directory under /mnt or /media that holds data but is NOT a mountpoint
+	## means the writes went to the root filesystem instead of the drive that
+	## should have been mounted there.
+	for line in get("mnt_dirs").splitlines():
+		if not line.startswith("NOT-MOUNTED"):
+			continue
+		parts = line.split()
+		m = re.match(r"([\d.]+)([KMGT])", parts[1]) if len(parts) >= 3 else None
+		if not m:
+			continue
+		nbytes = float(m.group(1)) * {"K": 1e3, "M": 1e6, "G": 1e9, "T": 1e12}[m.group(2)]
+		if nbytes >= 100e6:
+			F.append(("CRITICAL",
+					  f"{parts[-1]} holds {parts[1]} but is NOT a mountpoint",
+					  "Data was written into a directory that should have had a "
+					  "filesystem mounted on it, so it landed on the root "
+					  "filesystem instead. This is how / fills while the drive "
+					  "that should have received the data stays nearly empty.",
+					  "mnt_dirs"))
+
 	n = _count(get("dmesg_storage"), r"EXT4-fs error|I/O error|uas_eh|reset (high|super)speed")
 	if n:
 		F.append(("CRITICAL", f"{n} storage error/reset message(s)",
@@ -360,6 +391,15 @@ def triage(results):
 			F.append(("WARN", f"{m.group(1)} has no carrier right now",
 					  f"operstate={m.group(3)}. Nothing will sync over this "
 					  f"interface.", "carrier"))
+
+	## A profile under /run is volatile -- it does not survive a reboot, which
+	## is the classic "the static IP will not stick" report.
+	for line in get("nmcli_files").splitlines()[1:]:
+		if "/run/" in line:
+			F.append(("CRITICAL", f"Profile '{line.split()[0]}' is stored under /run",
+					  "/run is tmpfs. This profile is lost on reboot, so the "
+					  "setting appears to save and then vanishes. It belongs in "
+					  "/etc/NetworkManager/system-connections/.", "nmcli_files"))
 
 	if re.search(r"\bconnecting\b|\bunavailable\b|\bdisconnected\b", get("nmcli_dev"), re.I):
 		F.append(("WARN", "A NetworkManager device is not connected",
@@ -458,9 +498,14 @@ def exp_checks(exp_dir):
 	]
 
 
-CONFIG_PATHS = ["~/.trappyscopes/config.yaml",
-				"core/permaconfig/config.txt",
-				"core/permaconfig/default_config.yaml"]
+CONFIG_PATHS = ["~/trappyverse/trappyconfig.yaml",   ## TrappyConfig.default_paths[0]
+				"~/trappyconfig.yaml",               ## TrappyConfig.default_paths[1]
+				"core/permaconfig/default_config.yaml"]  ## template; placeholders only
+
+## Copied redacted as well. NM keyfiles carry the Wi-Fi PSK, so they can never
+## go through run() -- that writes raw output to raw/.
+CONFIG_GLOBS = ["/etc/NetworkManager/system-connections/*",
+				"/etc/NetworkManager/conf.d/*"]
 
 
 def _config_scan(pattern):
@@ -510,10 +555,14 @@ def discover_scopeid():
 ## bundle gets attached to tickets and chats, so a verbatim copy would publish
 ## the file-server password. Matched on the key name, so a value that merely
 ## looks secret is left alone.
+## The separator is [:=], not just ":" -- YAML configs use `key: value` but
+## NetworkManager keyfiles are INI, `key=value`. A colon-only pattern silently
+## let `psk=<wifi password>` through into the bundle.
 SECRET_KEY = re.compile(
 	r"^(\s*-?\s*)([A-Za-z0-9_.-]*"
-	r"(?:password|passwd|secret|token|api[_-]?key|access[_-]?key|credential)"
-	r"[A-Za-z0-9_.-]*)(\s*:\s*)(.*)$", re.I)
+	r"(?:password|passwd|psk|secret|token|credential"
+	r"|api[_-]?key|access[_-]?key|wep[_-]?key\d*|private[_-]?key|secret[_-]?key)"
+	r"[A-Za-z0-9_.-]*)(\s*[:=]\s*)(.*)$", re.I)
 
 EXTRA_CONFIGS = ["~/.config/rclone/rclone.conf", "~/.rclone.conf"]
 
@@ -527,15 +576,35 @@ def redact_line(line):
 		return line, False
 	raw = m.group(4).strip().strip("\"'")
 	if not raw:
-		state = "<redacted: EMPTY>"
-	elif raw.startswith("<") and raw.endswith(">"):
-		state = "<redacted: PLACEHOLDER, never configured>"
+		return line, False          ## block header, not an assignment
+	if raw.startswith("<") and raw.endswith(">"):
+		state = "<redacted-placeholder-never-configured>"
 	else:
-		state = "<redacted: set>"
+		state = "<redacted-set>"
 	return f"{m.group(1)}{m.group(2)}{m.group(3)}{state}\n", True
 
 
-def copy_configs(root):
+def _read_text(path):
+	"""(text, note). Falls back to `sudo -n cat` for root-only files such as
+	the NetworkManager keyfiles, which are 0600."""
+	try:
+		with open(path, errors="replace") as f:
+			return f.read(), None
+	except PermissionError:
+		try:
+			p = subprocess.run(f"sudo -n cat {shlex.quote(path)}", shell=True,
+							   timeout=10, stdout=subprocess.PIPE,
+							   stderr=subprocess.STDOUT)
+			if p.returncode == 0:
+				return p.stdout.decode("utf-8", "replace"), "read via sudo -n"
+		except Exception:
+			pass
+		return None, "permission denied; sudo -n unavailable"
+	except Exception as e:
+		return None, f"{type(e).__name__}: {e}"
+
+
+def copy_configs(root, redact=True):
 	"""Copy the scope's configuration into the bundle, with secrets redacted.
 
 	Worth having: almost every sync or device fault is explained by the config,
@@ -545,20 +614,31 @@ def copy_configs(root):
 	dest = os.path.join(root, "config")
 	os.makedirs(dest, exist_ok=True)
 	copied = []
-	for path in [os.path.expanduser(p) for p in CONFIG_PATHS + EXTRA_CONFIGS]:
+	paths = [os.path.expanduser(p) for p in CONFIG_PATHS + EXTRA_CONFIGS]
+	for pattern in CONFIG_GLOBS:
+		paths.extend(sorted(glob.glob(os.path.expanduser(pattern))))
+	for path in paths:
 		if not os.path.isfile(path):
 			continue
 		out_name = path.lstrip("/").replace("/", "__")
+		text, note = _read_text(path)
+		if text is None:
+			copied.append({"source": path, "file": None, "redacted": 0,
+						   "error": note})
+			continue
+		n_red, lines = 0, []
+		for line in text.splitlines(keepends=True):
+			if redact:
+				line, red = redact_line(line)
+				n_red += red
+			lines.append(line)
 		try:
-			n_red, lines = 0, []
-			with open(path, errors="replace") as f:
-				for line in f:
-					line, red = redact_line(line)
-					n_red += red
-					lines.append(line)
 			with open(os.path.join(dest, out_name), "w") as f:
-				f.write(f"## source: {path}\n")
-				f.write(f"## {n_red} value(s) redacted by collect_diagnostics.py\n")
+				f.write(f"## source: {path}"
+						f"{' (' + note + ')' if note else ''}\n")
+				f.write(f"## {n_red} value(s) redacted by collect_diagnostics.py\n"
+						if redact else
+						"## verbatim copy -- secrets NOT redacted (--redact to redact)\n")
 				f.writelines(lines)
 			copied.append({"source": path, "file": f"config/{out_name}",
 						   "redacted": n_red, "error": None})
@@ -705,6 +785,12 @@ def main():
 						 "if omitted")
 	ap.add_argument("--no-server", action="store_true",
 					help="skip all network reachability tests")
+	ap.add_argument("--redact", action="store_true",
+					help="replace password/psk/token/key VALUES in the copied "
+						 "configs with whether they were set. Off by default: "
+						 "the bundle is an internal artefact and the real values "
+						 "are usually what you need. Turn it on before sending a "
+						 "bundle outside the lab.")
 	ap.add_argument("--no-tar", action="store_true", help="do not write the tarball")
 	ap.add_argument("--timeout", type=int, default=30,
 					help="per-command timeout in seconds (default: 30)")
@@ -774,7 +860,15 @@ def main():
 		"exp_dir": exp_dir,
 	}
 
-	meta["configs"] = copy_configs(root)
+	try:
+		meta["configs"] = copy_configs(root, redact=args.redact)
+	except Exception as e:
+		## Never lose a bundle over the config copy: 58 checks are already on
+		## disk by this point.
+		log = f"{type(e).__name__}: {e}"
+		print(f"  [warn] config copy failed: {log}")
+		meta["configs"] = [{"source": "(all)", "file": None, "redacted": 0,
+							"error": log}]
 	findings = triage(results)
 
 	with open(os.path.join(root, "index.json"), "w") as f:
