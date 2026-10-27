@@ -127,7 +127,7 @@ GROUPS = [
 	("df_inodes",        "Free inodes",                "df -i", 25),
 	("lsblk",            "Block devices",              "lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINT,TRAN,MODEL", 25),
 	("lsblk_discard",    "TRIM/discard support",       "lsblk --discard", 25),
-	("mounts",           "Mounted filesystems",        "findmnt -t ext4,exfat,vfat,xfs,btrfs -o TARGET,SOURCE,FSTYPE,OPTIONS 2>/dev/null || mount", 30),
+	("mounts",           "Mounted filesystems",        "findmnt -t ext4,exfat,vfat,xfs,btrfs,cifs,nfs,nfs4,fuse.sshfs -o TARGET,SOURCE,FSTYPE,OPTIONS 2>/dev/null || mount", 30),
 	("fstrim_timer",     "fstrim timer",               "systemctl status fstrim.timer --no-pager 2>&1 | head -20", 20),
 	("fstrim_last",      "Last fstrim run",            "journalctl -u fstrim.service --no-pager -n 20 2>/dev/null", 20),
 	("smart",            "SMART attributes",           "for d in /dev/sd? /dev/nvme?n?; do [ -e \"$d\" ] && echo \"== $d\" && smartctl -A \"$d\" 2>&1; done", 50),
@@ -137,7 +137,7 @@ GROUPS = [
 	("mnt_dirs",         "Mountpoint dirs (ghost-mount check)",
 	 'for p in /mnt/* /media/* /media/*/*; do [ -d "$p" ] || continue; '
 	 'if mountpoint -q "$p" 2>/dev/null; then echo "MOUNTED      -      $p"; '
-	 'else echo "NOT-MOUNTED  $(du -sh "$p" 2>/dev/null | cut -f1)  $p"; fi; done; '
+	 'else echo "NOT-MOUNTED  $(du -shx "$p" 2>/dev/null | cut -f1)  $p"; fi; done; '
 	 'echo "== loose files directly in /mnt =="; '
 	 'find /mnt -maxdepth 1 -type f 2>/dev/null | head -20', 30),
 	("dmesg_storage",    "Kernel storage errors",      "dmesg -T 2>/dev/null | grep -iE 'EXT4-fs|I/O error|uas_|usb [0-9-]+: reset|sd [a-z]:|nvme' | tail -80", 60),
@@ -394,7 +394,9 @@ def triage(results):
 	## A flapping or marginal PHY shows up here long before it shows up as a
 	## failed sync. Zero counters on a healthy link.
 	bad_counters = [l.strip() for l in get("ethtool_stats").splitlines()
-					if re.search(r":\s*[1-9]\d*\s*$", l)]
+					if re.search(r":\s*[1-9]\d*\s*$", l)
+					and re.search(r"crc|carrier|frame|align|fifo|collision|length",
+								  l, re.I)]
 	if bad_counters:
 		F.append(("WARN", f"{len(bad_counters)} non-zero PHY error counter(s)",
 				  "; ".join(bad_counters[:4]) + ". CRC or carrier errors mean a "
@@ -414,6 +416,14 @@ def triage(results):
 					  "and with no automount the mountpoint stays a plain "
 					  "directory that writes land in.", "fstab"))
 
+	if re.search(r"Auto-negotiation:\s*off", get("ethtool"), re.I):
+		sp = re.search(r"Speed:\s*(\S+)", get("ethtool"))
+		F.append(("WARN", f"eth0 auto-negotiation is OFF ({sp.group(1) if sp else '?'})",
+				  "The link speed was forced, so this is configuration rather "
+				  "than a bad cable. Forcing one side also risks a duplex "
+				  "mismatch. Re-enable with `ethtool -s eth0 autoneg on`.",
+				  "ethtool"))
+
 	carrier = get("carrier")
 	for line in carrier.splitlines():
 		m = re.match(r"(\S+)\s+carrier=(\S*)\s+operstate=(\S*)", line)
@@ -425,15 +435,21 @@ def triage(results):
 	## A profile under /run is volatile -- it does not survive a reboot, which
 	## is the classic "the static IP will not stick" report.
 	for line in get("nmcli_files").splitlines()[1:]:
+		if line.split() and line.split()[0] in ("lo", "loopback"):
+			continue            ## always runtime-generated; not a fault
 		if "/run/" in line:
 			F.append(("CRITICAL", f"Profile '{line.split()[0]}' is stored under /run",
 					  "/run is tmpfs. This profile is lost on reboot, so the "
 					  "setting appears to save and then vanishes. It belongs in "
 					  "/etc/NetworkManager/system-connections/.", "nmcli_files"))
 
-	if re.search(r"\bconnecting\b|\bunavailable\b|\bdisconnected\b", get("nmcli_dev"), re.I):
-		F.append(("WARN", "A NetworkManager device is not connected",
-				  "See the device status table.", "nmcli_dev"))
+	for line in get("nmcli_dev").splitlines()[1:]:
+		if not line.strip() or line.split()[0].startswith("p2p-dev-"):
+			continue            ## Wi-Fi P2P device is always disconnected
+		if re.search(r"\b(connecting|unavailable|disconnected)\b", line, re.I):
+			F.append(("WARN", f"NetworkManager device {line.split()[0]} is "
+							  f"{line.split()[2] if len(line.split()) > 2 else 'not connected'}",
+					  "See the device status table.", "nmcli_dev"))
 
 	## -- camera ------------------------------------------------------------
 	n = _count(get("journal_camera"), r"frontend has timed out")
