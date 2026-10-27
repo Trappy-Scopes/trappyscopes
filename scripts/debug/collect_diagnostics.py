@@ -131,6 +131,9 @@ GROUPS = [
 	("fstrim_timer",     "fstrim timer",               "systemctl status fstrim.timer --no-pager 2>&1 | head -20", 20),
 	("fstrim_last",      "Last fstrim run",            "journalctl -u fstrim.service --no-pager -n 20 2>/dev/null", 20),
 	("smart",            "SMART attributes",           "for d in /dev/sd? /dev/nvme?n?; do [ -e \"$d\" ] && echo \"== $d\" && smartctl -A \"$d\" 2>&1; done", 50),
+	("fstab",            "fstab",                      "cat /etc/fstab", 40),
+	("mount_units",      "systemd mount/automount units",
+	 "systemctl list-units --type=mount --type=automount --all --no-pager 2>&1 | head -30", 30),
 	("mnt_dirs",         "Mountpoint dirs (ghost-mount check)",
 	 'for p in /mnt/* /media/* /media/*/*; do [ -d "$p" ] || continue; '
 	 'if mountpoint -q "$p" 2>/dev/null; then echo "MOUNTED      -      $p"; '
@@ -152,6 +155,10 @@ GROUPS = [
 	("carrier",          "Link carrier state",         "for i in /sys/class/net/*/; do n=$(basename $i); [ \"$n\" = lo ] && continue; echo \"$n carrier=$(cat $i/carrier 2>/dev/null) operstate=$(cat $i/operstate 2>/dev/null)\"; done", 15),
 	("ethtool",          "Ethernet link detail",       "ethtool eth0 2>&1 | head -30", 30),
 	("wifi_link",        "Wi-Fi link",                 "iw dev wlan0 link 2>&1", 15),
+	("link_stats",       "Interface error/drop counters", "ip -s link", 40),
+	("ethtool_stats",    "PHY error counters",
+	 "ethtool -S eth0 2>&1 | grep -iE 'err|crc|drop|collision|carrier' | head -30", 30),
+	("ethtool_eee",      "Energy-Efficient Ethernet",   "ethtool --show-eee eth0 2>&1 | head -12", 12),
 	("resolv",           "DNS configuration",          "cat /etc/resolv.conf", 15),
 	("socket_summary",   "Socket summary",             "ss -s", 15),
 	("nm_journal",       "NetworkManager this boot",   "journalctl -u NetworkManager -b --no-pager 2>/dev/null | tail -60", 60),
@@ -383,6 +390,29 @@ def triage(results):
 		F.append(("OK", "One ethernet link-down event",
 				  "A single transition, consistent with the normal bring-up at "
 				  "boot.", "dmesg_net"))
+
+	## A flapping or marginal PHY shows up here long before it shows up as a
+	## failed sync. Zero counters on a healthy link.
+	bad_counters = [l.strip() for l in get("ethtool_stats").splitlines()
+					if re.search(r":\s*[1-9]\d*\s*$", l)]
+	if bad_counters:
+		F.append(("WARN", f"{len(bad_counters)} non-zero PHY error counter(s)",
+				  "; ".join(bad_counters[:4]) + ". CRC or carrier errors mean a "
+				  "marginal cable or port, not a configuration fault.",
+				  "ethtool_stats"))
+
+	## A network mount without nofail blocks boot; one without x-systemd
+	## automount leaves a plain directory that writes fall into when the share
+	## is unreachable -- the ghost mount.
+	for line in get("fstab").splitlines():
+		line = line.strip()
+		if not line or line.startswith("#"):
+			continue
+		if re.search(r"\b(cifs|nfs4?|smb3?)\b", line) and "nofail" not in line:
+			F.append(("WARN", "Network mount in fstab without nofail",
+					  f"`{line[:70]}`. Without nofail a dead share delays boot, "
+					  "and with no automount the mountpoint stays a plain "
+					  "directory that writes land in.", "fstab"))
 
 	carrier = get("carrier")
 	for line in carrier.splitlines():
