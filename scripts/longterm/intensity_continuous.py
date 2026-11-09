@@ -1,0 +1,727 @@
+#!/usr/bin/env python3
+# +----------------------------------------------------------------------------+
+# |                                                                            |
+# |       .-"""""""-.             ___                                          |
+# |     .'           '.       _,~"                                             |
+# |    /          .##.  \   ,~"                                                |
+# |   |           '##'  |~"                                                    |
+# |    \                /~,                                                    |
+# |     '.            .'   "~,_                                                |
+# |       '-........-'        "~,__                                            |
+# |                                                                            |
+# | Author    : Yatharth Bhasin (yatharth1997+ts@gmail.com)                    |
+# | Date      : November 2026                                                  |
+# | Copyright (c) 2026 Yatharth Bhasin                                         |
+# | License-Identifier: MIT                                                    |
+# +----------------------------------------------------------------------------+
+
+"""
+AI Generated -- new file, Claude (Anthropic), 2026-11.
+
+Long-term per-frame RGB intensity, recorded continuously, writing no video.
+
+Same shape as mjpeg_continuous_autosplit.py -- one long continuous recording,
+the same camera configuration, the same encoder -- with one difference: the
+encoded frames are DISCARDED. Only the per-channel mean intensity of each frame
+is kept. That makes a 14-20 h run cost a few tens of megabytes instead of
+several hundred gigabytes, and it makes this script safe to run on a scope
+whose SD card is already full.
+
+Because the pipeline is otherwise identical to the recording script, the run
+doubles as the camera-resilience test:
+
+    A.  the intensity series itself, at the full 25 Hz frame rate
+    B.  a measured rate of camera stalls over a long run
+    C.  a place to provoke them -- shake the scope and the CSI link drops
+    D.  a test of whether stop/start actually recovers a stalled recording
+
+On a stall the script records WHY (libcamera's own log), recovers the camera,
+and carries on, timing every step. The intensity series should be flat across a
+shake; the camera is expected to stall. Both are the measurement.
+
+    create_exp()            open the experiment
+    start_acq_blocking()    run (blocks; Ctrl-C stops cleanly)
+    mark("shake start")     timestamp anything, from the REPL, any time
+    cleanup()               save, sync, stop the schedule
+
+Why the frames are still JPEG-encoded
+-------------------------------------
+Discarding them after encoding looks wasteful, and it is -- deliberately. The
+CPU load, thread pool and output path are then identical to the real recording
+script, so a stall seen here is a stall that would have happened there. Skipping
+the encode would make this cheaper and much less representative. The intensity
+means are computed inside the encoder anyway (JpegEncoderGrayChannel), so the
+encode is the thing that carries them.
+
+Reading the libcamera log
+-------------------------
+LIBCAMERA_LOG_FILE must be set before libcamera is loaded, which happens the
+moment hive.assembly builds the camera. It is set at the top of this module,
+before that import. If the camera was already constructed in this interpreter,
+the variable arrives too late -- export it in the shell before launching:
+
+    export LIBCAMERA_LOG_FILE=~/libcamera.log
+"""
+
+import os
+
+## MUST precede any import that pulls in picamera2/libcamera. Absolute path,
+## because Experiment.__init__ chdirs into the experiment directory and a
+## relative path would land somewhere different depending on when libcamera
+## happened to open it. The file is copied into the experiment by cleanup().
+LIBCAMERA_LOG = os.path.expanduser("~/libcamera.log")
+os.environ.setdefault("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
+os.environ.setdefault("LIBCAMERA_LOG_LEVELS", "RPI:INFO,Camera:INFO,V4L2:INFO")
+
+from datetime import timedelta
+import csv
+import datetime
+import logging as log
+import shutil
+import subprocess
+import threading
+import time
+
+import numpy as np
+from rich import print
+from rich.panel import Panel
+from rich.pretty import Pretty
+
+from picamera2.outputs import Output
+
+from expframework.experiment import Experiment
+from expframework.protocol import Protocol
+from hive.assembly import ScopeAssembly
+from detectors.cameras.rpi_hq_picam2 import JpegEncoderRedWithBGStats
+
+
+__description__ = \
+"""Long-term continuous RGB intensity, no video written.
+
+Use create_exp() to open an experiment, start_acq_blocking() to run,
+mark("label") to timestamp a shake, cleanup() to finish.
+"""
+
+
+## --------------------------------------------------------------------------
+##  Experiment
+## --------------------------------------------------------------------------
+
+def populate_exp():
+	"""Add experimental parameters."""
+	exp = Experiment.current
+	exp.attribs["run_hours"] = 16
+	exp.attribs["fps"] = 25
+	exp.attribs["exposure_ms"] = 18
+	exp.attribs["quality"] = 100
+	exp.attribs["num_threads"] = 3
+	exp.attribs["light"] = (0.5, 0, 0)
+	exp.attribs["group"] = "red_light"
+	exp.attribs["channels"] = ("r", "g", "b")
+	exp.attribs["tandh_sampling_period_minutes"] = 5
+
+	## Per-frame records are flushed to CSV on this interval. Without a
+	## flush_fn the encoder keeps every record in memory, and 16 h at 25 Hz is
+	## ~1.4 million of them -- see JpegEncoderRedWithBGStats.
+	exp.attribs["flush_interval_s"] = 60
+
+	## Telemetry sample period, and how long cam.frames may stand still before
+	## the camera is declared stalled. 2 s sits above libcamera's own 1 s
+	## dequeue timeout, so by the time this fires libcamera has already given
+	## up, cancelled its requests and is waiting for the application to
+	## restart the stream -- which is exactly when stop/start is the remedy.
+	exp.attribs["poll_s"] = 1.0
+	exp.attribs["stall_s"] = 2.0
+
+	## Give up after this many consecutive failed recoveries and keep the rest
+	## of the run (tandh, telemetry) going rather than dying.
+	exp.attribs["max_recovery_attempts"] = 3
+	exp.attribs["sync_files"] = False
+	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
+
+
+def create_exp():
+	global exp, scope
+	scope = ScopeAssembly.current
+	exp = Experiment.Construct(["longterm_intensity"])
+
+	exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
+
+	## One row per flush, not per frame: a MeasurementStream call writes the
+	## experiment YAML to disk, which cannot be done at 25 Hz. The per-frame
+	## data goes to intensities.csv.
+	exp.new_measurementstream("intensity",
+		monitors=["window", "frames"],
+		measurements=["r_mean", "r_std", "g_mean", "g_std", "b_mean", "b_std"])
+
+	## One row per stall.
+	exp.new_measurementstream("stalls",
+		monitors=["n", "reason", "level", "recovered"],
+		measurements=["stalled_at_s", "recover_s", "frames_before"])
+
+	populate_exp()
+
+	os.makedirs("protocols", exist_ok=True)
+	for src in ("experiments/masterprotocols/masterprotocol_June26.md",
+				"experiments/selectswimmers.md"):
+		try:
+			Protocol(src).write(os.path.join("protocols", os.path.basename(src)))
+		except Exception as e:
+			print(Panel(f"[red]Protocol not loaded: {src}\n{e}", title="protocol"))
+
+
+## --------------------------------------------------------------------------
+##  Output sink -- counts frames, writes nothing
+## --------------------------------------------------------------------------
+
+class NullOutput(Output):
+	"""Accepts encoded frames and discards them.
+
+	Deliberately a real Output rather than passing None: the encoder's output
+	thread only runs when there is an output to feed, and that thread's
+	liveness is one of the signals this script watches. Everything from the
+	camera through the encode pool to the output thread stays exactly as it is
+	in the recording script; only the write to disk is removed.
+
+	Counting here as well as at the camera matters. cam.frames counts what
+	libcamera delivered; self.frames counts what came out of the encoder. The
+	two diverging is how an encoder-side stall is told apart from a camera-side
+	one.
+	"""
+
+	def __init__(self):
+		super().__init__()
+		self.frames = 0
+		self.bytes = 0
+
+	def outputframe(self, frame, keyframe=True, timestamp=None, packet=None,
+					audio=False):
+		if self.recording:
+			self.frames += 1
+			self.bytes += len(frame)
+
+
+## --------------------------------------------------------------------------
+##  Per-frame intensity sink
+## --------------------------------------------------------------------------
+
+global csv_lock, csv_rows, intens_path, telem_path
+csv_lock = threading.Lock()
+csv_rows = 0
+intens_path = None
+telem_path = None
+
+
+def _write_intensities(records):
+	"""Append a flushed batch to intensities.csv.
+
+	Runs on an ENCODER thread (JpegEncoderRedWithBGStats calls flush_fn from
+	__record_intensities__), so it is lock-guarded against the drain performed
+	by the monitor thread, and it must stay cheap -- an append and a flush,
+	nothing more. Exceptions here are swallowed by the encoder, so anything
+	that goes wrong is logged rather than raised.
+	"""
+	global csv_rows
+	if not records:
+		return
+	try:
+		with csv_lock:
+			with open(intens_path, "a", newline="") as f:
+				w = csv.writer(f)
+				for r in records:
+					w.writerow([r["t_ns"],
+								f'{r.get("r", float("nan")):.4f}',
+								f'{r.get("g", float("nan")):.4f}',
+								f'{r.get("b", float("nan")):.4f}'])
+				f.flush()
+			csv_rows += len(records)
+	except Exception as e:
+		log.error(f"intensity flush failed: {type(e).__name__}: {e}")
+
+
+def _summarise(records, window):
+	"""One stream row per flush -- the thing that is actually plottable later
+	without reading a million-line CSV."""
+	if not records:
+		return
+	try:
+		a = {c: np.array([r[c] for r in records if c in r], dtype=float)
+			 for c in ("r", "g", "b")}
+		Experiment.current.mstreams["intensity"](
+			window=window, frames=len(records),
+			**{f"{c}_{k}": round(float(getattr(a[c], k)()), 4)
+			   for c in ("r", "g", "b") for k in ("mean", "std")
+			   if a[c].size})
+	except Exception as e:
+		log.error(f"intensity summary failed: {type(e).__name__}: {e}")
+
+
+## --------------------------------------------------------------------------
+##  Camera
+## --------------------------------------------------------------------------
+
+def cam_cycle():
+	"""close -> open -> configure, leaving the camera open and configured.
+
+	Same reasoning as the other scripts here: Camera.open() assigns a new
+	Picamera2 over self.cam WITHOUT closing the old one, and open() does not
+	apply self.config, so always close first and configure explicitly.
+	"""
+	global scope
+	for stop in (lambda: scope.cam.cam.stop_recording(),
+				 lambda: scope.cam.cam.stop(),
+				 lambda: scope.cam.cam.stop_preview()):
+		try:
+			stop()
+		except Exception:
+			pass
+	scope.cam.close()
+	scope.cam.open()
+	scope.cam.configure()
+	scope.cam.cam.pre_callback = None
+	scope.cam.cam.post_callback = None
+
+
+def new_encoder():
+	"""A fresh encoder and sink.
+
+	intensity_channels is passed explicitly: JpegEncoderRedWithBGStats
+	setdefault()s it to ("g", "b"), which would leave the recorded RED channel
+	unmeasured. All three are wanted here.
+	"""
+	exp = Experiment.current
+	enc = JpegEncoderRedWithBGStats(
+		q=exp.attribs["quality"],
+		num_threads=exp.attribs["num_threads"],
+		intensity_channels=tuple(exp.attribs["channels"]),
+		flush_fn=_write_intensities,
+		flush_interval_s=exp.attribs["flush_interval_s"])
+	return enc, NullOutput()
+
+
+def start_recording():
+	"""Begin a continuous recording into the null sink."""
+	global encoder, sink, scope
+	encoder, sink = new_encoder()
+	scope.cam.cam.start_recording(encoder, sink)
+	log.info("Recording started (frames discarded, intensities kept).")
+
+
+def drain_encoder(window):
+	"""Take whatever the encoder still holds and write it out.
+
+	Called before an encoder is discarded, so the tail of a window is not lost
+	when the camera is restarted mid-flight.
+	"""
+	global encoder
+	try:
+		records = encoder.drain()
+	except Exception as e:
+		log.error(f"drain failed: {type(e).__name__}: {e}")
+		return
+	_write_intensities(records)
+	_summarise(records, window)
+
+
+## --------------------------------------------------------------------------
+##  Evidence
+## --------------------------------------------------------------------------
+
+def _run(cmd, timeout=10):
+	try:
+		p = subprocess.run(cmd, shell=True, timeout=timeout,
+						   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+		return p.stdout.decode("utf-8", "replace")
+	except Exception as e:
+		return f"<{type(e).__name__}: {e}>"
+
+
+def stall_reason():
+	"""Why the camera stopped, in libcamera's own words.
+
+	libcamera logs the frontend timeout and the dequeue-timer expiry and then
+	returns -- there is no exception to catch anywhere in the Python stack, so
+	its log is the only place the reason exists.
+	"""
+	logfile = os.environ.get("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
+	tail = ""
+	if os.path.exists(logfile):
+		tail = _run(f"tail -40 {logfile}")
+	else:
+		## No log file: the variable was set after libcamera loaded. The same
+		## messages go to stderr and, under a service, to the journal.
+		tail = _run("journalctl -b --no-pager 2>/dev/null | "
+					"grep -iE 'frontend has timed out|Dequeue timer|"
+					"attached securely|vc_sm_cma' | tail -20")
+
+	for pattern, label in (("frontend has timed out", "frontend_timeout"),
+						   ("Dequeue timer", "dequeue_timeout"),
+						   ("vc_sm_cma", "cma_failure"),
+						   ("v4l2_m2m", "v4l2_poll_block")):
+		if pattern.lower() in tail.lower():
+			return label, tail
+	return "unknown", tail
+
+
+def snapshot(tag):
+	"""Freeze the machine state at the moment of a stall."""
+	try:
+		path = f"stall_{tag}.txt"
+		with open(path, "w") as f:
+			f.write(f"## {datetime.datetime.now()}\n\n")
+			for title, cmd in (("dmesg", "dmesg -T 2>/dev/null | tail -60"),
+							   ("journal", "journalctl -b --no-pager 2>/dev/null | tail -40"),
+							   ("throttled", "vcgencmd get_throttled; vcgencmd measure_temp"),
+							   ("meminfo", "grep -iE 'cma|MemAvailable' /proc/meminfo")):
+				f.write(f"\n===== {title} =====\n{_run(cmd)}")
+		return path
+	except Exception as e:
+		log.error(f"snapshot failed: {type(e).__name__}: {e}")
+		return None
+
+
+def _rss_mb():
+	try:
+		with open("/proc/self/status") as f:
+			for line in f:
+				if line.startswith("VmRSS:"):
+					return round(int(line.split()[1]) / 1024.0, 1)
+	except Exception:
+		pass
+	return -1.0
+
+
+def _cma_free_mb():
+	try:
+		with open("/proc/meminfo") as f:
+			for line in f:
+				if line.startswith("CmaFree:"):
+					return round(int(line.split()[1]) / 1024.0, 1)
+	except Exception:
+		pass
+	return -1.0
+
+
+## --------------------------------------------------------------------------
+##  Recovery
+## --------------------------------------------------------------------------
+
+def _frames_advance(timeout_s=4.0):
+	"""True once the camera delivers a frame again.
+
+	The only honest test that recovery worked. Reading scope.cam.cam fresh on
+	every pass because level 2 replaces the Picamera2 object entirely, and a
+	new one restarts its own frame counter at zero -- so this compares against
+	a baseline taken after the restart, never across it.
+	"""
+	global scope
+	start = scope.cam.cam.frames
+	deadline = time.monotonic() + timeout_s
+	while time.monotonic() < deadline:
+		time.sleep(0.1)
+		try:
+			if scope.cam.cam.frames > start:
+				return True
+		except Exception:
+			return False
+	return False
+
+
+def recover(window):
+	"""Bring the camera back. Returns (level, ok).
+
+	Two levels, cheapest first. Level 1 is exactly what a sampling run does
+	between clips, and what restarting a preview does by hand -- it is the
+	recovery libcamera is waiting for after it cancels its requests. Level 2
+	rebuilds the Picamera2 object, for the case where the first is not enough.
+	"""
+	global encoder, sink, scope
+
+	drain_encoder(window)
+
+	## Level 1: stop and restart the recording on the existing camera.
+	try:
+		try:
+			scope.cam.cam.stop_recording()
+		except Exception as e:
+			log.error(f"stop_recording during recovery: {e}")
+		start_recording()
+		if _frames_advance():
+			return 1, True
+		log.error("level 1 recovery: frames did not resume")
+	except Exception as e:
+		log.error(f"level 1 recovery failed: {type(e).__name__}: {e}")
+
+	## Level 2: full close / open / configure, then record again.
+	try:
+		cam_cycle()
+		start_recording()
+		return 2, _frames_advance()
+	except Exception as e:
+		log.error(f"level 2 recovery failed: {type(e).__name__}: {e}")
+		return 2, False
+
+
+## --------------------------------------------------------------------------
+##  Marks
+## --------------------------------------------------------------------------
+
+def mark(label=""):
+	"""Timestamp anything, from the REPL, at any time.
+
+	Call this when you start and stop shaking the scope; stalls then correlate
+	with the disturbance without anyone having to read a clock.
+	"""
+	try:
+		exp = Experiment.current
+		t = time.time()
+		exp.log_event("mark", attribs={"label": str(label),
+									   "t": t,
+									   "dt": str(datetime.datetime.now())})
+		exp.note(f"MARK: {label}")
+		print(Panel(f"[cyan]{datetime.datetime.now():%H:%M:%S}  {label}", title="mark"))
+		return t
+	except Exception as e:
+		log.error(f"mark failed: {type(e).__name__}: {e}")
+		return None
+
+
+## --------------------------------------------------------------------------
+##  Sensors
+## --------------------------------------------------------------------------
+
+def record_sensor():
+	"""Read temperature and humidity. Must never raise: this runs as a
+	scheduled job, and ExpScheduler.loop has no try/except, so anything
+	escaping here kills the scheduler thread and the rest of the run."""
+	try:
+		scope = ScopeAssembly.current
+		tandh = Experiment.current.mstreams["tandh"]
+		try:
+			value = scope.tandh.read()
+		except Exception:
+			print("[red]TandH reading failed![default]")
+			value = {"temp": 0, "humidity": 0}
+		tandh(**value).panel()
+	except Exception as e:
+		log.error(f"record_sensor failed: {type(e).__name__}: {e}")
+
+
+## --------------------------------------------------------------------------
+##  Acquisition
+## --------------------------------------------------------------------------
+
+global stalls
+stalls = 0
+
+
+def _telemetry_row(w, t0, window):
+	"""One row per poll. These eight numbers are what separate a camera-side
+	stall from an encoder-side one: frames vs sink.frames vs queue depth vs
+	output-thread liveness."""
+	global encoder, sink, scope
+	try:
+		cam = scope.cam.cam
+		w.writerow([round(time.time(), 3),
+					round(time.monotonic() - t0, 2),
+					window,
+					cam.frames,
+					sink.frames,
+					encoder.tasks.qsize(),
+					int(encoder.thread.is_alive()) if getattr(encoder, "thread", None) else -1,
+					_rss_mb(),
+					_cma_free_mb()])
+	except Exception as e:
+		log.error(f"telemetry row failed: {type(e).__name__}: {e}")
+
+
+def start_acq_blocking():
+	"""Run the camera continuously, recording intensity and watching for stalls.
+
+	Blocks until run_hours elapses or Ctrl-C. Everything is written as it goes,
+	so an interrupted run keeps whatever it collected.
+	"""
+	global exp, scope, encoder, sink, stalls, intens_path, telem_path
+
+	exp = Experiment.current
+	scope = ScopeAssembly.current
+	a = exp.attribs
+
+	intens_path = exp.newfile("intensities.csv", abspath=False)
+	telem_path = exp.newfile("telemetry.csv", abspath=False)
+	with open(intens_path, "w", newline="") as f:
+		csv.writer(f).writerow(["t_ns", "r", "g", "b"])
+	with open(telem_path, "w", newline="") as f:
+		csv.writer(f).writerow(["wall", "elapsed_s", "window", "cam_frames",
+								"sink_frames", "queue", "out_thread_alive",
+								"rss_mb", "cma_free_mb"])
+
+	print("[red]Clearing experiment scheduler...")
+	exp.schedule.clear()
+
+	record_sensor()
+	exp.schedule.every(a["tandh_sampling_period_minutes"]).minutes \
+		.until(timedelta(hours=a["run_hours"] + 1)).do(record_sensor)
+
+	scope.lit.setVs(*a["light"])
+	scope.beacon.on()
+	cam_cycle()
+	start_recording()
+
+	exp.logs.update(scope.get_config())
+	exp.__save__()
+
+	t0 = time.monotonic()
+	deadline = t0 + a["run_hours"] * 3600.0
+	window = 0
+	next_window = t0 + a["flush_interval_s"]
+	last_n, last_t = scope.cam.cam.frames, time.monotonic()
+
+	print(Panel(f"Recording intensity for [bold]{a['run_hours']} h[/bold].\n"
+				f"No video is written. Shake the scope whenever you like and "
+				f"call [bold]mark(\"shake\")[/bold] to timestamp it.\n"
+				f"Ctrl-C stops cleanly.", title="intensity_continuous"))
+
+	tele = open(telem_path, "a", newline="")
+	w = csv.writer(tele)
+	try:
+		while time.monotonic() < deadline:
+			time.sleep(a["poll_s"])
+			_telemetry_row(w, t0, window)
+			tele.flush()
+
+			if time.monotonic() >= next_window:
+				window += 1
+				next_window = time.monotonic() + a["flush_interval_s"]
+
+			## Stall detection. cam.frames counts only requests libcamera
+			## completed successfully, so it standing still is the one honest
+			## signal that the camera has stopped -- there is no exception and
+			## cam.is_open stays True throughout.
+			cam = scope.cam.cam
+			n = cam.frames
+			if n != last_n:
+				last_n, last_t = n, time.monotonic()
+				continue
+			if time.monotonic() - last_t < a["stall_s"]:
+				continue
+
+			stalls += 1
+			stalled_at = round(time.monotonic() - t0, 2)
+			reason, tail = stall_reason()
+			snap = snapshot(f"{stalls:03d}")
+			log.error(f"STALL #{stalls} at {stalled_at}s: {reason}")
+			print(Panel(f"[red]STALL #{stalls} at {stalled_at:.0f}s -- {reason}\n"
+						f"{tail.strip()[-300:]}", title="camera stall"))
+			exp.log_event("camera_stall", attribs={
+				"n": stalls, "reason": reason, "stalled_at_s": stalled_at,
+				"frames_before": int(n), "snapshot": snap})
+
+			t_rec = time.monotonic()
+			level, ok = 0, False
+			for attempt in range(1, a["max_recovery_attempts"] + 1):
+				level, ok = recover(window)
+				if ok:
+					break
+				log.error(f"recovery attempt {attempt} failed")
+				time.sleep(2.0)
+			recover_s = round(time.monotonic() - t_rec, 2)
+
+			try:
+				exp.mstreams["stalls"](n=stalls, reason=reason, level=level,
+									   recovered=bool(ok),
+									   stalled_at_s=stalled_at,
+									   recover_s=recover_s,
+									   frames_before=int(n)).panel()
+			except Exception as e:
+				log.error(f"stall stream write failed: {e}")
+
+			exp.log_event("camera_recovery", attribs={
+				"n": stalls, "level": level, "recovered": bool(ok),
+				"recover_s": recover_s})
+
+			if not ok:
+				exp.note(f"Camera could not be recovered after stall #{stalls}. "
+						 f"Telemetry and tandh continue; video pipeline is down.")
+				print(Panel("[red]Camera not recovered. The run continues so the "
+							"rest of the record is kept, but no further "
+							"intensity will be collected.", title="recovery"))
+				break
+
+			## A new Picamera2 restarts its own frame counter.
+			last_n, last_t = scope.cam.cam.frames, time.monotonic()
+
+	except KeyboardInterrupt:
+		print("\n[yellow]Interrupted. Finishing cleanly...")
+	finally:
+		try:
+			tele.close()
+		except Exception:
+			pass
+		drain_encoder(window)
+		try:
+			scope.cam.cam.stop_recording()
+		except Exception as e:
+			log.error(f"stop_recording at end: {e}")
+		try:
+			scope.cam.close()
+		except Exception as e:
+			log.error(f"camera close at end: {e}")
+		scope.beacon.off()
+
+	print(Panel(f"frames discarded : {sink.frames}\n"
+				f"intensity rows   : {csv_rows}\n"
+				f"stalls           : {stalls}\n"
+				f"elapsed          : {(time.monotonic() - t0) / 3600.0:.2f} h",
+				title="run complete"))
+	exp.__save__()
+
+
+def cleanup():
+	"""Save, offload and stop the schedule. Does NOT close the experiment --
+	exp.close() joins the scheduler thread, so it cannot be called from one.
+	Type exp.close() afterwards."""
+	global exp, scope
+	exp = Experiment.current
+	scope = ScopeAssembly.current
+	try:
+		scope.lit.setVs(0, 0, 0)
+	except Exception as e:
+		log.error(f"lights off failed: {e}")
+
+	## The libcamera log lives outside the experiment because it has to exist
+	## before the experiment does. Copy it in so the bundle is self-contained.
+	try:
+		src = os.environ.get("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
+		if os.path.exists(src):
+			shutil.copy2(src, "libcamera.log")
+	except Exception as e:
+		log.error(f"libcamera log copy failed: {e}")
+
+	exp.logs.update(scope.get_config())
+	exp.schedule.clear()
+	exp.schedule.end_thread = True
+	exp.__save__()
+	try:
+		print(exp.mstreams["stalls"].tabulate("n", "reason", "level",
+											  "recovered", "recover_s"))
+	except Exception:
+		pass
+	exp.sync_dir()
+	exp.note("Intensity run offloaded and schedule stopped. Experiment left open")
+	print(Panel("[yellow]Offloaded, schedule stopped.\n"
+				"The experiment is still OPEN. Type [bold]exp.close()[/bold] "
+				"to finish it.", title="cleanup"))
+
+
+if __name__ == "__main__":
+	global scope
+	scope = ScopeAssembly.current
+	print("Lights ready...")
+	cam_cycle()
+	scope.beacon.off()
+	print(Panel(f'create_exp() -> start_acq_blocking()\n\n'
+				f'mark("shake start") to timestamp a disturbance.\n'
+				f'cleanup() then exp.close() when done.\n\n'
+				f'libcamera log: {os.environ.get("LIBCAMERA_LOG_FILE")}',
+				title="intensity_continuous"))
