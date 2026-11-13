@@ -744,20 +744,92 @@ _tandh, _tandh_at, _tandh_read_s = None, 0.0, None
 _tandh_stop = threading.Event()
 _tandh_thread = None
 
+## Pico hang guard. A serial exec to the Pico has no timeout: if the Pico
+## stops answering, the calling thread blocks forever. The T&H reads already
+## run on their own thread, so a hang there costs only the T&H columns. Every
+## other Pico call (lights, beacon) goes through _pico_call() with a timeout,
+## so a hung Pico cannot stop the run from saving, offloading and syncing.
+global _tandh_busy_since, _pico_stuck, _pico_hang_logged
+_tandh_busy_since = None    # monotonic start of the read in progress
+_pico_stuck = False         # a Pico call timed out; never touch the link again
+_pico_hang_logged = False
+PICO_TIMEOUT_S = 10.0
+
 
 def _tandh_loop(period_s):
 	"""Read T&H every period_s into _tandh. Runs off the watchdog loop, so a
 	slow serial reply cannot delay stall detection."""
-	global _tandh, _tandh_at, _tandh_read_s
+	global _tandh, _tandh_at, _tandh_read_s, _tandh_busy_since
 	scope = ScopeAssembly.current
-	while not _tandh_stop.is_set():
+	while not _tandh_stop.is_set() and not _pico_stuck:
 		t = time.monotonic()
+		_tandh_busy_since = t
 		try:
 			_tandh, _tandh_at = scope.tandh.read(), time.monotonic()
 			_tandh_read_s = round(_tandh_at - t, 3)
 		except Exception as e:
 			log.error(f"tandh read failed: {type(e).__name__}: {e}")
+		finally:
+			_tandh_busy_since = None
 		_tandh_stop.wait(max(0.0, period_s - (time.monotonic() - t)))
+
+
+def _pico_hang(what, stuck_s):
+	"""Record a Pico hang once: log, panel, event, note."""
+	global _pico_stuck, _pico_hang_logged
+	_pico_stuck = True
+	if _pico_hang_logged:
+		return
+	_pico_hang_logged = True
+	msg = (f"Pico serial: no reply to {what} for {stuck_s:.0f} s. No further "
+		   f"Pico calls this run (T&H blank, lights left as they are). "
+		   f"The camera run continues.")
+	log.error(msg)
+	print(Panel(f"[red]{msg}", title="pico hang"))
+	try:
+		Experiment.current.log_event("pico_hang", attribs={"call": what,
+														   "stuck_s": round(stuck_s, 1)})
+		Experiment.current.note(msg)
+	except Exception as e:
+		log.error(f"pico_hang log failed: {e}")
+
+
+def _check_pico():
+	"""Called every poll from the watchdog loop: flags a T&H read that has been
+	stuck on the serial link for longer than PICO_TIMEOUT_S."""
+	b = _tandh_busy_since
+	if b is not None and time.monotonic() - b > PICO_TIMEOUT_S:
+		_pico_hang("tandh.read()", time.monotonic() - b)
+
+
+def _pico_call(fn, what):
+	"""Run one Pico call with a timeout. Returns True if it completed.
+
+	Skipped outright once the link is known to be stuck: a second exec on top
+	of one still waiting for its reply would interleave on the wire."""
+	stuck_read = (_tandh_thread is not None and _tandh_thread.is_alive()
+				  and _tandh_busy_since is not None)
+	if _pico_stuck or stuck_read:
+		log.error(f"{what}: skipped, the Pico serial link is stuck")
+		return False
+	box = {}
+
+	def run():
+		try:
+			fn()
+			box["ok"] = True
+		except Exception as e:
+			box["err"] = f"{type(e).__name__}: {e}"
+
+	t = threading.Thread(target=run, daemon=True)
+	t.start()
+	t.join(PICO_TIMEOUT_S)
+	if t.is_alive():
+		_pico_hang(what, PICO_TIMEOUT_S)
+		return False
+	if "err" in box:
+		log.error(f"{what} failed: {box['err']}")
+	return box.get("ok", False)
 
 
 def start_tandh(period_s):
@@ -869,8 +941,13 @@ def start_acq_blocking():
 	exp.schedule.clear()
 
 	start_kernel_log()
-	scope.lit.setVs(*a["light"])
-	scope.beacon.on()
+	## Without the light the run measures nothing, so a Pico that does not
+	## answer here stops the run at once instead of hanging it.
+	if not _pico_call(lambda: scope.lit.setVs(*a["light"]), "lights on"):
+		stop_kernel_log()
+		raise RuntimeError("Pico did not set the light; run not started. "
+						   "Check the Pico connection and start again.")
+	_pico_call(scope.beacon.on, "beacon on")
 	## Only after the last set-up command to the Pico: from here on the T&H
 	## thread is the serial link's only user until stop_tandh().
 	start_tandh(a["tandh_poll_s"])
@@ -905,6 +982,7 @@ def start_acq_blocking():
 			time.sleep(a["poll_s"])
 			_telemetry_row(w, t0, window)
 			tele.flush()
+			_check_pico()
 
 			if time.monotonic() >= next_window:
 				window += 1
@@ -985,7 +1063,7 @@ def start_acq_blocking():
 			scope.cam.close()
 		except Exception as e:
 			log.error(f"camera close at end: {e}")
-		scope.beacon.off()
+		_pico_call(scope.beacon.off, "beacon off")
 
 	print(Panel(f"frames discarded : {sink.frames}\n"
 				f"intensity rows   : {csv_rows}\n"
@@ -1216,10 +1294,7 @@ def cleanup():
 	global exp, scope
 	exp = Experiment.current
 	scope = ScopeAssembly.current
-	try:
-		scope.lit.setVs(0, 0, 0)
-	except Exception as e:
-		log.error(f"lights off failed: {e}")
+	_pico_call(lambda: scope.lit.setVs(0, 0, 0), "lights off")
 
 	## The libcamera log lives outside the experiment because it has to exist
 	## before the experiment does. Copy it in so the bundle is self-contained.
