@@ -71,11 +71,14 @@ import os
 ## happened to open it. The file is copied into the experiment by cleanup().
 LIBCAMERA_LOG = os.path.expanduser("~/libcamera.log")
 os.environ.setdefault("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
-os.environ.setdefault("LIBCAMERA_LOG_LEVELS", "RPI:INFO,Camera:INFO,V4L2:INFO")
+os.environ.setdefault("LIBCAMERA_LOG_LEVELS",
+					  "RPI:INFO,Camera:INFO,V4L2:INFO,IPAProxy:INFO")
 
 from datetime import timedelta
 import csv
 import datetime
+import hashlib
+import json
 import logging as log
 import shutil
 import subprocess
@@ -508,6 +511,127 @@ def recover(window):
 
 
 ## --------------------------------------------------------------------------
+##  Tuning-file verification
+## --------------------------------------------------------------------------
+
+## The driver asks for the scientific tuning; the stock file is what libcamera
+## falls back to if that request is lost. Both are compared against what the
+## camera is actually doing.
+TUNING_FILES = {
+	"scientific": "/usr/share/libcamera/ipa/rpi/vc4/imx477_scientific.json",
+	"default": "/usr/share/libcamera/ipa/rpi/vc4/imx477.json",
+}
+
+
+def _algorithms(tuning):
+	"""v2 tuning files list single-key dicts under "algorithms"; v1 is flat.
+	Same parser as camtests/ccm_crosstalk_test.py."""
+	if "algorithms" in tuning:
+		out = {}
+		for entry in tuning["algorithms"]:
+			out.update(entry)
+		return out
+	return {k: v for k, v in tuning.items() if k.startswith("rpi.")}
+
+
+def _ccm_table(path):
+	with open(path) as f:
+		ccms = _algorithms(json.load(f)).get("rpi.ccm", {}).get("ccms", [])
+	return sorted(((c["ct"], c["ccm"]) for c in ccms), key=lambda x: x[0])
+
+
+def _interp_ccm(table, ct):
+	"""rpi.ccm interpolates linearly in colour temperature and clamps at the
+	ends of the table; do the same."""
+	if not table:
+		return None
+	if ct <= table[0][0]:
+		return table[0][1]
+	if ct >= table[-1][0]:
+		return table[-1][1]
+	for (c0, m0), (c1, m1) in zip(table, table[1:]):
+		if c0 <= ct <= c1:
+			w = (ct - c0) / float(c1 - c0)
+			return [a + w * (b - a) for a, b in zip(m0, m1)]
+	return None
+
+
+def verify_tuning():
+	"""Which tuning file is the camera ACTUALLY using? Three independent answers.
+
+	1. requested -- what picamera2 put in LIBCAMERA_RPI_TUNING_FILE.
+	2. libcamera_says -- the "Using tuning file <path>" line libcamera writes
+	   at INFO under IPAProxy when it loads the IPA. Reliable only if
+	   LIBCAMERA_LOG_FILE was set before the camera system first started; if
+	   the framework built the camera at boot, the line went to stderr.
+	3. ccm_match -- behavioural, and independent of logging: the camera
+	   reports the colour-correction matrix it is applying and the colour
+	   temperature it chose. Interpolating each candidate file's CCM table at
+	   that temperature and comparing shows which file the numbers came from.
+
+	Must never raise; the result is logged and the run carries on.
+	"""
+	global scope
+	res = {"requested": os.environ.get("LIBCAMERA_RPI_TUNING_FILE")}
+	try:
+		logfile = os.environ.get("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
+		hits = []
+		if os.path.exists(logfile):
+			with open(logfile, errors="replace") as f:
+				hits = [l.strip() for l in f if "Using tuning file" in l]
+		res["libcamera_says"] = hits[-1].split("Using tuning file", 1)[1].strip() \
+			if hits else None
+
+		md = scope.cam.cam.capture_metadata()
+		ct, ccm = md.get("ColourTemperature"), md.get("ColourCorrectionMatrix")
+		res["colour_temperature"] = ct
+		res["reported_ccm"] = [round(x, 4) for x in ccm] if ccm else None
+		if ct and ccm:
+			errs = {}
+			for name, path in TUNING_FILES.items():
+				if os.path.exists(path):
+					expect = _interp_ccm(_ccm_table(path), ct)
+					if expect:
+						errs[name] = round(max(abs(a - b) for a, b in zip(expect, ccm)), 4)
+			res["ccm_max_abs_error"] = errs
+			if errs:
+				best = min(errs, key=errs.get)
+				## 0.02 allows for float rounding in the reported metadata.
+				res["ccm_match"] = best if errs[best] < 0.02 else "inconclusive"
+
+		sci = TUNING_FILES["scientific"]
+		if os.path.exists(sci):
+			with open(sci, "rb") as f:
+				res["scientific_sha256"] = hashlib.sha256(f.read()).hexdigest()
+			res["scientific_mtime"] = str(datetime.datetime.fromtimestamp(
+				os.path.getmtime(sci)))
+		else:
+			res["scientific_sha256"] = "FILE MISSING"
+	except Exception as e:
+		res["error"] = f"{type(e).__name__}: {e}"
+
+	sci = TUNING_FILES["scientific"]
+	evidence = [res.get("libcamera_says") == sci, res.get("ccm_match") == "scientific"]
+	against = [res.get("libcamera_says") not in (None, sci),
+			   res.get("ccm_match") == "default"]
+	res["verdict"] = ("scientific CONFIRMED" if any(evidence) and not any(against)
+					  else "NOT the scientific tuning" if any(against)
+					  else "unconfirmed")
+	colour = {"scientific CONFIRMED": "green",
+			  "NOT the scientific tuning": "red"}.get(res["verdict"], "yellow")
+	print(Panel(Pretty(res), title=f"[{colour}]tuning file: {res['verdict']}"))
+	try:
+		Experiment.current.log_event("tuning_check", attribs=res)
+		if res["verdict"] != "scientific CONFIRMED":
+			Experiment.current.note(f"Tuning file check: {res['verdict']}. "
+									f"libcamera_says={res.get('libcamera_says')}, "
+									f"ccm_match={res.get('ccm_match')}")
+	except Exception as e:
+		log.error(f"tuning_check log failed: {e}")
+	return res
+
+
+## --------------------------------------------------------------------------
 ##  Marks
 ## --------------------------------------------------------------------------
 
@@ -617,6 +741,8 @@ def start_acq_blocking():
 	scope.beacon.on()
 	cam_cycle()
 	start_recording()
+	time.sleep(2.0)             # let AWB settle so the reported CT is meaningful
+	verify_tuning()
 
 	exp.logs.update(scope.get_config())
 	exp.__save__()

@@ -200,6 +200,17 @@ def install_requirements():
 ## succeeds or fails at once. That guarantees nothing can stop halfway through
 ## a 40-minute run waiting for a password nobody is there to type.
 ##
+## THE PASSWORD IS NEVER SEEN BY THIS SCRIPT. `sudo -v` is run with the
+## terminal handed straight to sudo, which reads the password from /dev/tty
+## itself, with echo off. It never passes through a Python variable, stdout, a
+## log, IPython history, argv or the environment. What sudo then keeps is not
+## the password but a timestamp -- "this user authenticated recently" -- under
+## /run/sudo/ts/, which is tmpfs: memory only, gone at reboot, and removed
+## explicitly by `sudo -k` at the end of the run.
+##
+## Do not "simplify" this into `sudo -S` with a password piped in: that would
+## put the password in this process and is exactly what the above rules out.
+##
 ## So the password is asked for ONCE, up front, and sudo's cached credential is
 ## then kept alive by a background thread. Debian expires that cache after
 ## about 15 minutes; refreshing it every 60 s outlasts the run with margin.
