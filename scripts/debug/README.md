@@ -191,7 +191,7 @@ Not required: samples tick on the same wall-clock seconds on every scope.
 | Output | Rate | What |
 |---|---|---|
 | `tracking.csv` | every 10 s | `chronyc tracking`: offset, root delay and dispersion, `max_error_s` |
-| `ntp` stream | one row per clock update | `chronyc ntpdata`: offset to the NAS, peer delay and dispersion, the NAS's own root delay and dispersion (needs sudo) |
+| `ntp` stream | one row per clock update | `chronyc ntpdata`: offset to the NTP server, peer delay and dispersion, the server's own root delay and dispersion (`server_*`; needs sudo) |
 | `setup` stream | start and end | source list, route, chrony version, timesyncd state, sign check |
 | `tandh` stream | 5 min | temperature and humidity |
 

@@ -43,9 +43,11 @@ How it works -- standard tools only, nothing home-made
 
 Maximum error (chrony's documented bound, `chronyc tracking`):
 	max_error_s = |clock_offset_s| + root_dispersion_s + root_delay_s / 2
-This is relative to the stratum-1 server the NAS follows. Scope to scope, the
-NAS's own part is common to both and can be removed using the NAS's root
-delay and dispersion in the ntp stream; that is done in the notebook.
+This is relative to the stratum-1 server the NTP server follows. Scope to
+scope, the NTP server's own part is common to both and can be removed using
+its root delay and dispersion (server_root_delay_s, server_root_dispersion_s in
+the ntp stream); that is done in the calibration notebook
+(trappyframe: calibrations/fleet_clock_synchronization.ipynb).
 
 Sign convention: clock_offset_s and offset_s are positive when this scope's
 clock is AHEAD (fast); freq_ppm is positive when it would run fast. The ntpdata
@@ -376,10 +378,10 @@ def read_ntpdata(server):
 	kv = _kv(out)
 	poll = kv.get("Poll interval", "")
 	return {
-		"nas_leap": kv.get("Leap status", ""),
-		"nas_stratum": _num(kv.get("Stratum")),
-		"nas_root_delay_s": _num(kv.get("Root delay")),
-		"nas_root_dispersion_s": _num(kv.get("Root dispersion")),
+		"server_leap": kv.get("Leap status", ""),
+		"server_stratum": _num(kv.get("Stratum")),
+		"server_root_delay_s": _num(kv.get("Root delay")),
+		"server_root_dispersion_s": _num(kv.get("Root dispersion")),
 		"offset_s": _num(kv.get("Offset")),
 		"peer_delay_s": _num(kv.get("Peer delay")),
 		"peer_dispersion_s": _num(kv.get("Peer dispersion")),
@@ -499,14 +501,14 @@ def create_exp():
 	exp.new_measurementstream("setup",
 		monitors=["phase", "iface", "local_addr", "server", "route_dev",
 				  "chrony_version", "chrony_active", "timesyncd", "sources",
-				  "ntp_synchronized", "nas_leap", "rx_timestamping", "sign_check"],
-		measurements=["n_sources", "nas_stratum", "clock_offset_s", "max_error_s"])
+				  "ntp_synchronized", "server_leap", "rx_timestamping", "sign_check"],
+		measurements=["n_sources", "server_stratum", "clock_offset_s", "max_error_s"])
 	## One row per clock update from the NAS: low-rate, so a stream is fine. The
 	## 10 s samples go to tracking.csv -- every stream row rewrites the YAML.
 	exp.new_measurementstream("ntp",
-		monitors=["leap", "nas_leap"],
+		monitors=["leap", "server_leap"],
 		measurements=["offset_s", "peer_delay_s", "peer_dispersion_s",
-					  "nas_stratum", "nas_root_delay_s", "nas_root_dispersion_s",
+					  "server_stratum", "server_root_delay_s", "server_root_dispersion_s",
 					  "poll_s", "clock_offset_s", "root_delay_s",
 					  "root_dispersion_s", "freq_ppm", "skew_ppm", "max_error_s"])
 	populate_exp()
@@ -537,10 +539,10 @@ def record_setup(phase, lane, have_sudo):
 			   chrony_version=r["chrony_version"], chrony_active=r["chrony_active"],
 			   timesyncd=r["timesyncd"], sources=",".join(r["sources"]),
 			   ntp_synchronized=r["ntp_synchronized"],
-			   nas_leap=(nd or {}).get("nas_leap", ""),
+			   server_leap=(nd or {}).get("server_leap", ""),
 			   rx_timestamping=(nd or {}).get("rx_timestamping", ""),
 			   sign_check=sign, n_sources=len(r["sources"]),
-			   nas_stratum=(nd or {}).get("nas_stratum"),
+			   server_stratum=(nd or {}).get("server_stratum"),
 			   clock_offset_s=tr.get("clock_offset_s"),
 			   max_error_s=tr.get("max_error_s"))
 	Experiment.current.mstreams["setup"](**row).panel()
@@ -640,9 +642,9 @@ def start_acq_blocking():
 				if nd and nd["valid_rx"] != last_rx:
 					if last_rx is not None:       # skip the exchange from before the run
 						exp.mstreams["ntp"](leap=t["leap"], **{k: nd[k] for k in
-							("nas_leap", "offset_s", "peer_delay_s",
-							 "peer_dispersion_s", "nas_stratum", "nas_root_delay_s",
-							 "nas_root_dispersion_s", "poll_s")},
+							("server_leap", "offset_s", "peer_delay_s",
+							 "peer_dispersion_s", "server_stratum", "server_root_delay_s",
+							 "server_root_dispersion_s", "poll_s")},
 							**{k: t[k] for k in ("clock_offset_s", "root_delay_s",
 							 "root_dispersion_s", "freq_ppm", "skew_ppm",
 							 "max_error_s")})
