@@ -82,6 +82,8 @@ import subprocess
 import threading
 import time
 
+import re
+
 import numpy as np
 from rich import print
 from rich.panel import Panel
@@ -380,6 +382,49 @@ def snapshot(tag):
 		return None
 
 
+def _temp_c():
+	try:
+		with open("/sys/class/thermal/thermal_zone0/temp") as f:
+			return round(int(f.read().strip()) / 1000.0, 1)
+	except Exception:
+		return -1.0
+
+
+global _throttled_cache, _throttled_at
+_throttled_cache, _throttled_at = "", 0.0
+
+
+def _throttled():
+	"""vcgencmd forks, so it is sampled at most once a minute rather than at
+	the 1 Hz telemetry rate."""
+	global _throttled_cache, _throttled_at
+	if time.monotonic() - _throttled_at > 60.0:
+		out = _run("vcgencmd get_throttled", timeout=5)
+		m = re.search(r"throttled=(0x[0-9a-fA-F]+)", out)
+		_throttled_cache = m.group(1) if m else "?"
+		_throttled_at = time.monotonic()
+	return _throttled_cache
+
+
+def _csi_irq():
+	"""Total interrupts on the CSI/Unicam receiver.
+
+	The one counter that sits BELOW picamera2. If this keeps climbing while
+	cam.frames stands still, the camera is still delivering and the stall is
+	software-side; if it stops climbing, the link or the sensor stopped. That
+	distinction is not available anywhere else in the stack.
+	"""
+	try:
+		total = 0
+		with open("/proc/interrupts") as f:
+			for line in f:
+				if re.search(r"csi|unicam|rp1-cfe|mipi", line, re.I):
+					total += sum(int(x) for x in line.split()[1:] if x.isdigit())
+		return total
+	except Exception:
+		return -1
+
+
 def _rss_mb():
 	try:
 		with open("/proc/self/status") as f:
@@ -467,10 +512,10 @@ def recover(window):
 ## --------------------------------------------------------------------------
 
 def mark(label=""):
-	"""Timestamp anything, from the REPL, at any time.
+	"""Timestamp a note into the experiment log.
 
-	Call this when you start and stop shaking the scope; stalls then correlate
-	with the disturbance without anyone having to read a clock.
+	Usable before start_acq_blocking() or after it returns, NOT during --
+	that call holds the interpreter.
 	"""
 	try:
 		exp = Experiment.current
@@ -530,7 +575,10 @@ def _telemetry_row(w, t0, window):
 					encoder.tasks.qsize(),
 					int(encoder.thread.is_alive()) if getattr(encoder, "thread", None) else -1,
 					_rss_mb(),
-					_cma_free_mb()])
+					_cma_free_mb(),
+					_temp_c(),
+					_throttled(),
+					_csi_irq()])
 	except Exception as e:
 		log.error(f"telemetry row failed: {type(e).__name__}: {e}")
 
@@ -554,7 +602,8 @@ def start_acq_blocking():
 	with open(telem_path, "w", newline="") as f:
 		csv.writer(f).writerow(["wall", "elapsed_s", "window", "cam_frames",
 								"sink_frames", "queue", "out_thread_alive",
-								"rss_mb", "cma_free_mb"])
+								"rss_mb", "cma_free_mb", "temp_c", "throttled",
+								"csi_irq"])
 
 	print("[red]Clearing experiment scheduler...")
 	exp.schedule.clear()
@@ -674,7 +723,115 @@ def start_acq_blocking():
 				f"stalls           : {stalls}\n"
 				f"elapsed          : {(time.monotonic() - t0) / 3600.0:.2f} h",
 				title="run complete"))
-	exp.__save__()
+
+	## ExpScheduler.loop is `while not self.end_thread`, and nothing else sets
+	## that flag -- without this the scheduler thread spins forever and the
+	## process never exits, which is exactly what left eight experiments open
+	## for two days on 2026-11-09.
+	cleanup()
+
+
+## --------------------------------------------------------------------------
+##  End-of-run statistics
+## --------------------------------------------------------------------------
+
+def run_stats():
+	"""Summarise the run from the two CSVs it just wrote.
+
+	The inter-frame gap distribution is the point. A 2 s stall is caught live
+	by the monitor, but a marginal camera shows up long before that as a tail
+	of 100-500 ms gaps that nothing else in this script would notice. Over a
+	million frames that tail is either there or it is not.
+	"""
+	out = {}
+	try:
+		## --- gaps, streamed: 1.4 M rows will not be held in memory ---------
+		gaps, prev, n, nan = [], None, 0, 0
+		with open(intens_path) as f:
+			r = csv.reader(f)
+			next(r, None)
+			for row in r:
+				n += 1
+				try:
+					t = int(row[0])
+				except (ValueError, IndexError):
+					nan += 1
+					continue
+				if prev is not None and t > prev:
+					gaps.append((t - prev) / 1e6)      # ns -> ms
+				prev = t
+		if gaps:
+			g = np.array(gaps)
+			nominal = 1000.0 / Experiment.current.attribs["fps"]
+			out["frames_csv"] = n
+			out["gap_ms_p50"] = round(float(np.percentile(g, 50)), 3)
+			out["gap_ms_p99"] = round(float(np.percentile(g, 99)), 3)
+			out["gap_ms_max"] = round(float(g.max()), 1)
+			out["gaps_over_100ms"] = int((g > 100).sum())
+			out["gaps_over_500ms"] = int((g > 500).sum())
+			out["gaps_over_2s"] = int((g > 2000).sum())
+			## A dropped frame is a gap that is a multiple of the nominal
+			## interval; this counts the frames missing from those gaps.
+			out["frames_missing"] = int(np.maximum(
+				np.round(g / nominal) - 1, 0).sum())
+			out["fps_effective"] = round(1000.0 * len(g) / float(g.sum()), 4)
+
+		## --- telemetry ------------------------------------------------------
+		cols = {k: [] for k in ("cam_frames", "sink_frames", "queue",
+								"rss_mb", "cma_free_mb", "temp_c", "csi_irq")}
+		thr = set()
+		with open(telem_path) as f:
+			for row in csv.DictReader(f):
+				for k in cols:
+					try:
+						cols[k].append(float(row[k]))
+					except (ValueError, KeyError, TypeError):
+						pass
+				thr.add(row.get("throttled", ""))
+		if cols["cam_frames"]:
+			out["cam_frames_final"] = int(cols["cam_frames"][-1])
+			out["sink_frames_final"] = int(cols["sink_frames"][-1])
+			out["encoder_shortfall"] = out["cam_frames_final"] - out["sink_frames_final"]
+			out["queue_max"] = int(max(cols["queue"]))
+			out["rss_mb_start"] = cols["rss_mb"][0]
+			out["rss_mb_end"] = cols["rss_mb"][-1]
+			out["rss_mb_growth"] = round(cols["rss_mb"][-1] - cols["rss_mb"][0], 1)
+			out["cma_free_mb_min"] = min(cols["cma_free_mb"])
+			if cols["temp_c"]:
+				out["temp_c_max"] = max(cols["temp_c"])
+				out["temp_c_mean"] = round(sum(cols["temp_c"]) / len(cols["temp_c"]), 1)
+			if cols["csi_irq"] and cols["csi_irq"][0] >= 0:
+				out["csi_irq_total"] = int(cols["csi_irq"][-1] - cols["csi_irq"][0])
+		out["throttled_values"] = sorted(v for v in thr if v and v != "?")
+		out["stalls"] = stalls
+	except Exception as e:
+		log.error(f"run_stats failed: {type(e).__name__}: {e}")
+		out["error"] = f"{type(e).__name__}: {e}"
+	return out
+
+
+def collect_diagnostics():
+	"""Run the standalone system collector into this experiment.
+
+	Shelling out to scripts/debug/collect_diagnostics.py rather than
+	reimplementing: it already captures the full dmesg, both journals, the
+	libcamera errors, throttle bits, CMA and the camera enumeration, and it
+	imports nothing from this framework so it still works if the framework is
+	what broke.
+	"""
+	for root in (os.getcwd(), os.path.expanduser("~/trappyscopes"),
+				 os.path.dirname(os.path.dirname(os.path.dirname(
+					 os.path.abspath(__file__))))):
+		script = os.path.join(root, "scripts", "debug", "collect_diagnostics.py")
+		if os.path.exists(script):
+			log.info(f"Collecting system diagnostics with {script}")
+			out = _run(f'python3 "{script}" --out diagnostics '
+					   f'--exp-dir "{os.getcwd()}" --no-tar', timeout=300)
+			print(Panel(out.strip()[-600:] or "(no output)",
+						title="system diagnostics"))
+			return True
+	log.error("collect_diagnostics.py not found; skipping system diagnostics")
+	return False
 
 
 def cleanup():
@@ -697,6 +854,18 @@ def cleanup():
 			shutil.copy2(src, "libcamera.log")
 	except Exception as e:
 		log.error(f"libcamera log copy failed: {e}")
+
+	stats = run_stats()
+	try:
+		with open("run_stats.yaml", "w") as f:
+			for k, v in stats.items():
+				f.write(f"{k}: {v}\n")
+	except Exception as e:
+		log.error(f"run_stats write failed: {e}")
+	exp.log_event("run_stats", attribs=stats)
+	print(Panel(Pretty(stats), title="run statistics"))
+
+	collect_diagnostics()
 
 	exp.logs.update(scope.get_config())
 	exp.schedule.clear()
