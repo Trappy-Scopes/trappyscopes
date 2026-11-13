@@ -107,6 +107,7 @@ start_acq_blocking(). Runs, cleans up and exits on its own.
 ##                    dependency.
 ##   apt              system package -> the executable that proves it is there.
 ##                    pip cannot install system binaries, so these stay with apt.
+##                    Needs sudo: asked for once, see sudo_session().
 ##   disable_services installed alongside an apt package, unwanted on a scope.
 ##
 ## smartd ships enabled with smartmontools. It polls drives in the background,
@@ -155,6 +156,9 @@ def install_requirements():
 	immediately. apt uses `sudo -n`, so it fails fast instead of hanging if
 	sudo wants a password.
 	"""
+	if not sudo_session():
+		print("[red]apt needs sudo; nothing installed.")
+		return False
 	ok = True
 	if REQUIREMENTS["pip"]:
 		dists = " ".join(REQUIREMENTS["pip"])
@@ -180,12 +184,78 @@ def install_requirements():
 		_run(f"sudo -n systemctl disable --now {svc}", timeout=60)
 		print(f"  {svc}: {_run(f'systemctl is-active {svc}', timeout=10)[1].strip()}")
 
+	sudo_end()
 	mp, ma = check_requirements(verbose=False)
 	if mp or ma:
 		print(f"[red]Still missing: {mp + ma}")
 		return False
 	print("[green]Requirements installed.")
 	return ok
+
+
+## ==========================================================================
+##  sudo -- authenticate once per run
+## ==========================================================================
+## Every privileged call below uses `sudo -n`, which never prompts: it either
+## succeeds or fails at once. That guarantees nothing can stop halfway through
+## a 40-minute run waiting for a password nobody is there to type.
+##
+## So the password is asked for ONCE, up front, and sudo's cached credential is
+## then kept alive by a background thread. Debian expires that cache after
+## about 15 minutes; refreshing it every 60 s outlasts the run with margin.
+## When the run ends the refresher stops and, if this run did the
+## authenticating, the cache is dropped again with `sudo -k`.
+
+_sudo_stop = threading.Event()
+_sudo_owned = False
+
+
+def sudo_session():
+	"""Ensure sudo works for the rest of the run. Returns True if it does.
+
+	Already passwordless, or already cached: nothing to do. Otherwise prompt
+	once on the terminal. With no terminal to prompt on (nohup, a service),
+	this returns False and root-only sections are recorded as unavailable --
+	the same behaviour as before, never a hang.
+	"""
+	global _sudo_owned
+	if _run("sudo -n true", timeout=5)[0] == 0:
+		return True
+	print(Panel("This run needs sudo for apt, smartctl, parted, tune2fs, "
+				"e4defrag and fstrim.\nYou will be asked for your password "
+				"[bold]once[/bold]; it is kept alive until the run ends.",
+				title="sudo"))
+	try:
+		rc = subprocess.run(["sudo", "-v"]).returncode      # interactive
+	except Exception:
+		rc = 1
+	if rc != 0:
+		print("[yellow]sudo not authenticated -- root-only sections will be "
+			  "recorded as unavailable.")
+		return False
+	_sudo_owned = True
+	_sudo_stop.clear()
+
+	def _keepalive():
+		while not _sudo_stop.wait(60):
+			subprocess.run(["sudo", "-n", "-v"], stdout=subprocess.DEVNULL,
+						   stderr=subprocess.DEVNULL)
+
+	threading.Thread(target=_keepalive, daemon=True, name="sudo-keepalive").start()
+	return True
+
+
+def sudo_end():
+	"""Stop refreshing, and drop the cache if this run created it."""
+	global _sudo_owned
+	_sudo_stop.set()
+	if _sudo_owned:
+		subprocess.run(["sudo", "-k"], stdout=subprocess.DEVNULL,
+					   stderr=subprocess.DEVNULL)
+		_sudo_owned = False
+
+
+atexit.register(sudo_end)
 
 
 ## ==========================================================================
@@ -918,6 +988,8 @@ def start_acq_blocking():
 					f"on a busy USB drive can hang the controller.", title="refused"))
 		return
 
+	sudo_session()
+
 	exp.schedule.clear()
 	record_sensor()
 	exp.schedule.every(a["tandh_sampling_period_minutes"]).minutes \
@@ -996,6 +1068,7 @@ def start_acq_blocking():
 		_telemetry_stop.set()
 		tel.join(timeout=5)
 		stop_kernel_log()
+		sudo_end()
 
 	report["finished"] = str(datetime.datetime.now())
 	with open("storage_health.json", "w") as f:
