@@ -40,9 +40,20 @@ What it measures, per drive
 Identity and transport; SMART before and after (SSD; idle only); discard
 geometry and provisioning mode; partition alignment; filesystem features and
 fragmentation; block-queue tunables; then a WRITE WORKLOAD with per-chunk
-latency, a READ-BACK that verifies every chunk's checksum, and 1 Hz telemetry
-throughout (I/O pressure, device utilisation, dirty/writeback pages, iowait,
-temperature). Kernel messages are streamed to kernel.log for the whole run.
+latency, a READ-BACK that verifies every chunk's checksum, and 1 Hz per-device
+telemetry throughout (throughput, utilisation, queue). Kernel messages are
+streamed to kernel.log and storage errors in the run window are counted.
+
+Scope: the storage medium and the path to it -- nothing else. No T&H, no
+system-wide pressure or memory figures; those belong to acquisition scripts.
+
+Every chunk is kept in raw/<disk>/chunks.csv (write and read time, CRC), so
+any figure in the report can be recomputed later. From it: the size of the
+drive's pseudo-SLC cache and the speed after it.
+
+Each file also gets a "behind" figure: a stream at the acquisition rate fed
+into the drive's measured per-chunk speed, and how much of it would have had
+to wait. That, not raw MB/s, is what the encoder's queue would feel.
 
 The SSD workload mirrors mjpeg_continuous_autosplit: N files of one real
 10-minute split each (9.45 GB at the measured 15.7 MB/s), all held until the
@@ -66,6 +77,7 @@ import datetime
 import importlib.util
 import json
 import logging as log
+import math
 import os
 import re
 import shlex
@@ -285,6 +297,10 @@ def populate_exp():
 	exp.attribs["mode"] = "flat_out"
 	exp.attribs["paced_mb_s"] = 15.7
 	exp.attribs["required_mb_s"] = 15.7
+	## Flag a drive when a stream at required_mb_s would have piled up this
+	## many seconds of video waiting for it (see _behind).
+	exp.attribs["behind_warn_s"] = 2
+	exp.attribs["behind_crit_s"] = 10
 	## Never leave the SSD fuller than this during the workload.
 	exp.attribs["min_free_fraction"] = 0.15
 	## SD card: small and bounded, never more than this fraction of free space.
@@ -292,7 +308,9 @@ def populate_exp():
 	exp.attribs["sd_max_free_fraction"] = 0.10
 	exp.attribs["telemetry_period_s"] = 1.0
 	exp.attribs["idle_before_smart_s"] = 30
-	exp.attribs["tandh_sampling_period_minutes"] = 5
+	## The cache has run out once chunk speed falls below this fraction of
+	## the opening speed and stays there (see cache_size).
+	exp.attribs["cache_drop_fraction"] = 0.5
 	exp.attribs["sync_files"] = False
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
@@ -302,7 +320,6 @@ def create_exp():
 	scope = ScopeAssembly.current
 	exp = Experiment.Construct(["storage_health"])
 
-	exp.new_measurementstream("tandh", measurements=["temp", "humidity"])
 	exp.new_measurementstream("devices",
 		monitors=["role", "disk", "kind", "model", "transport", "bridge",
 				  "fstype", "mountpoint"],
@@ -310,12 +327,15 @@ def create_exp():
 	exp.new_measurementstream("smart",
 		monitors=["phase", "disk", "health"],
 		measurements=["pct_used", "power_on_h", "realloc", "pending",
-					  "crc_errors", "cmd_timeout", "lbas_written", "temp_c"])
+					  "crc_errors", "cmd_timeout", "lbas_written", "temp_c",
+					  "media_errors", "avail_spare", "unsafe_shutdowns",
+					  "data_units_written"])
 	exp.new_measurementstream("files",
 		monitors=["disk", "n"],
 		measurements=["gb", "seconds", "mean_mb_s", "chunk_ms_p50",
 					  "chunk_ms_p99", "chunk_ms_max", "chunks_over_1s",
-					  "chunks_over_5s", "fill_pct_after"])
+					  "chunks_over_5s", "chunks_over_rt", "behind_mb_max",
+					  "behind_s_max", "fill_pct_after"])
 	exp.new_measurementstream("verify",
 		monitors=["disk", "n"],
 		measurements=["read_mb_s", "chunks_ok", "chunks_bad"])
@@ -437,10 +457,10 @@ def identity(dev):
 	SD cards have no SMART, so this is most of what can be known about one."""
 	name = os.path.basename(dev.get("disk", ""))
 	ident = {}
-	row = _sh(f"lsblk -dno SIZE,MODEL,TRAN,SERIAL /dev/{name}").split(None, 3)
-	if row:
-		ident["size"] = row[0]
-		ident["transport"] = row[2] if len(row) > 2 else ""
+	## One column per query: MODEL often contains spaces ("NTech MX600 SSD"),
+	## which shifted a combined query and put part of the model in transport.
+	ident["size"] = _sh(f"lsblk -dno SIZE /dev/{name}").strip()
+	ident["transport"] = _sh(f"lsblk -dno TRAN /dev/{name}").strip()
 	ident["model"] = _sh(f"lsblk -dno MODEL /dev/{name}").strip()
 	if dev["kind"] == "sd":
 		base = f"/sys/block/{name}/device"
@@ -526,8 +546,38 @@ SMART_KEYS = [
 	("crc_errors",   r"UDMA_CRC_Error_Count.*?(\d+)\s*$"),
 	("cmd_timeout",  r"Command_Timeout.*?(\d+)\s*$"),
 	("lbas_written", r"Total_LBAs_Written.*?(\d+)\s*$"),
-	("temp_c",       r"Temperature_Celsius.*?(\d+)"),
+	## Temperature is the RAW_VALUE column of ATA attribute 194, else 190
+	## (Samsung reports only 190), else the NVMe health log; first match wins.
+	## Matching "Temperature_Celsius.*?(\d+)" caught the 0 of the flag 0x0022.
+	## The NTech MX600s report a constant 40 here -- not a live sensor.
+	("temp_c",       r"^\s*194\s+\S+\s+0x[0-9a-fA-F]+\s+\d+\s+\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+)"),
+	("temp_c",       r"^\s*190\s+\S+\s+0x[0-9a-fA-F]+\s+\d+\s+\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+)"),
+	("temp_c",       r"^Temperature:\s+(\d+)\s+Celsius"),
+	## NVMe health log (e.g. the WD SN350 behind M3's bridge). Commas are
+	## stripped before matching. One data unit is 512,000 bytes.
+	("power_on_h",   r"^Power On Hours:\s+(\d+)"),
+	("media_errors", r"^Media and Data Integrity Errors:\s+(\d+)"),
+	("avail_spare",  r"^Available Spare:\s+(\d+)%"),
+	("unsafe_shutdowns", r"^Unsafe Shutdowns:\s+(\d+)"),
+	("data_units_written", r"^Data Units Written:\s+(\d+)"),
 ]
+
+NVME_UNIT_BYTES = 512_000
+
+
+def lifetime_written(before, after, test_bytes):
+	"""Lifetime host bytes written, for any vendor. ATA attribute 241 has no
+	standard unit (32 MiB on the NTech drives, 512 B on Samsung), so infer it
+	from the test itself: bytes written / change in the counter, snapped to a
+	power of two. Pure -- unit-testable. Returns (bytes, unit) or (None, None).
+	"""
+	if after.get("data_units_written") is not None:
+		return after["data_units_written"] * NVME_UNIT_BYTES, NVME_UNIT_BYTES
+	b, a = before.get("lbas_written"), after.get("lbas_written")
+	if a is None or b is None or a <= b or not test_bytes:
+		return None, None
+	unit = 2 ** round(math.log2(test_bytes / (a - b)))
+	return a * unit, unit
 
 
 def smart_read(dev, outdir, phase):
@@ -543,8 +593,11 @@ def smart_read(dev, outdir, phase):
 			with open(os.path.join(outdir, "raw", name, f"smart_{phase}.txt"), "w") as f:
 				f.write(f"# device type: {t or '(auto)'}\n{out}")
 			attrs = {"device_type": t or "(auto)"}
+			flat = re.sub(r"(?<=\d),(?=\d{3})", "", out)   # NVMe prints 19,612,621
 			for k, pat in SMART_KEYS:
-				m = re.search(pat, out, re.M)
+				if k in attrs:
+					continue
+				m = re.search(pat, flat, re.M)
 				if m:
 					attrs[k] = int(m.group(1))
 			m = re.search(r"self-assessment test result:\s*(\S+)", out)
@@ -576,71 +629,19 @@ def _diskstats(name):
 	return None
 
 
-def _psi():
-	out = {"some": -1.0, "full": -1.0}
-	try:
-		with open("/proc/pressure/io") as f:
-			for line in f:
-				m = re.match(r"(some|full) avg10=([\d.]+)", line)
-				if m:
-					out[m.group(1)] = float(m.group(2))
-	except Exception:
-		pass
-	return out
-
-
-def _meminfo_mb(*keys):
-	out = {k: -1.0 for k in keys}
-	try:
-		with open("/proc/meminfo") as f:
-			for line in f:
-				k = line.split(":")[0]
-				if k in out:
-					out[k] = round(int(line.split()[1]) / 1024.0, 1)
-	except Exception:
-		pass
-	return out
-
-
-def _cpu_times():
-	try:
-		with open("/proc/stat") as f:
-			p = f.readline().split()[1:]
-		v = [int(x) for x in p]
-		return sum(v), v[4]          # total, iowait
-	except Exception:
-		return None
-
-
-def _soc_temp():
-	try:
-		with open("/sys/class/thermal/thermal_zone0/temp") as f:
-			return round(int(f.read().strip()) / 1000.0, 1)
-	except Exception:
-		return -1.0
-
-
 def telemetry_thread(devs, path, period):
 	"""One row per device per tick. Long format, so any number of devices fits
-	the same columns."""
+	the same columns. Per-device figures only (see Scope in the docstring)."""
 	t0 = time.monotonic()
 	prev = {d["name"]: _diskstats(d["name"]) for d in devs}
-	prev_cpu = _cpu_times()
 	prev_t = time.monotonic()
 	with open(path, "w", newline="") as f:
 		w = csv.writer(f)
 		w.writerow(["wall", "elapsed_s", "phase", "disk", "write_mb_s", "read_mb_s",
-					"util_pct", "avg_wait_ms", "psi_some", "psi_full", "dirty_mb",
-					"writeback_mb", "iowait_pct", "soc_temp_c"])
+					"util_pct", "avg_wait_ms"])
 		while not _telemetry_stop.wait(period):
 			now = time.monotonic()
 			dt = max(now - prev_t, 1e-3)
-			psi = _psi()
-			mem = _meminfo_mb("Dirty", "Writeback")
-			cpu = _cpu_times()
-			iow = -1.0
-			if cpu and prev_cpu and cpu[0] > prev_cpu[0]:
-				iow = round(100.0 * (cpu[1] - prev_cpu[1]) / (cpu[0] - prev_cpu[0]), 2)
 			for d in devs:
 				cur = _diskstats(d["name"])
 				p = prev.get(d["name"])
@@ -652,12 +653,10 @@ def telemetry_thread(devs, path, period):
 				else:
 					wr = rd = util = wait = -1.0
 				w.writerow([round(time.time(), 3), round(now - t0, 2), PHASE, d["name"],
-							round(wr, 2), round(rd, 2), round(util, 1), round(wait, 3),
-							psi["some"], psi["full"], mem["Dirty"], mem["Writeback"],
-							iow, _soc_temp()])
+							round(wr, 2), round(rd, 2), round(util, 1), round(wait, 3)])
 				prev[d["name"]] = cur
 			f.flush()
-			prev_cpu, prev_t = cpu, now
+			prev_t = now
 
 
 ## ==========================================================================
@@ -692,17 +691,19 @@ def write_file(path, gb, chunk_mb, seq0, paced_mb_s=None):
 
 	Sync per chunk because the question is how long one write takes to reach
 	the drive -- what the encoder's output thread experiences -- not how fast
-	the page cache accepts data. Returns (latencies_ms, crcs, seconds).
+	the page cache accepts data. Returns (latencies_ms, crcs, seconds,
+	chunk start times on the monotonic clock).
 	"""
 	cb = chunk_mb << 20
 	n = max(1, int(round(gb * 1024 / chunk_mb)))
-	lat, crcs = [], []
+	lat, crcs, starts = [], [], []
 	t_start = time.monotonic()
 	fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
 	try:
 		for i in range(n):
 			buf = _buffer(seq0 + i, cb)
 			t0 = time.monotonic()
+			starts.append(t0)
 			os.write(fd, buf)
 			_sync(fd)
 			lat.append((time.monotonic() - t0) * 1000.0)
@@ -720,29 +721,75 @@ def write_file(path, gb, chunk_mb, seq0, paced_mb_s=None):
 			os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
 	finally:
 		os.close(fd)
-	return lat, crcs, time.monotonic() - t_start
+	return lat, crcs, time.monotonic() - t_start, starts
 
 
 def verify_file(path, chunk_mb, crcs):
 	"""Read back and check every chunk. A write that succeeds and reads back
-	wrong is a worse fault than a slow one, and it is invisible otherwise."""
+	wrong is a worse fault than a slow one, and it is invisible otherwise.
+	Returns (ok, bad, MB/s, per-chunk read ms, per-chunk ok flags)."""
 	cb = chunk_mb << 20
 	ok = bad = 0
+	read_ms, flags = [], []
 	t0 = time.monotonic()
 	with open(path, "rb", buffering=0) as f:
 		for want in crcs:
+			tc = time.monotonic()
 			got = f.read(cb)
-			if zlib.crc32(got) == want and len(got) == cb:
-				ok += 1
-			else:
-				bad += 1
+			read_ms.append((time.monotonic() - tc) * 1000.0)
+			good = zlib.crc32(got) == want and len(got) == cb
+			flags.append(good)
+			ok, bad = ok + good, bad + (not good)
 	secs = time.monotonic() - t0
-	return ok, bad, (len(crcs) * chunk_mb) / max(secs, 1e-6)
+	return ok, bad, (len(crcs) * chunk_mb) / max(secs, 1e-6), read_ms, flags
+
+
+def cache_size(lat_ms, chunk_mb, drop=0.5, window=32):
+	"""Where the drive's pseudo-SLC cache ran out, from per-chunk write times.
+
+	Speeds are time-weighted (bytes / seconds over a window of chunks), not a
+	median of chunks: a drive that writes 60 fast chunks then stalls 12 s on
+	three (the NTech V1027A0 sawtooth) is slow, though most chunks are fast.
+	Opening speed = the first 16 chunks. The cache has run out at the centre
+	of the first window slower than drop x opening. Pure -- unit-testable.
+	Returns (cache GB, or None if it never ran out; MB/s after it, or over
+	the whole run if it never ran out).
+	"""
+	mb = chunk_mb * 2**20 / 1e6
+	s = [max(ms / 1000.0, 1e-6) for ms in lat_ms]
+	speed = lambda a, b: (b - a) * mb / sum(s[a:b])
+	if len(s) < 16 + window:
+		return None, round(speed(0, len(s)), 1) if s else None
+	limit = drop * speed(0, 16)
+	for i in range(len(s) - window + 1):
+		if speed(i, i + window) < limit:
+			cut = i + window // 2
+			return round(cut * mb / 1000.0, 1), round(speed(cut, len(s)), 1)
+	return None, round(speed(0, len(s)), 1)
 
 
 def _pct(xs, q):
 	s = sorted(xs)
 	return s[min(len(s) - 1, int(len(s) * q))] if s else 0.0
+
+
+def _behind(lat_ms, chunk_mb, rate_mb_s, q0=0.0):
+	"""How far a stream at rate_mb_s would have fallen behind this drive.
+
+	A virtual queue: while one chunk takes s seconds to reach the drive, the
+	stream adds rate * s MB and the drive takes one chunk away. Also holds in
+	paced mode, where the writer sleeps only while it is not behind. Pure --
+	unit-testable. Returns (max MB queued, longest run behind in s, MB still
+	queued at the end, to carry into the next file).
+	"""
+	c = chunk_mb * 2**20 / 1e6
+	q, qmax, t, tmax = q0, q0, 0.0, 0.0
+	for ms in lat_ms:
+		s = ms / 1000.0
+		q = max(0.0, q + rate_mb_s * s - c)
+		t = t + s if q > 0 else 0.0
+		qmax, tmax = max(qmax, q), max(tmax, t)
+	return qmax, tmax, q
 
 
 def _fill_pct(mp):
@@ -769,8 +816,9 @@ def plan_files(dev, a, usage):
 	return [(i + 1, a["file_gb"]) for i in range(n)], None
 
 
-def workload(dev, a):
-	"""Run the workload appropriate to the device. Returns per-file results."""
+def workload(dev, a, outdir="."):
+	"""Run the workload appropriate to the device. Returns per-file results,
+	and writes every chunk to raw/<disk>/chunks.csv."""
 	global PHASE
 	name = os.path.basename(dev["disk"])
 	d = _test_dir_on(dev)
@@ -792,12 +840,24 @@ def workload(dev, a):
 				title="workload"))
 	results, seq = [], 0
 	written = []
+	## One chunk's worth of video at the acquisition rate (~4.3 s for 64 MiB at
+	## 15.7 MB/s): a chunk slower than this fell behind real time.
+	rt_ms = a["chunk_mb"] * 2**20 / 1e6 / a["required_mb_s"] * 1000.0
+	carry = 0.0                                 # backlog carried between files
+	t0, all_lat, rows = time.monotonic(), [], []
 	for n, gb in plan:
 		path = os.path.join(d, f"split_{n:03d}.bin")
 		PHASE = f"write_{name}_{n:03d}"
-		lat, crcs, secs = write_file(path, gb, a["chunk_mb"], seq, paced)
+		lat, crcs, secs, starts = write_file(path, gb, a["chunk_mb"], seq, paced)
 		seq += len(crcs)
 		written.append((path, crcs))
+		for i, (ms, ts) in enumerate(zip(lat, starts)):
+			all_lat.append(ms)
+			rows.append([n, i, round(ts - t0, 3), round(ms, 2),
+						 round(a["chunk_mb"] * 2**20 / 1e6 / max(ms / 1000.0, 1e-6), 2),
+						 round(len(all_lat) * a["chunk_mb"] * 2**20 / 1e9, 3)])
+		behind_mb, behind_s, carry = _behind(lat, a["chunk_mb"],
+											 a["required_mb_s"], carry)
 		r = {"n": n, "gb": round(gb, 2), "seconds": round(secs, 1),
 			 "mean_mb_s": round(len(crcs) * a["chunk_mb"] / secs, 1),
 			 "chunk_ms_p50": round(_pct(lat, 0.50), 1),
@@ -805,6 +865,9 @@ def workload(dev, a):
 			 "chunk_ms_max": round(max(lat), 1),
 			 "chunks_over_1s": sum(1 for x in lat if x > 1000),
 			 "chunks_over_5s": sum(1 for x in lat if x > 5000),
+			 "chunks_over_rt": sum(1 for x in lat if x > rt_ms),
+			 "behind_mb_max": round(behind_mb, 1),
+			 "behind_s_max": round(behind_s, 1),
 			 "fill_pct_after": _fill_pct(dev["mountpoint"])}
 		results.append(r)
 		try:
@@ -814,9 +877,13 @@ def workload(dev, a):
 
 	## Verify only after everything is written: by then the early files have
 	## long left any cache, and the drive is at its fullest.
+	k = 0
 	for (path, crcs), r in zip(written, results):
 		PHASE = f"verify_{name}_{r['n']:03d}"
-		ok, bad, mb_s = verify_file(path, a["chunk_mb"], crcs)
+		ok, bad, mb_s, read_ms, flags = verify_file(path, a["chunk_mb"], crcs)
+		for ms, good in zip(read_ms, flags):
+			rows[k] += [round(ms, 2), int(good)]
+			k += 1
 		r.update({"read_mb_s": round(mb_s, 1), "chunks_ok": ok, "chunks_bad": bad})
 		try:
 			Experiment.current.mstreams["verify"](disk=name, n=r["n"],
@@ -824,7 +891,17 @@ def workload(dev, a):
 		except Exception as e:
 			log.error(f"verify stream: {e}")
 	PHASE = "idle"
-	return {"files": results}
+
+	os.makedirs(os.path.join(outdir, "raw", name), exist_ok=True)
+	with open(os.path.join(outdir, "raw", name, "chunks.csv"), "w", newline="") as f:
+		w = csv.writer(f)
+		w.writerow(["file", "chunk", "t_start_s", "write_ms", "mb_s", "cum_gb",
+					"read_ms", "crc_ok"])
+		w.writerows(rows)
+	cgb, post = cache_size(all_lat, a["chunk_mb"], a.get("cache_drop_fraction", 0.5))
+	return {"files": results, "chunk_rt_ms": round(rt_ms),
+			"cache_gb": cgb, "post_cache_mb_s": post,
+			"bytes_written": len(all_lat) * (a["chunk_mb"] << 20)}
 
 
 ## ==========================================================================
@@ -880,22 +957,68 @@ def stop_kernel_log():
 		_dmesg_proc = None
 
 
+## Storage faults as the kernel reports them. A line counts only if it also
+## names this drive (sda, sd 0:0:0:0, mmcblk0) or its driver -- so USB hubs
+## re-enumerating elsewhere (a KVM switch on usb 2-1 did, harmlessly) do not.
+_KERR = re.compile(r"I/O error|blk_update_request|EXT4-fs (error|warning)|uas_eh|"
+				   r"abort|reset|timed out|timeout|failed|critical medium|"
+				   r"unrecovered read", re.I)
+_KTIME = re.compile(r"^\[(\w{3} \w{3}\s+\d+ \d\d:\d\d:\d\d \d{4})\]")
+
+
+def kernel_storage_errors(text, since, name, kind):
+	"""Kernel lines in the run window that report a fault on this drive.
+	`since` is a datetime; dmesg --follow replays the boot buffer first, so
+	older lines are dropped. Pure -- unit-testable."""
+	## mmcblk0 is host mmc0; the Pi 4's Wi-Fi sits on mmc1 and must not count.
+	host = "mmc" + re.sub(r"\D", "", name)
+	own = (re.compile(rf"\b{re.escape(name)}|\b{host}:", re.I) if kind == "sd" else
+		   re.compile(rf"\b{re.escape(name)}\d*\b|\buas\b|usb-storage|sd \d+:\d+:\d+:\d+", re.I))
+	out = []
+	for line in (text or "").splitlines():
+		m = _KTIME.match(line)
+		if not m:
+			continue
+		try:
+			t = datetime.datetime.strptime(" ".join(m.group(1).split()), "%a %b %d %H:%M:%S %Y")
+		except ValueError:
+			continue
+		if t >= since.replace(microsecond=0) and own.search(line) and _KERR.search(line):
+			out.append(line.strip())
+	return out
+
+
+def fstrim_result(text):
+	"""fstrim -v output -> {supported, bytes_trimmed, raw}."""
+	m = re.search(r"\((\d+) bytes\) trimmed", text or "")
+	return {"supported": bool(m), "bytes_trimmed": int(m.group(1)) if m else 0,
+			"raw": (text or "").strip()}
+
+
 ## ==========================================================================
 ##  Findings
 ## ==========================================================================
 
-def findings_for(dev, ident, static, before, after, wl, required):
+def findings_for(dev, ident, static, before, after, wl, a, kern=()):
 	F = []
+	required = a["required_mb_s"]
+	## The SD card holds the OS, not recordings: its speed matters only if a
+	## recording lands on / (the eyespot ghost mount), so it is reported as
+	## INFO rather than flagged.
+	sd = dev["kind"] == "sd"
+	sd_why = ("The SD card holds no recordings; this matters only if one lands "
+			  "on / (the eyespot ghost mount).")
 
 	if dev["kind"] == "ssd":
 		if not before:
 			F.append(("WARN", "SMART unavailable",
 					  "smartctl missing, or the bridge does not pass SMART through."))
 		else:
-			if before.get("health") not in ("PASSED", "?"):
+			if before.get("health", "?") not in ("PASSED", "?"):
 				F.append(("CRITICAL", f"SMART health {before['health']}", ""))
 			for k, lvl, why in (("realloc", "CRITICAL", "failing NAND"),
 								("pending", "CRITICAL", "sectors awaiting reallocation"),
+								("media_errors", "CRITICAL", "NVMe media / integrity errors"),
 								("crc_errors", "WARN", "link CRC errors: cable or bridge, not NAND"),
 								("cmd_timeout", "WARN", "drive failed to answer in time")):
 				if before.get(k):
@@ -903,25 +1026,31 @@ def findings_for(dev, ident, static, before, after, wl, required):
 				if after and before.get(k) is not None and after.get(k, 0) > before[k]:
 					F.append(("CRITICAL", f"{k} rose during the test "
 							  f"({before[k]} -> {after[k]})", why))
-			if after and before.get("lbas_written") is not None \
-					and after.get("lbas_written") is not None:
-				d = after["lbas_written"] - before["lbas_written"]
-				F.append(("OK", f"Total_LBAs_Written advanced by {d}",
-						  "Confirms the writes reached the drive."))
+			if after and before.get("avail_spare") is not None \
+					and before["avail_spare"] < 50:
+				F.append(("WARN", f"NVMe available spare {before['avail_spare']}%", ""))
+			life, unit = lifetime_written(before, after or {}, (wl or {}).get("bytes_written"))
+			if life:
+				F.append(("OK", f"Lifetime host writes {life / 1e12:.1f} TB",
+						  f"Counter unit {unit} B, inferred from this test's writes; "
+						  f"the counter advanced, so the writes reached the drive."))
+			t0, t1 = before.get("temp_c"), (after or {}).get("temp_c")
+			if t0 is not None and t0 == t1 and (wl or {}).get("files"):
+				F.append(("INFO", f"Drive temperature unchanged ({t0} °C) across the "
+						  f"write load", "Probably a fixed value, not a live sensor."))
 
-		bridge = (ident.get("bridge") or "").lower()
-		qids = re.findall(r"([0-9a-f]{4}:[0-9a-f]{4}):", (ident.get("quirks") or "").lower())
-		if qids and bridge and bridge not in qids:
-			F.append(("WARN", f"usb-storage quirk is inert here ({', '.join(qids)})",
-					  f"It targets a device that is not attached (bridge is {bridge}). "
-					  f"Safe to remove from cmdline.txt; changes nothing for this drive."))
+	if kern:
+		F.append(("CRITICAL", f"{len(kern)} kernel storage error(s) during the run",
+				  kern[0][:200]))
 
 	disc = static.get("lsblk_discard", "").splitlines()
 	if len(disc) > 1:
 		hdr, row = disc[0].split(), disc[1].split()
 		try:
 			gi, mi = hdr.index("DISC-GRAN"), hdr.index("DISC-MAX")
-			if row[gi] == "0B" and row[mi] == "0B":
+			## DISC-MAX decides: a bridge can report a granularity and still
+			## pass nothing (M1: DISC-GRAN 512B, DISC-MAX 0B, fstrim refused).
+			if row[mi] == "0B":
 				F.append(("WARN", f"Discard unavailable ({ident.get('bridge', dev['kind'])})",
 						  "Every fstrim is a no-op on this device."))
 		except (ValueError, IndexError):
@@ -937,42 +1066,33 @@ def findings_for(dev, ident, static, before, after, wl, required):
 			F.append(("CRITICAL", f"{bad} chunk(s) read back WRONG",
 					  "Silent corruption: the write reported success."))
 		worst = min(f["mean_mb_s"] for f in files)
-		first, last = files[0]["mean_mb_s"], files[-1]["mean_mb_s"]
 		if worst / required < 3:
-			F.append(("CRITICAL", f"Slowest file {worst} MB/s -- under 3x the "
-					  f"{required} MB/s an acquisition needs", ""))
-		if len(files) > 2 and last < 0.5 * first:
-			F.append(("WARN", f"Throughput fell {first} -> {last} MB/s across the run",
-					  "The pseudo-SLC cache ran out; the later figure is the "
-					  "steady state an acquisition actually runs in."))
-		s5 = sum(f["chunks_over_5s"] for f in files)
-		s1 = sum(f["chunks_over_1s"] for f in files)
-		if s5:
-			F.append(("CRITICAL", f"{s5} write(s) over 5 s",
-					  "Enough to back up the encoder's unbounded queue."))
-		elif s1:
-			F.append(("WARN", f"{s1} write(s) over 1 s", ""))
-	order = {"CRITICAL": 0, "WARN": 1, "OK": 2}
+			F.append(("INFO" if sd else "CRITICAL", f"Slowest file {worst} MB/s -- "
+					  f"under 3x the {required} MB/s an acquisition needs",
+					  sd_why if sd else ""))
+		cgb, post = wl.get("cache_gb"), wl.get("post_cache_mb_s")
+		if cgb is not None:
+			F.append(("INFO", f"Write cache ran out after {cgb} GB; "
+					  f"{post} MB/s after it",
+					  "The later figure is the steady state a long acquisition runs in."))
+		## Judged against real time, not a fixed 1 s / 5 s: a 64 MiB chunk is
+		## ~4.3 s of video, so a 1 s chunk is three times faster than needed.
+		behind = max(f.get("behind_mb_max", 0) for f in files)
+		behind_v = behind / required
+		rt = sum(f.get("chunks_over_rt", 0) for f in files)
+		lvl = ("CRITICAL" if behind_v > a.get("behind_crit_s", 10) else
+			   "WARN" if behind_v > a.get("behind_warn_s", 2) else None)
+		if lvl:
+			F.append(("INFO" if sd else lvl,
+					  f"A {required} MB/s stream would fall {behind:.0f} MB "
+					  f"({behind_v:.0f} s of video) behind this drive",
+					  sd_why if sd else
+					  f"{rt} chunk(s) slower than real time. This test bypasses "
+					  f"the page cache; a real recording writes through it, which "
+					  f"can absorb part of this."))
+	order = {"CRITICAL": 0, "WARN": 1, "INFO": 2, "OK": 3}
 	F.sort(key=lambda x: order.get(x[0], 9))
 	return F
-
-
-## ==========================================================================
-##  Sensors
-## ==========================================================================
-
-def record_sensor():
-	"""Scheduled job -- must never raise; ExpScheduler.loop has no try/except."""
-	try:
-		scope = ScopeAssembly.current
-		tandh = Experiment.current.mstreams["tandh"]
-		try:
-			value = scope.tandh.read()
-		except Exception:
-			value = {"temp": 0, "humidity": 0}
-		tandh(**value).panel()
-	except Exception as e:
-		log.error(f"record_sensor failed: {e}")
 
 
 ## ==========================================================================
@@ -1001,10 +1121,9 @@ def start_acq_blocking():
 
 	sudo_session()
 
+	## No scheduled jobs: this script touches nothing but the drives (no T&H,
+	## so no Pico link that could hang the run).
 	exp.schedule.clear()
-	record_sensor()
-	exp.schedule.every(a["tandh_sampling_period_minutes"]).minutes \
-		.until(timedelta(hours=12)).do(record_sensor)
 
 	outdir = os.getcwd()
 	targets = [resolve_device("/", "os_sd"),
@@ -1025,7 +1144,8 @@ def start_acq_blocking():
 								 a["telemetry_period_s"]), daemon=True)
 	tel.start()
 
-	report = {"started": str(datetime.datetime.now()), "devices": []}
+	t_started = datetime.datetime.now()
+	report = {"started": str(t_started), "devices": []}
 	try:
 		## Phase 1: who, and SMART at rest.
 		info = {}
@@ -1047,7 +1167,7 @@ def start_acq_blocking():
 					**{k: before[k] for k, _ in SMART_KEYS if k in before})
 
 		## Phase 2: the workload.
-		wls = {dev["name"]: workload(dev, a) for dev in devs}
+		wls = {dev["name"]: workload(dev, a, outdir) for dev in devs}
 
 		## Phase 3: let the drives settle, then SMART again.
 		PHASE = "idle_settle"
@@ -1060,11 +1180,22 @@ def start_acq_blocking():
 					health=after.get("health", "?"),
 					**{k: after[k] for k, _ in SMART_KEYS if k in after})
 			ident, static, before = info[dev["name"]]
-			F = findings_for(dev, ident, static, before, after, wls[dev["name"]],
-							 a["required_mb_s"])
+			try:
+				with open("kernel.log", errors="replace") as f:
+					klog = f.read()
+			except Exception:
+				klog = ""
+			kern = kernel_storage_errors(klog, t_started, dev["name"], dev["kind"])
+			wl = wls[dev["name"]]
+			life, unit = lifetime_written(before or {}, after or {},
+										  (wl or {}).get("bytes_written"))
+			F = findings_for(dev, ident, static, before, after, wl, a, kern)
 			report["devices"].append({"device": dev, "identity": ident,
 									  "smart_before": before, "smart_after": after,
-									  "workload": wls[dev["name"]],
+									  "lifetime_written_tb": round(life / 1e12, 2) if life else None,
+									  "write_counter_unit_bytes": unit,
+									  "kernel_storage_errors": kern,
+									  "workload": wl,
 									  "findings": [{"level": l, "title": t, "detail": d}
 												   for l, t, d in F]})
 	except KeyboardInterrupt:
@@ -1074,8 +1205,8 @@ def start_acq_blocking():
 		_delete_test_dirs()                     # BEFORE anything is synced
 		for dev in devs:
 			mp = dev.get("mountpoint")
-			report.setdefault("fstrim", {})[dev["name"]] = \
-				_sh(f"sudo -n fstrim -v {shlex.quote(mp)} 2>&1", timeout=300).strip()
+			report.setdefault("fstrim", {})[dev["name"]] = fstrim_result(
+				_sh(f"sudo -n fstrim -v {shlex.quote(mp)} 2>&1", timeout=300))
 		_telemetry_stop.set()
 		tel.join(timeout=5)
 		stop_kernel_log()
@@ -1096,26 +1227,46 @@ def _write_report(report):
 		 f"- **Started** {report['started']}", f"- **Finished** {report.get('finished')}", ""]
 	for d in report["devices"]:
 		dev, ident = d["device"], d["identity"]
+		wl, files = d["workload"] or {}, (d["workload"] or {}).get("files", [])
+		tr = (report.get("fstrim") or {}).get(dev.get("name"), {})
+		summary = ""
+		if files:
+			summary = (f"- **Summary** cache {wl.get('cache_gb') or 'none seen'} GB, "
+					   f"{wl.get('post_cache_mb_s')} MB/s after it; worst chunk "
+					   f"{max(f['chunk_ms_max'] for f in files) / 1000:.1f} s; behind "
+					   f"{max(f.get('behind_mb_max', 0) for f in files):.0f} MB; read "
+					   f"{min(f.get('read_mb_s', 0) for f in files)} MB/s (slowest file); "
+					   f"CRC bad {sum(f.get('chunks_bad', 0) for f in files)}; "
+					   f"kernel errors {len(d.get('kernel_storage_errors') or [])}; "
+					   f"TRIM {'yes' if tr.get('supported') else 'no'}")
 		L += [f"## {dev['disk']} -- {dev['role']} ({dev['kind']})", "",
 			  f"- **Model** {ident.get('model', '?')}  **Transport** "
 			  f"{ident.get('transport', '?')}  **Bridge** {ident.get('bridge', '-')}",
 			  f"- **Filesystem** {dev.get('source')} ({dev.get('fstype')}) on "
-			  f"`{dev.get('mountpoint')}`", "", "### Findings", ""]
+			  f"`{dev.get('mountpoint')}`"] + ([summary] if summary else []) + \
+			 ["", "### Findings", ""]
 		L += [f"- **[{x['level']}] {x['title']}**{(' -- ' + x['detail']) if x['detail'] else ''}"
 			  for x in d["findings"]] or ["- none"]
 		files = (d["workload"] or {}).get("files", [])
 		if files:
 			L += ["", "### Files", "",
-				  "| n | GB | MB/s | p50 ms | p99 ms | max ms | >1 s | read MB/s | bad | fill % |",
-				  "|---|---|---|---|---|---|---|---|---|---|"]
+				  "| n | GB | MB/s | p50 ms | p99 ms | max ms | >RT | behind MB | "
+				  "read MB/s | bad | fill % |",
+				  "|---|---|---|---|---|---|---|---|---|---|---|"]
 			L += [f"| {f['n']} | {f['gb']} | {f['mean_mb_s']} | {f['chunk_ms_p50']} | "
-				  f"{f['chunk_ms_p99']} | {f['chunk_ms_max']} | {f['chunks_over_1s']} | "
+				  f"{f['chunk_ms_p99']} | {f['chunk_ms_max']} | "
+				  f"{f.get('chunks_over_rt', '-')} | {f.get('behind_mb_max', '-')} | "
 				  f"{f.get('read_mb_s', '-')} | {f.get('chunks_bad', '-')} | "
 				  f"{f['fill_pct_after']} |" for f in files]
+			L += ["", f"*>RT*: chunks slower than real time (one chunk holds "
+				  f"{(d['workload'] or {}).get('chunk_rt_ms', '?')} ms of video at the "
+				  f"acquisition rate). *behind MB*: the most a stream at that rate "
+				  f"would have queued waiting for the drive."]
 		L.append("")
-	L += ["## fstrim", ""] + [f"- `{k}`: {v}" for k, v in report.get("fstrim", {}).items()]
-	L += ["", "Raw command output in `raw/<disk>/`; 1 Hz telemetry in "
-		  "`telemetry.csv`; kernel messages in `kernel.log`."]
+	L += ["## fstrim", ""] + [f"- `{k}`: {v.get('raw', v) if isinstance(v, dict) else v}"
+							  for k, v in report.get("fstrim", {}).items()]
+	L += ["", "Raw command output and every chunk (`chunks.csv`) in `raw/<disk>/`; "
+		  "1 Hz telemetry in `telemetry.csv`; kernel messages in `kernel.log`."]
 	with open("REPORT.md", "w") as f:
 		f.write("\n".join(L) + "\n")
 
@@ -1131,7 +1282,8 @@ def cleanup():
 	exp.__save__()
 	try:
 		print(exp.mstreams["files"].tabulate("disk", "n", "mean_mb_s",
-											 "chunk_ms_p99", "chunks_over_1s"))
+											 "chunk_ms_p99", "chunks_over_rt",
+											 "behind_mb_max"))
 	except Exception:
 		pass
 	exp.sync_dir()
