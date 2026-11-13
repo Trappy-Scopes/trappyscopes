@@ -612,6 +612,7 @@ def start_acq_blocking():
 	exp.schedule.every(a["tandh_sampling_period_minutes"]).minutes \
 		.until(timedelta(hours=a["run_hours"] + 1)).do(record_sensor)
 
+	start_kernel_log()
 	scope.lit.setVs(*a["light"])
 	scope.beacon.on()
 	cam_cycle()
@@ -707,6 +708,7 @@ def start_acq_blocking():
 			tele.close()
 		except Exception:
 			pass
+		stop_kernel_log()
 		drain_encoder(window)
 		try:
 			scope.cam.cam.stop_recording()
@@ -729,6 +731,92 @@ def start_acq_blocking():
 	## process never exits, which is exactly what left eight experiments open
 	## for two days on 2026-11-09.
 	cleanup()
+
+
+## --------------------------------------------------------------------------
+##  Kernel message stream
+## --------------------------------------------------------------------------
+
+global _dmesg_proc
+_dmesg_proc = None
+
+
+def start_kernel_log():
+	"""Stream kernel messages to kernel.log for the whole run.
+
+	`dmesg --follow` rather than periodic snapshots: the ring buffer holds a
+	bounded number of lines and a 16 h run can wrap it, losing exactly the
+	early messages that would explain a late failure. Following it also
+	timestamps each line as it arrives, so a kernel event can be lined up
+	against the inter-frame gaps -- which otherwise have no explanation
+	attached to them at all.
+	"""
+	global _dmesg_proc
+	## stdbuf -oL: dmesg block-buffers when its stdout is a file rather than a
+	## tty, so without this the last few kilobytes of kernel messages sit
+	## unflushed and are lost when the process is terminated -- precisely the
+	## messages written just before a failure.
+	for cmd in (["stdbuf", "-oL", "dmesg", "--follow", "-T"],
+				["sudo", "-n", "stdbuf", "-oL", "dmesg", "--follow", "-T"],
+				["dmesg", "--follow", "-T"]):
+		f = None
+		try:
+			f = open("kernel.log", "a", buffering=1)
+			_dmesg_proc = subprocess.Popen(cmd, stdout=f,
+										   stderr=subprocess.STDOUT)
+			## Liveness alone is too weak: `sudo -n ...` stays alive briefly
+			## before failing, and a restricted dmesg writes its refusal and
+			## exits. Require the process to still be running AND the log to
+			## be free of the refusals those two produce.
+			time.sleep(0.8)
+			refused = ""
+			try:
+				with open("kernel.log", errors="replace") as r:
+					refused = r.read()[-400:]
+			except Exception:
+				pass
+			bad = re.search(r"operation not permitted|password is required|"
+							r"not found|read kernel buffer failed|"
+							r"invalid option|unrecognized", refused, re.I)
+			if _dmesg_proc.poll() is None and not bad:
+				log.info(f"Kernel log streaming via: {' '.join(cmd)}")
+				return True
+			if bad:
+				log.error(f"kernel log refused ({cmd[0]}): {bad.group(0)}")
+			try:
+				_dmesg_proc.terminate()
+				_dmesg_proc.wait(timeout=3)
+			except Exception:
+				pass
+			_dmesg_proc = None
+		except Exception as e:
+			log.error(f"kernel log start failed ({cmd[0]}): {e}")
+		finally:
+			## The child holds its own dup of the descriptor, so closing ours
+			## is correct whether or not the attempt succeeded -- and without
+			## it each failed candidate leaks a handle.
+			if f is not None:
+				try:
+					f.close()
+				except Exception:
+					pass
+	log.error("kernel.log unavailable (dmesg restricted and sudo -n refused)")
+	return False
+
+
+def stop_kernel_log():
+	global _dmesg_proc
+	if _dmesg_proc is None:
+		return
+	try:
+		_dmesg_proc.terminate()
+		_dmesg_proc.wait(timeout=5)
+	except Exception:
+		try:
+			_dmesg_proc.kill()
+		except Exception:
+			pass
+	_dmesg_proc = None
 
 
 ## --------------------------------------------------------------------------
@@ -803,6 +891,18 @@ def run_stats():
 			if cols["csi_irq"] and cols["csi_irq"][0] >= 0:
 				out["csi_irq_total"] = int(cols["csi_irq"][-1] - cols["csi_irq"][0])
 		out["throttled_values"] = sorted(v for v in thr if v and v != "?")
+		try:
+			if os.path.exists("kernel.log"):
+				with open("kernel.log", errors="replace") as f:
+					lines = f.readlines()
+				out["kernel_lines"] = len(lines)
+				out["kernel_errors"] = sum(
+					1 for l in lines if re.search(
+						r"error|fail|timed out|reset|under-volt|oom", l, re.I))
+			else:
+				out["kernel_lines"] = -1
+		except Exception as e:
+			log.error(f"kernel.log summary failed: {e}")
 		out["stalls"] = stalls
 	except Exception as e:
 		log.error(f"run_stats failed: {type(e).__name__}: {e}")
