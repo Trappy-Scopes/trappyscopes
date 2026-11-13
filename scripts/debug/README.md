@@ -151,3 +151,59 @@ by slug and returns `(level, title, detail, slug)`, where `level` is
 should check. Prefer decoding a field over counting a regex, and make sure a
 healthy scope produces no warnings — a check that cries wolf trains people to
 skip the section.
+
+---
+
+# fleet_clock_synchronization.py
+
+How far apart are the scopes' clocks? Needed to line up a disturbance seen on
+several scopes. The clocks are not made perfect: each scope logs a **maximum
+error**, so any two scopes can be compared with a known bound.
+
+Built only on standard tools: the NAS serves NTP on both lanes, each scope runs
+**chrony** with the lane NAS as its only source, and the experiment logs what
+chrony measures, the way Lab Streaming Layer logs clock offsets next to data.
+
+## Before the first run
+
+1. DSM: **Control Panel → Regional Options → NTP Service → Enable NTP service.**
+   Recommended: check the NAS itself is synchronised (Time tab, *Update now*).
+2. Once per scope, in the framework shell:
+
+```python
+install_requirements()   # asks for sudo once; installs chrony, NAS-only config
+```
+
+The NAS is picked from the scope's own address via `exp.params["lane_servers"]`
+(default `192.168.1.0/24 → 192.168.1.1`, `192.168.2.0/24 → 192.168.2.1`). With
+no lane address it stops and changes nothing.
+
+## Run
+
+```python
+create_exp()
+start_acq_blocking()     # 2 h by default; exp.params["duration_h"]
+```
+
+Set `exp.params["start_at"] = "16:40"` on every scope for identical windows.
+Not required: samples tick on the same wall-clock seconds on every scope.
+
+| Output | Rate | What |
+|---|---|---|
+| `tracking.csv` | every 10 s | `chronyc tracking`: offset, root delay and dispersion, `max_error_s` |
+| `ntp` stream | one row per clock update | `chronyc ntpdata`: offset to the NAS, peer delay and dispersion, the NAS's own root delay and dispersion (needs sudo) |
+| `setup` stream | start and end | source list, route, chrony version, timesyncd state, sign check |
+| `tandh` stream | 5 min | temperature and humidity |
+
+`max_error_s = |offset| + root dispersion + root delay / 2` is chrony's own
+bound. Offsets are positive when the scope's clock is ahead.
+
+## Side effects of `install_requirements()`
+
+- Removes systemd-timesyncd (it conflicts with chrony). `timedatectl
+  timesync-status` stops working; `timedatectl` still works.
+- fake-hwclock still sets the clock at boot; chrony steps it once, then only
+  slews, so no jumps mid-run.
+- No lane cable means no time source; the logged error grows.
+- Undo: `sudo apt-get install systemd-timesyncd`. The original config is kept
+  at `/etc/chrony/chrony.conf.orig-trappyscopes`.
