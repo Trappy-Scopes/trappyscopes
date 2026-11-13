@@ -313,19 +313,22 @@ def new_encoder():
 ## data and libcamera passes it on as "SensorTemperature" (integer degC,
 ## clamped -20..80). It is sampled from a post_callback once a second, not per
 ## frame. Absent from the metadata -> the column stays blank.
-global _cam_temp, _cam_temp_at
+global _cam_temp, _cam_temp_at, _clock_pair
 _cam_temp, _cam_temp_at = None, 0.0
+_clock_pair = None      # (boot_ns, SensorTimestamp) from one frame, for the check
 
 
 def _cam_temp_cb(request):
 	"""Runs on the camera thread for every frame, so it must be cheap and must
 	never raise. Reads the metadata at most once a second."""
-	global _cam_temp, _cam_temp_at
+	global _cam_temp, _cam_temp_at, _clock_pair
 	try:
 		now = time.monotonic()
 		if now - _cam_temp_at >= 1.0:
 			_cam_temp_at = now
-			_cam_temp = request.get_metadata().get("SensorTemperature")
+			md = request.get_metadata()
+			_cam_temp = md.get("SensorTemperature")
+			_clock_pair = (_boot_ns(), md.get("SensorTimestamp"))
 	except Exception:
 		pass
 
@@ -667,21 +670,43 @@ def verify_tuning():
 	return res
 
 
-def check_cam_temp():
-	"""Is the camera-sensor temperature actually reported? Answered from real
-	frames (the callback has seen ~50 by now), not from the libcamera source.
-	Logged; never raises."""
-	t = _cam_temp_c()
-	ok = t != ""
-	msg = (f"{t} degC -- SensorTemperature present" if ok else
-		   "not in the frame metadata -- cam_temp_c stays blank")
-	print(Panel(msg, title=f"[{'green' if ok else 'yellow'}]camera temperature"))
+def check_telemetry_sources():
+	"""Can each new telemetry value actually be read on THIS scope? Answered
+	from the live camera and sensor ~2 s into the run, not from source code:
+	the camera stack is hardware-specific. Logged; never raises.
+
+	clock: boot_ns minus the SensorTimestamp of the same frame. On one clock
+	this is the frame's age when the callback saw it -- tens of ms. On two
+	different clocks it would be off by seconds or more, and boot_ns could not
+	be used to put t_ns on the wall clock."""
+	res, ok = {}, {}
 	try:
-		Experiment.current.log_event("cam_temp_check",
-									 attribs={"present": ok, "value": t})
+		t = _cam_temp_c()
+		res["cam_temp_c"], ok["cam_temp_c"] = t, t != ""
+
+		temp, hum = _tandh_now()
+		res["tandh"] = {"temp": temp, "humidity": hum, "read_s": _tandh_read_s}
+		ok["tandh"] = temp != ""
+
+		if _clock_pair and _clock_pair[1]:
+			age_ms = round((_clock_pair[0] - _clock_pair[1]) / 1e6, 1)
+			res["boot_minus_sensor_ms"] = age_ms
+			ok["clock"] = 0 <= age_ms < 1000
+		else:
+			res["boot_minus_sensor_ms"], ok["clock"] = None, False
 	except Exception as e:
-		log.error(f"cam_temp_check log failed: {e}")
-	return ok
+		res["error"] = f"{type(e).__name__}: {e}"
+	res["ok"] = ok
+	good = bool(ok) and all(ok.values())
+	print(Panel(Pretty(res), title=f"[{'green' if good else 'yellow'}]telemetry "
+				f"sources: {'all readable' if good else 'CHECK'}"))
+	try:
+		Experiment.current.log_event("telemetry_check", attribs=res)
+		if not good:
+			Experiment.current.note(f"Telemetry check: {ok}")
+	except Exception as e:
+		log.error(f"telemetry_check log failed: {e}")
+	return res
 
 
 ## --------------------------------------------------------------------------
@@ -714,8 +739,8 @@ def mark(label=""):
 
 ## T&H is read by one thread only. The sensor sits behind the Pico's serial
 ## link, and two threads talking to it at once would interleave on the wire.
-global _tandh, _tandh_at, _tandh_stop, _tandh_thread
-_tandh, _tandh_at = None, 0.0
+global _tandh, _tandh_at, _tandh_read_s, _tandh_stop, _tandh_thread
+_tandh, _tandh_at, _tandh_read_s = None, 0.0, None
 _tandh_stop = threading.Event()
 _tandh_thread = None
 
@@ -723,12 +748,13 @@ _tandh_thread = None
 def _tandh_loop(period_s):
 	"""Read T&H every period_s into _tandh. Runs off the watchdog loop, so a
 	slow serial reply cannot delay stall detection."""
-	global _tandh, _tandh_at
+	global _tandh, _tandh_at, _tandh_read_s
 	scope = ScopeAssembly.current
 	while not _tandh_stop.is_set():
 		t = time.monotonic()
 		try:
 			_tandh, _tandh_at = scope.tandh.read(), time.monotonic()
+			_tandh_read_s = round(_tandh_at - t, 3)
 		except Exception as e:
 			log.error(f"tandh read failed: {type(e).__name__}: {e}")
 		_tandh_stop.wait(max(0.0, period_s - (time.monotonic() - t)))
@@ -852,7 +878,7 @@ def start_acq_blocking():
 	start_recording()
 	time.sleep(2.0)             # let AWB settle so the reported CT is meaningful
 	verify_tuning()
-	check_cam_temp()
+	check_telemetry_sources()
 
 	record_sensor()
 	exp.schedule.every(a["tandh_sampling_period_minutes"]).minutes \
