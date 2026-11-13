@@ -125,6 +125,11 @@ def populate_exp():
 	exp.attribs["channels"] = ("r", "g", "b")
 	exp.attribs["tandh_sampling_period_minutes"] = 5
 
+	## T&H is also read at this period into telemetry.csv, alongside the CPU
+	## and camera-sensor temperatures. The tandh stream above stays at 5 min:
+	## every stream call rewrites the experiment YAML, which is disk I/O.
+	exp.attribs["tandh_poll_s"] = 1.0
+
 	## Per-frame records are flushed to CSV on this interval. Without a
 	## flush_fn the encoder keeps every record in memory, and 16 h at 25 Hz is
 	## ~1.4 million of them -- see JpegEncoderRedWithBGStats.
@@ -304,10 +309,41 @@ def new_encoder():
 	return enc, NullOutput()
 
 
+## Camera-sensor temperature. The IMX477 reports it in each frame's embedded
+## data and libcamera passes it on as "SensorTemperature" (integer degC,
+## clamped -20..80). It is sampled from a post_callback once a second, not per
+## frame. Absent from the metadata -> the column stays blank.
+global _cam_temp, _cam_temp_at
+_cam_temp, _cam_temp_at = None, 0.0
+
+
+def _cam_temp_cb(request):
+	"""Runs on the camera thread for every frame, so it must be cheap and must
+	never raise. Reads the metadata at most once a second."""
+	global _cam_temp, _cam_temp_at
+	try:
+		now = time.monotonic()
+		if now - _cam_temp_at >= 1.0:
+			_cam_temp_at = now
+			_cam_temp = request.get_metadata().get("SensorTemperature")
+	except Exception:
+		pass
+
+
+def _cam_temp_c():
+	"""The last reading, or blank if it is more than 5 s old (camera stalled)."""
+	if _cam_temp is None or time.monotonic() - _cam_temp_at > 5.0:
+		return ""
+	return round(float(_cam_temp), 1)
+
+
 def start_recording():
 	"""Begin a continuous recording into the null sink."""
 	global encoder, sink, scope
 	encoder, sink = new_encoder()
+	## Re-attached on every start: cam_cycle() clears the callbacks, and a
+	## level-2 recovery replaces the Picamera2 object entirely.
+	scope.cam.cam.post_callback = _cam_temp_cb
 	scope.cam.cam.start_recording(encoder, sink)
 	log.info("Recording started (frames discarded, intensities kept).")
 
@@ -631,6 +667,23 @@ def verify_tuning():
 	return res
 
 
+def check_cam_temp():
+	"""Is the camera-sensor temperature actually reported? Answered from real
+	frames (the callback has seen ~50 by now), not from the libcamera source.
+	Logged; never raises."""
+	t = _cam_temp_c()
+	ok = t != ""
+	msg = (f"{t} degC -- SensorTemperature present" if ok else
+		   "not in the frame metadata -- cam_temp_c stays blank")
+	print(Panel(msg, title=f"[{'green' if ok else 'yellow'}]camera temperature"))
+	try:
+		Experiment.current.log_event("cam_temp_check",
+									 attribs={"present": ok, "value": t})
+	except Exception as e:
+		log.error(f"cam_temp_check log failed: {e}")
+	return ok
+
+
 ## --------------------------------------------------------------------------
 ##  Marks
 ## --------------------------------------------------------------------------
@@ -659,19 +712,63 @@ def mark(label=""):
 ##  Sensors
 ## --------------------------------------------------------------------------
 
-def record_sensor():
-	"""Read temperature and humidity. Must never raise: this runs as a
-	scheduled job, and ExpScheduler.loop has no try/except, so anything
-	escaping here kills the scheduler thread and the rest of the run."""
-	try:
-		scope = ScopeAssembly.current
-		tandh = Experiment.current.mstreams["tandh"]
+## T&H is read by one thread only. The sensor sits behind the Pico's serial
+## link, and two threads talking to it at once would interleave on the wire.
+global _tandh, _tandh_at, _tandh_stop, _tandh_thread
+_tandh, _tandh_at = None, 0.0
+_tandh_stop = threading.Event()
+_tandh_thread = None
+
+
+def _tandh_loop(period_s):
+	"""Read T&H every period_s into _tandh. Runs off the watchdog loop, so a
+	slow serial reply cannot delay stall detection."""
+	global _tandh, _tandh_at
+	scope = ScopeAssembly.current
+	while not _tandh_stop.is_set():
+		t = time.monotonic()
 		try:
-			value = scope.tandh.read()
-		except Exception:
+			_tandh, _tandh_at = scope.tandh.read(), time.monotonic()
+		except Exception as e:
+			log.error(f"tandh read failed: {type(e).__name__}: {e}")
+		_tandh_stop.wait(max(0.0, period_s - (time.monotonic() - t)))
+
+
+def start_tandh(period_s):
+	global _tandh_thread
+	_tandh_stop.clear()
+	_tandh_thread = threading.Thread(target=_tandh_loop, args=(period_s,),
+									 daemon=True)
+	_tandh_thread.start()
+
+
+def stop_tandh():
+	_tandh_stop.set()
+	if _tandh_thread is not None:
+		_tandh_thread.join(timeout=10)
+
+
+def _tandh_now():
+	"""(temp, humidity) from the last reading, blank if older than 5 s."""
+	if not _tandh or time.monotonic() - _tandh_at > 5.0:
+		return "", ""
+	return _tandh.get("temp", ""), _tandh.get("humidity", "")
+
+
+def record_sensor():
+	"""Write the latest T&H reading to the tandh stream. Must never raise:
+	this runs as a scheduled job, and ExpScheduler.loop has no try/except, so
+	anything escaping here kills the scheduler thread and the rest of the run.
+
+	Uses the T&H thread's last reading rather than reading the sensor, so the
+	serial link only ever has one user."""
+	try:
+		tandh = Experiment.current.mstreams["tandh"]
+		temp, hum = _tandh_now()
+		if temp == "":
 			print("[red]TandH reading failed![default]")
-			value = {"temp": 0, "humidity": 0}
-		tandh(**value).panel()
+			temp, hum = 0, 0
+		tandh(temp=temp, humidity=hum).panel()
 	except Exception as e:
 		log.error(f"record_sensor failed: {type(e).__name__}: {e}")
 
@@ -702,9 +799,21 @@ def _telemetry_row(w, t0, window):
 					_cma_free_mb(),
 					_temp_c(),
 					_throttled(),
-					_csi_irq()])
+					_csi_irq(),
+					_cam_temp_c(),
+					*_tandh_now(),
+					_boot_ns()])
 	except Exception as e:
 		log.error(f"telemetry row failed: {type(e).__name__}: {e}")
+
+
+def _boot_ns():
+	"""The clock SensorTimestamp is on (CLOCK_BOOTTIME), so each row pairs it
+	with the wall clock and t_ns in intensities.csv maps onto wall time."""
+	try:
+		return time.clock_gettime_ns(time.CLOCK_BOOTTIME)
+	except (AttributeError, OSError):
+		return time.monotonic_ns()
 
 
 def start_acq_blocking():
@@ -727,22 +836,27 @@ def start_acq_blocking():
 		csv.writer(f).writerow(["wall", "elapsed_s", "window", "cam_frames",
 								"sink_frames", "queue", "out_thread_alive",
 								"rss_mb", "cma_free_mb", "temp_c", "throttled",
-								"csi_irq"])
+								"csi_irq", "cam_temp_c", "tandh_temp",
+								"tandh_rh", "boot_ns"])
 
 	print("[red]Clearing experiment scheduler...")
 	exp.schedule.clear()
 
-	record_sensor()
-	exp.schedule.every(a["tandh_sampling_period_minutes"]).minutes \
-		.until(timedelta(hours=a["run_hours"] + 1)).do(record_sensor)
-
 	start_kernel_log()
 	scope.lit.setVs(*a["light"])
 	scope.beacon.on()
+	## Only after the last set-up command to the Pico: from here on the T&H
+	## thread is the serial link's only user until stop_tandh().
+	start_tandh(a["tandh_poll_s"])
 	cam_cycle()
 	start_recording()
 	time.sleep(2.0)             # let AWB settle so the reported CT is meaningful
 	verify_tuning()
+	check_cam_temp()
+
+	record_sensor()
+	exp.schedule.every(a["tandh_sampling_period_minutes"]).minutes \
+		.until(timedelta(hours=a["run_hours"] + 1)).do(record_sensor)
 
 	exp.logs.update(scope.get_config())
 	exp.__save__()
@@ -835,6 +949,7 @@ def start_acq_blocking():
 		except Exception:
 			pass
 		stop_kernel_log()
+		stop_tandh()            # before anything else talks to the Pico
 		drain_encoder(window)
 		try:
 			scope.cam.cam.stop_recording()
@@ -992,7 +1107,8 @@ def run_stats():
 
 		## --- telemetry ------------------------------------------------------
 		cols = {k: [] for k in ("cam_frames", "sink_frames", "queue",
-								"rss_mb", "cma_free_mb", "temp_c", "csi_irq")}
+								"rss_mb", "cma_free_mb", "temp_c", "csi_irq",
+								"cam_temp_c", "tandh_temp")}
 		thr = set()
 		with open(telem_path) as f:
 			for row in csv.DictReader(f):
@@ -1014,6 +1130,13 @@ def run_stats():
 			if cols["temp_c"]:
 				out["temp_c_max"] = max(cols["temp_c"])
 				out["temp_c_mean"] = round(sum(cols["temp_c"]) / len(cols["temp_c"]), 1)
+			for k in ("cam_temp_c", "tandh_temp"):
+				if cols[k]:
+					out[f"{k}_min"] = min(cols[k])
+					out[f"{k}_max"] = max(cols[k])
+					out[f"{k}_mean"] = round(sum(cols[k]) / len(cols[k]), 2)
+				else:
+					out[f"{k}_rows"] = 0
 			if cols["csi_irq"] and cols["csi_irq"][0] >= 0:
 				out["csi_irq_total"] = int(cols["csi_irq"][-1] - cols["csi_irq"][0])
 		out["throttled_values"] = sorted(v for v in thr if v and v != "?")
