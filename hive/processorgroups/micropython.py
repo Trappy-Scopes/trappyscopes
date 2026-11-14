@@ -111,10 +111,11 @@ class SerialMPDevice(MicropythonDevice):
 		return mpdevices
 	
 	def connect(self, port):
+		opened = None
 		try:
 			port = port.strip()
 			log.debug(f"Attempting connection to — {port}")
-			self.device = pyboard.Pyboard(port, 115200)
+			self.device = opened = pyboard.Pyboard(port, 115200)
 			self.port = port
 			self.connected = True
 			log.debug(f"Connected to port: {self.port}")
@@ -125,12 +126,28 @@ class SerialMPDevice(MicropythonDevice):
 		except Exception as e:
 			log.debug(f"Connection failed - {port}!")
 			log.error(e)
+			## A failed connect leaves the object disconnected. Before this,
+			## `connected` kept its old value (True after a wrong-board match),
+			## so auto_connect() went on to use a closed port and crashed.
+			self.connected = False
+			## The serial open is exclusive: release the port if this call opened it.
+			if opened is not None:
+				try:
+					opened.close()
+				except Exception:
+					pass
 
 	def disconnect(self):
-		self.device.exit_raw_repl()
-		self.device.close()
-		if self.port in SerialMPDevice.exclusion_list:
-			SerialMPDevice.exclusion_list.remove(self.port)
+		## An explicit disconnect always marks the object disconnected and frees
+		## its port, even when the device is dead and exit_raw_repl() fails.
+		## The error is still raised to the caller.
+		try:
+			self.device.exit_raw_repl()
+		finally:
+			self.connected = False
+			if self.port in SerialMPDevice.exclusion_list:
+				SerialMPDevice.exclusion_list.remove(self.port)
+			self.device.close()
 
 	def auto_connect(self, port=None):
 		"""
