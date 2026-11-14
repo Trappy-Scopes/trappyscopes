@@ -57,6 +57,24 @@ RECOMMENDED: make sure the NTP server the scopes follow (here the NAS) is
 itself well synchronised before the experiment starts. This is a suggestion;
 the run warns but does not stop.
 
+The Pico's clock (pico stream)
+------------------------------
+Nothing in trappyscopes or the Pico firmware sets the Pico's RTC (the
+firmware's own NTP sync, DTSync, is commented out), so it keeps whatever time
+it had since power-up. This run reads it over the existing serial link:
+  as found   the first pico_set_after_min minutes, RTC untouched
+  set        once, to this Pi's UTC, on a whole second
+  after_set  the rest of the run: the drift, in ppm, is the slope
+Method: Cristian's algorithm (NTP's request-response, over serial). The
+MicroPython RTC counts whole seconds, so the Pico waits for its seconds to tick
+over and reports when, in its microsecond ticks. The tick happened in this Pi's
+time between t0 + wait and t1 - (Pico busy - wait), where t0 is when the
+request was sent and t1 when the first reply byte arrived:
+	offset_s = Pico time at the tick - this Pi's time at the tick (+ = Pico ahead)
+	error_s  = (t1 - t0 - Pico busy) / 2  +  tick resolution
+All Pico calls, T&H included, run one at a time from the main loop, with a
+timeout: a hung Pico stops the Pico part only.
+
 Side effects of install_requirements(), checked on the Raspberry Pi forums
 ---------------------------------------------------------------------------
 - Installing chrony removes systemd-timesyncd (the packages conflict).
@@ -70,8 +88,11 @@ Side effects of install_requirements(), checked on the Raspberry Pi forums
 - The scope does not become a time server (no `allow` line).
 - Undo: `sudo apt-get install systemd-timesyncd` (removes chrony). The
   original chrony.conf is kept at /etc/chrony/chrony.conf.orig-trappyscopes.
+- start_acq_blocking() sets the Pico's RTC to UTC once (pico_set_after_min;
+  None leaves it as found). Nothing else on the Pico is changed.
 """
 
+import ast
 import atexit
 import csv
 import datetime
@@ -87,7 +108,6 @@ import subprocess
 import tempfile
 import threading
 import time
-from datetime import timedelta
 
 from rich import print
 from rich.panel import Panel
@@ -98,7 +118,8 @@ from hive.assembly import ScopeAssembly
 
 
 __description__ = \
-"""Fleet clock synchronisation -- this scope's clock against the lane NAS.
+"""Fleet clock synchronisation -- this scope's clock against the lane NAS, and
+its Pico's clock against this scope.
 
 install_requirements() once per scope, then create_exp() and
 start_acq_blocking(). Runs for exp.params["duration_h"] and exits.
@@ -475,6 +496,157 @@ def sign_check(nd, sources):
 
 
 ## ==========================================================================
+##  The Pico's clock
+## ==========================================================================
+
+## Loaded onto the Pico once per run, into the raw REPL's globals.
+##   _fcs_probe()  waits for the RTC seconds to tick over, then returns
+##                 (q, p, e, busy) in us since it started, and the new datetime:
+##                 the tick fell between q and e, best estimate p.
+##   _fcs_set()    waits wait_us, then sets the RTC.
+PICO_CODE = """
+import machine, time, sys, os
+def _fcs_probe():
+    r = machine.RTC(); tu = time.ticks_us; td = time.ticks_diff
+    a = tu(); s0 = r.datetime()[6]; q = p = a
+    while True:
+        q = p; p = tu(); d = r.datetime()
+        if d[6] != s0:
+            break
+        if td(p, a) > 2000000:
+            return None
+    e = tu()
+    return (td(q, a), td(p, a), td(e, a), td(tu(), a), d)
+def _fcs_set(d, wait_us):
+    a = time.ticks_us()
+    while time.ticks_diff(time.ticks_us(), a) < wait_us:
+        pass
+    machine.RTC().datetime(d)
+def _fcs_info():
+    ns = []
+    for _ in range(3):
+        ns.append(time.time_ns() if hasattr(time, "time_ns") else None)
+        time.sleep_ms(7)
+    return (getattr(sys.implementation, "_machine", ""), os.uname().release,
+            machine.RTC().datetime(), ns)
+"""
+
+PICO_TIMEOUT_S = 10.0
+_pico_stuck = False
+
+
+def _pico_call(fn, what):
+	"""Run one Pico call with a timeout -> (ok, value).
+
+	A serial exec to the Pico has no timeout of its own: if the Pico stops
+	answering, the caller blocks for ever. So the call runs on a helper thread.
+	After one hang the link is never used again -- a second exec on top of one
+	still waiting would interleave on the wire."""
+	global _pico_stuck
+	if _pico_stuck:
+		return False, None
+	box = {}
+
+	def run():
+		try:
+			box["value"] = fn()
+		except Exception as e:
+			box["err"] = f"{type(e).__name__}: {e}"
+
+	t = threading.Thread(target=run, daemon=True, name="pico-call")
+	t.start()
+	t.join(PICO_TIMEOUT_S)
+	if t.is_alive():
+		_pico_stuck = True
+		msg = (f"Pico serial: no reply to {what} for {PICO_TIMEOUT_S:.0f} s. No "
+			   f"further Pico calls this run; the clock measurement continues.")
+		log.error(msg)
+		print(Panel(f"[red]{msg}", title="pico hang"))
+		try:
+			Experiment.current.log_event("pico_hang", attribs={"call": what})
+			Experiment.current.note(msg)
+		except Exception as e:
+			log.error(f"pico_hang log failed: {e}")
+		return False, None
+	if "err" in box:
+		log.error(f"{what} failed: {box['err']}")
+		return False, None
+	return True, box.get("value")
+
+
+def _pico_eval(dev, expr):
+	"""Evaluate expr on the Pico; its printed repr parsed back."""
+	return ast.literal_eval(dev.device.exec_(f"print(repr({expr}))").decode().strip())
+
+
+def _pico_epoch(d):
+	"""MicroPython RTC datetime tuple -> seconds since 1970 (read as UTC)."""
+	return datetime.datetime(d[0], d[1], d[2], d[4], d[5], d[6],
+							 tzinfo=datetime.timezone.utc).timestamp()
+
+
+def pico_start(name):
+	"""The scope's Pico with the probe loaded, or None (no Pico part)."""
+	dev = getattr(ScopeAssembly.current, name, None) if name else None
+	if not getattr(dev, "connected", False) or getattr(dev, "device", None) is None:
+		print(f"[yellow]No Pico '{name}' connected: its clock is not measured.")
+		return None
+	ok, _ = _pico_call(lambda: dev.device.exec_(PICO_CODE), "loading the clock probe")
+	if not ok:
+		return None
+	ok, info = _pico_call(lambda: _pico_eval(dev, "_fcs_info()"), "_fcs_info()")
+	if ok:
+		machine, release, rtc, ns = info
+		ns = [x for x in ns if x is not None]
+		info = {"device": name, "machine": machine, "micropython": release,
+				"rtc_as_found": list(rtc),
+				"rtc_subseconds_field": rtc[7],
+				"time_ns_subsecond": any(x % 1_000_000_000 for x in ns) if ns else None}
+		Experiment.current.log_event("pico_check", attribs=info)
+		print(Panel(Pretty(info), title="pico"))
+	return dev
+
+
+def pico_probe(dev):
+	"""One clock reading, or None if the RTC did not tick within 2 s."""
+	got, first = [], []
+
+	def take(b):                       # pyboard calls this per byte, as it arrives
+		if not first:
+			first.append(time.time())
+		got.append(b)
+
+	t0 = time.time()
+	_, err = dev.device.exec_raw("print(repr(_fcs_probe()))", timeout=5,
+								 data_consumer=take)
+	if err:
+		raise RuntimeError(err.decode("utf-8", "replace").strip()[-300:])
+	r = ast.literal_eval(b"".join(got).decode().strip("\x04\r\n "))
+	if r is None:
+		return None
+	q, p, e, busy, d = r
+	t1 = first[0]
+	half = (t1 - t0 - busy * 1e-6) / 2           # half the time on the wire
+	tick = t0 + p * 1e-6 + half                  # this Pi's time at the tick
+	return {"pico_time": "%04d-%02d-%02dT%02d:%02d:%02d" % (d[0], d[1], d[2], d[4], d[5], d[6]),
+			"offset_s": _pico_epoch(d) - tick,
+			"error_s": half + max(p - q, e - p) * 1e-6,
+			"wire_s": 2 * half, "wait_s": p * 1e-6, "tick": tick, "half_s": half}
+
+
+def pico_set(dev, half_s):
+	"""Set the Pico RTC to this Pi's UTC on a whole second. half_s is the
+	estimated time from sending to the Pico starting (half the wire time)."""
+	t0 = time.time()
+	target = math.floor(t0) + 2                  # at least a second away
+	d = datetime.datetime.fromtimestamp(target, datetime.timezone.utc)
+	tup = (d.year, d.month, d.day, d.weekday(), d.hour, d.minute, d.second, 0)
+	wait_us = int((target - t0 - half_s) * 1e6)
+	dev.device.exec_(f"_fcs_set({tup}, {wait_us})")
+	return {"target_utc": d.isoformat(), "wait_us": wait_us}
+
+
+## ==========================================================================
 ##  Experiment
 ## ==========================================================================
 
@@ -489,6 +661,11 @@ def populate_exp():
 	## wall-clock seconds on every scope -- only to give identical windows.
 	exp.attribs["start_at"] = None
 	exp.attribs["tandh_sampling_period_minutes"] = 5
+	## The Pico's clock: scope device name (None to skip), one reading per
+	## period, and when to set it (minutes after the start; None = never).
+	exp.attribs["pico_device"] = "pico"
+	exp.attribs["pico_probe_period_s"] = 60
+	exp.attribs["pico_set_after_min"] = 5
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
 
@@ -511,20 +688,38 @@ def create_exp():
 					  "server_stratum", "server_root_delay_s", "server_root_dispersion_s",
 					  "poll_s", "clock_offset_s", "root_delay_s",
 					  "root_dispersion_s", "freq_ppm", "skew_ppm", "max_error_s"])
+	## One row per Pico clock reading (about one a minute).
+	exp.new_measurementstream("pico",
+		monitors=["phase", "pico_time"],
+		measurements=["offset_s", "error_s", "wire_s", "wait_s"])
 	populate_exp()
 	check_requirements()
 
 
 def record_sensor():
-	"""Scheduled job -- must never raise; ExpScheduler.loop has no try/except."""
+	"""One T&H row. Called from the main loop, never from a second thread:
+	the sensor sits behind the Pico's serial link. Must never raise."""
 	try:
-		try:
-			value = ScopeAssembly.current.tandh.read()
-		except Exception:
+		ok, value = _pico_call(lambda: ScopeAssembly.current.tandh.read(), "tandh.read()")
+		if not ok or not isinstance(value, dict):
 			value = {"temp": 0, "humidity": 0}
 		Experiment.current.mstreams["tandh"](**value).panel()
 	except Exception as e:
 		log.error(f"record_sensor failed: {e}")
+
+
+def record_pico(dev, phase):
+	"""One `pico` row. Returns the reading, or None."""
+	ok, r = _pico_call(lambda: pico_probe(dev), "_fcs_probe()")
+	if not ok or r is None:
+		if ok:
+			log.error("Pico RTC did not tick within 2 s")
+		return None
+	Experiment.current.mstreams["pico"](phase=phase, **{k: r[k] for k in
+		("pico_time", "offset_s", "error_s", "wire_s", "wait_s")})
+	print(f"{datetime.datetime.now():%H:%M:%S}  Pico clock {r['offset_s']:+.4f} s "
+		  f"(+/- {r['error_s'] * 1e3:.1f} ms, {phase})")
+	return r
 
 
 def record_setup(phase, lane, have_sudo):
@@ -603,15 +798,23 @@ def start_acq_blocking():
 		sudo_end()
 		return
 
+	## No scheduler thread: T&H and the Pico clock share the Pico's serial
+	## link, so both run from the loop below, one call at a time.
 	exp.schedule.clear()
-	record_sensor()
-	exp.schedule.every(a["tandh_sampling_period_minutes"]).minutes \
-		.until(timedelta(hours=a["duration_h"] + 1)).do(record_sensor)
+	global _pico_stuck
+	_pico_stuck = False
+	pico = pico_start(a.get("pico_device", "pico"))
+	pico_period = a.get("pico_probe_period_s", 60)
+	set_after = a.get("pico_set_after_min", 5)
+	pico_phase, pico_rows, last_pico = "as_found", [], None
 
 	record_setup("start", lane, have_sudo)
 	path = exp.newfile("tracking.csv", abspath=False)
 	period = a["tracking_period_s"]
-	end = time.time() + a["duration_h"] * 3600
+	start = time.time()
+	end = start + a["duration_h"] * 3600
+	set_at = start + set_after * 60 if set_after is not None else None
+	next_pico = next_tandh = start
 	errors, last_rx, last_ref, n_ntp = [], None, None, 0
 	print(f"[green]Recording until "
 		  f"{datetime.datetime.fromtimestamp(end):%H:%M}. Ctrl-C stops early.")
@@ -654,6 +857,26 @@ def start_acq_blocking():
 							  f"{nd['peer_delay_s'] * 1e6:7.1f} us  max error "
 							  f"{(t['max_error_s'] or 0) * 1e3:6.3f} ms")
 					last_rx = nd["valid_rx"]
+
+				## The Pico, after the tracking sample (which is on the second).
+				if pico is not None and not _pico_stuck and wall >= next_pico:
+					next_pico += pico_period
+					if set_at is not None and wall >= set_at and pico_phase == "as_found":
+						half = last_pico["half_s"] if last_pico else 0.002
+						ok, info = _pico_call(lambda: pico_set(pico, max(half, 0.0)),
+											  "_fcs_set()")
+						if ok:
+							pico_phase = "after_set"
+							exp.log_event("pico_rtc_set", attribs={
+								**info, "offset_before_s": (last_pico or {}).get("offset_s")})
+						set_at = None              # once, even if it failed
+					r = record_pico(pico, pico_phase)
+					if r:
+						last_pico = r
+						pico_rows.append((pico_phase, r["tick"], r["offset_s"]))
+				if wall >= next_tandh:
+					next_tandh += a["tandh_sampling_period_minutes"] * 60
+					record_sensor()
 	except KeyboardInterrupt:
 		print("\n[yellow]Stopped early.")
 	finally:
@@ -669,6 +892,17 @@ def start_acq_blocking():
 		summary.update(max_error_ms_median=round(statistics.median(errors) * 1e3, 3),
 					   max_error_ms_p99=round(errors[int(0.99 * (len(errors) - 1))] * 1e3, 3),
 					   max_error_ms_max=round(errors[-1] * 1e3, 3))
+	summary["pico_rows"] = len(pico_rows)
+	if pico_rows:
+		summary["pico_offset_as_found_s"] = round(pico_rows[0][2], 4)
+		after = [(x, y) for ph, x, y in pico_rows if ph == "after_set"]
+		if len(after) >= 3:
+			mx = sum(x for x, _ in after) / len(after)
+			my = sum(y for _, y in after) / len(after)
+			slope = (sum((x - mx) * (y - my) for x, y in after)
+					 / sum((x - mx) ** 2 for x, _ in after))
+			summary["pico_drift_ppm"] = round(slope * 1e6, 2)
+			summary["pico_offset_end_ms"] = round(after[-1][1] * 1e3, 1)
 	exp.log_event("clock_summary", attribs=summary)
 	print(Panel(Pretty(summary), title="fleet clock synchronisation"))
 	cleanup(summary)

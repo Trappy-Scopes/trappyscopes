@@ -194,9 +194,18 @@ Not required: samples tick on the same wall-clock seconds on every scope.
 | `ntp` stream | one row per clock update | `chronyc ntpdata`: offset to the NTP server, peer delay and dispersion, the server's own root delay and dispersion (`server_*`; needs sudo) |
 | `setup` stream | start and end | source list, route, chrony version, timesyncd state, sign check |
 | `tandh` stream | 5 min | temperature and humidity |
+| `pico` stream | 1 min | the Pico's clock against this scope: `offset_s` (+ = Pico ahead), `error_s`, `phase` (`as_found`, then `after_set`) |
 
 `max_error_s = |offset| + root dispersion + root delay / 2` is chrony's own
 bound. Offsets are positive when the scope's clock is ahead.
+
+**The Pico's clock.** Nothing sets the Pico's RTC (the firmware's NTP sync is
+commented out), so the run reads it as found for `pico_set_after_min` (5 min),
+sets it once to the Pi's UTC, then follows its drift. Each reading is an
+NTP-style request and reply over the serial link, timed to the moment the
+Pico's seconds tick over (its RTC counts whole seconds): a few ms of error.
+All Pico calls, T&H included, run one at a time from the main loop with a
+10 s timeout; a hung Pico stops only the Pico part.
 
 ## Side effects of `install_requirements()`
 
@@ -207,3 +216,5 @@ bound. Offsets are positive when the scope's clock is ahead.
 - No lane cable means no time source; the logged error grows.
 - Undo: `sudo apt-get install systemd-timesyncd`. The original config is kept
   at `/etc/chrony/chrony.conf.orig-trappyscopes`.
+- The run sets the Pico's RTC to UTC once (`pico_set_after_min = None` leaves
+  it as found).
