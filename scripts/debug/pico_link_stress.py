@@ -21,20 +21,23 @@ AI Generated -- new file, Claude (Anthropic), 2026-11.
 Pico link stress test. Finds every MicroPython board on the scope -- the ones
 the scope mounted at start-up (e.g. `pico`) and any other board plugged in --
 and drives each one through the path production uses (SerialMPDevice ->
-pyboard raw REPL), from exp.schedule: the same thread that reads T&H during a
-recording. The main thread only watches.
+pyboard raw REPL), from exp.schedule: the scheduler a recording uses. The
+main thread only watches.
+
+A bare-bones test: it assumes nothing is connected to the board. The only
+hardware it touches is the board's onboard LED, which flickers with every call.
 
     create_exp()
     start_acq_blocking()     # runs every step, writes the report, cleans up
 
-Do not run it during an acquisition: it takes over the Pico and the lights.
+Do not run it during an acquisition: it takes over the Pico.
 
 Steps -- attribs["steps"], in this order by default
 -----
 ramp                rate steps (1, 2, 5, 10, 20, 50 Hz per board). A board's
                     peak is the highest step with no timeout, error, wrong
-                    answer or recovery, and a+b p99 under p99_limit_ms.
-burst               back-to-back a+b calls for burst_s: the most the link does.
+                    answer or recovery, and p99 under p99_limit_ms.
+burst               back-to-back calls for burst_s: the most the link does.
 drill               forced reconnects, one board at a time while the others
                     keep running: close the port and reconnect in place, then
                     machine.reset() and wait for the board to come back.
@@ -48,12 +51,20 @@ pico_hang           a call that never returns (a loop on the Pico), on each
                     other job on exp.schedule, and which recovery step clears it.
 soak                soak_h hours at soak_fraction x each board's peak.
 
-Calls
------
-a+b (answer checked), "x"*N echo (checked), tandh.read() and lit.setVs(<the
-same values>) where the board has them, and time.ticks_ms() every
-uptime_every calls -- a smaller value than last time means the board rebooted
-on its own.
+The call
+--------
+At start-up, and again after any reset, the onboard LED is set up in raw mode:
+
+    import machine, time
+    _led = machine.Pin("LED", machine.Pin.OUT)
+
+Every call is then one round trip that toggles the LED, adds two random
+numbers and returns the sum with the board's uptime:
+
+    (_led.toggle(), a+b, time.ticks_ms())[1:]
+
+The sum is checked. An uptime smaller than the previous call's means the board
+rebooted on its own.
 
 Watchdog and recovery
 ---------------------
@@ -62,10 +73,10 @@ the ladder. The step that brings the board back is logged:
 
     1 wait          wait for a late reply; the link may be fine on its own
     2 interrupt     Ctrl-C, re-enter the raw REPL
-    3 soft_reset    soft reset, rerun main.py, set the lights again
+    3 soft_reset    soft reset, rerun main.py, set up the LED again
     4 reconnect     explicit disconnect(), then reconnect the SAME object by
                     its search_name (the scope's proxies keep working),
-                    main.py, check board name and uid
+                    main.py, LED, check board name and uid
     5 hard_reset    machine.reset() if the port is open, then wait up to
                     reenumerate_wait_s for the board to come back
     6 fatal         nothing worked: the run ends (end_on_fatal) or the board
@@ -80,7 +91,7 @@ pico_stress.json, REPORT.md
 
 Left in on purpose: SerialMPDevice.__call__ strips the characters "\\r\\nNone"
 from both ends of every answer (True comes back as "Tru"). Every call here
-returns a number, a dict, "x"*N or None, which it does not damage.
+returns numbers or a tuple of numbers, which it does not damage.
 """
 
 import csv
@@ -120,7 +131,7 @@ def populate_exp():
 	## exp.schedule polls every 10 ms, so 50 Hz is the useful ceiling.
 	a["ramp_hz"] = [1, 2, 5, 10, 20, 50]
 	a["ramp_step_s"] = 120
-	a["p99_limit_ms"] = 100                  # a+b round trip, for "clean"
+	a["p99_limit_ms"] = 100                  # round trip, for "clean"
 	a["burst_s"] = 60
 	a["drill_hz"] = 5                        # rate of the boards not drilled
 	a["drill_settle_s"] = 10
@@ -128,13 +139,8 @@ def populate_exp():
 	a["schedule_hang_s"] = 30
 	a["soak_h"] = 1.0
 	a["soak_fraction"] = 0.5
-	## Relative weights. tandh/light only where the board has them.
-	a["mix"] = {"add": 8, "echo": 1, "tandh": 1, "light": 1}
-	a["echo_bytes"] = 1024
-	a["uptime_every"] = 50
-	a["light"] = [0.5, 0.0, 0.0]
-	## Watchdog and recovery.
-	a["call_timeout_s"] = 5                  # tandh.read() takes ~0.25 s
+	## Watchdog and recovery. A call takes a few ms.
+	a["call_timeout_s"] = 5
 	a["late_reply_s"] = 5
 	a["alive_timeout_s"] = 3
 	a["reenumerate_wait_s"] = 30
@@ -150,11 +156,11 @@ def create_exp():
 	exp = Experiment.Construct(["pico_link_stress"])
 	exp.new_measurementstream("picos",
 		monitors=["device", "port", "board", "uid", "mpy"],
-		measurements=["has_tandh", "has_lit"])
+		measurements=["led_ok"])
 	exp.new_measurementstream("steps",
 		monitors=["step", "device", "rate_hz"],
-		measurements=["n", "ok", "timeouts", "errors", "wrong", "add_p50_ms",
-					  "add_p99_ms", "max_ms", "achieved_hz", "recoveries"])
+		measurements=["n", "ok", "timeouts", "errors", "wrong", "p50_ms", "p99_ms",
+					  "max_ms", "achieved_hz", "recoveries"])
 	populate_exp()
 
 
@@ -169,8 +175,7 @@ class _Dev:
 	def __init__(self, name, dev, owned):
 		self.name, self.dev, self.owned = name, dev, owned
 		self.port, self.board = dev.port, dev.board_name
-		self.uid, self.mpy, self.has = None, "", {}
-		self.cycle, self.i, self.rate = ["add"], 0, 0
+		self.uid, self.mpy, self.led_ok, self.rate = None, "", False, 0
 		self.busy_since, self.call_id, self.stuck_id = None, 0, None
 		self.need_recovery, self.recovering, self.paused, self.fatal = None, False, False, False
 		self.force_call, self.last_ticks = None, None
@@ -178,7 +183,7 @@ class _Dev:
 		self.recov_total, self.recov_step = Counter(), Counter()
 		self.n_recoveries, self.last_recovery = 0, None
 		self.peak_hz, self.burst_left = None, 0
-		self.steps, self.drills, self.tests = [], [], {}
+		self.steps, self.drills = [], []
 
 
 class _Fatal(Exception):
@@ -245,26 +250,37 @@ def _event(st, event, detail=""):
 ##  One call, and the scheduled jobs
 ## ==========================================================================
 
+LED_SETUP = 'import machine, time\n_led = machine.Pin("LED", machine.Pin.OUT)'
+
+
 def _call_spec(kind):
 	"""The text sent to the board and a check of its answer."""
-	if kind == "add":
+	if kind == "call":
+		## Toggle the onboard LED, add, and return the sum with the uptime.
 		a, b = random.randint(1, 10**6), random.randint(1, 10**6)
-		return f"{a}+{b}", lambda r: r == a + b
-	if kind == "echo":
-		n = A["echo_bytes"]
-		return f'"x"*{n}', lambda r: r == "x" * n
-	if kind == "tandh":
-		return "tandh.read()", lambda r: (isinstance(r, dict)
-			and -40 < r.get("temp", -99) < 85 and 0 <= r.get("humidity", -1) <= 100)
-	if kind == "light":
-		v = ", ".join(str(x) for x in A["light"])
-		return f"lit.setVs({v})", lambda r: r in ("", None)
-	if kind == "uptime":
-		return '__import__("time").ticks_ms()', lambda r: isinstance(r, int)
+		return (f"(_led.toggle(), {a}+{b}, time.ticks_ms())[1:]",
+				lambda r: isinstance(r, tuple) and len(r) == 2 and r[0] == a + b
+				and isinstance(r[1], int))
 	if kind == "hang":
 		## Never returns: a loop on the board. Only Ctrl-C ends it.
 		return 'exec("import time\\nwhile True:\\n time.sleep_ms(10)")', lambda r: False
 	raise ValueError(kind)
+
+
+def _remote(e):
+	"""True when the board answered and its own code raised (pyboard reports
+	('exception', stdout, stderr))."""
+	return isinstance(getattr(e, "args", None), tuple) and len(e.args) == 3 \
+		and e.args[0] == "exception"
+
+
+def _errtext(e):
+	if _remote(e):
+		err = e.args[2]
+		err = err.decode("utf-8", "replace") if isinstance(err, bytes) else str(err)
+		lines = [l.strip() for l in err.splitlines() if l.strip()]
+		return f"on the board: {lines[-1] if lines else err}"[:200]
+	return f"{type(e).__name__}: {e}"[:200]
 
 
 def _one_call(st, kind):
@@ -279,16 +295,20 @@ def _one_call(st, kind):
 		if not check(r):
 			outcome, detail = "wrong", repr(r)[:120]
 	except Exception as e:
-		outcome, detail = "error", f"{type(e).__name__}: {e}"[:200]
+		outcome, detail = "error", _errtext(e)
+		if "_led" in detail and "NameError" in detail:
+			## The board lost its globals: something reset it behind our back.
+			_event(st, "board_state_lost", detail)
 	finally:
 		st.busy_since = None
 	ms = (time.monotonic() - t0) * 1000
 	if st.stuck_id == cid:
 		outcome, detail = "timeout", f"released after {ms / 1000:.1f} s ({outcome}) {detail}".strip()
-	if kind == "uptime" and outcome == "ok":
-		if st.last_ticks is not None and r < st.last_ticks:
-			_event(st, "pico_uptime_reset", f"ticks_ms {st.last_ticks} -> {r}: the board rebooted")
-		st.last_ticks = r
+	if outcome == "ok" and kind == "call":
+		ticks = r[1]
+		if st.last_ticks is not None and ticks < st.last_ticks:
+			_event(st, "pico_uptime_reset", f"ticks_ms {st.last_ticks} -> {ticks}: the board rebooted")
+		st.last_ticks = ticks
 	st.rows.append((time.monotonic(), kind, outcome, ms))
 	_row("calls", f"{t_wall:.3f}", STEP, st.rate, st.name, st.port, kind,
 		 f"{ms:.1f}", outcome, detail)
@@ -298,24 +318,20 @@ def _one_call(st, kind):
 
 
 def _probe_job(st):
-	"""Runs on exp.schedule: one call from the board's mix."""
+	"""Runs on exp.schedule: one call."""
 	if st.paused or st.fatal or st.need_recovery or st.recovering:
 		return
-	if st.force_call:
-		kind, st.force_call = st.force_call, None
-	else:
-		st.i += 1
-		kind = "uptime" if st.i % A["uptime_every"] == 0 else st.cycle[st.i % len(st.cycle)]
+	kind, st.force_call = (st.force_call or "call"), None
 	_one_call(st, kind)
 
 
 def _burst_job(st):
-	"""Runs on exp.schedule: back-to-back a+b until burst_left is used up."""
+	"""Runs on exp.schedule: back-to-back calls until burst_left is used up."""
 	if st.burst_left <= 0 or st.paused or st.fatal or st.need_recovery or st.recovering:
 		return
 	t0 = time.monotonic()
 	while time.monotonic() - t0 < st.burst_left and not (st.paused or st.need_recovery):
-		_one_call(st, "add")
+		_one_call(st, "call")
 	st.burst_left -= time.monotonic() - t0
 
 
@@ -342,7 +358,7 @@ def _guarded(st, fn, timeout):
 		try:
 			box["v"] = fn()
 		except Exception as e:
-			box["e"] = f"{type(e).__name__}: {e}"
+			box["e"] = e
 
 	t = threading.Thread(target=run, daemon=True, name=f"pico_guard_{st.name}")
 	t.start()
@@ -351,7 +367,7 @@ def _guarded(st, fn, timeout):
 		st.guards.append(t)
 		return False, f"no answer in {timeout} s"
 	if "e" in box:
-		return False, box["e"]
+		return False, _errtext(box["e"])
 	return True, box.get("v")
 
 
@@ -370,11 +386,11 @@ def _wait_idle(st, seconds):
 
 
 def _alive(st):
-	"""Does the board answer a checked a+b within alive_timeout_s? Used only
-	when the link should be idle and answering."""
-	a, b = random.randint(1, 10**6), random.randint(1, 10**6)
-	ok, r = _guarded(st, lambda: st.dev(f"{a}+{b}"), A["alive_timeout_s"])
-	return ok and r == a + b
+	"""Does the board answer one checked call within alive_timeout_s? Used
+	only when the link should be idle and answering."""
+	cmd, check = _call_spec("call")
+	ok, r = _guarded(st, lambda: st.dev(cmd), A["alive_timeout_s"])
+	return ok and check(r)
 
 
 def _serial(st):
@@ -382,10 +398,17 @@ def _serial(st):
 	return getattr(d, "serial", None) if d is not None else None
 
 
-def _restore(st):
-	if st.has.get("light"):
-		v = ", ".join(str(x) for x in A["light"])
-		_guarded(st, lambda: st.dev(f"lit.setVs({v})"), 3)
+def _prepare(st):
+	"""Set up the onboard LED in raw mode. Needed at start and after any reset,
+	which clears the board's globals."""
+	if st.dev.device is None:
+		st.led_ok = False
+		return False
+	ok, r = _guarded(st, lambda: st.dev.device.exec(LED_SETUP), 5)
+	st.led_ok = ok
+	if not ok:
+		_event(st, "led_setup_failed", str(r))
+	return ok
 
 
 def _uid(st):
@@ -433,7 +456,7 @@ def _reconnect_once(st):
 	if st.dev.port != st.port:
 		_event(st, "port_changed", f"{st.port} -> {st.dev.port}")
 		st.port = st.dev.port
-	_restore(st)
+	_prepare(st)
 	return _alive(st)
 
 
@@ -462,7 +485,8 @@ def _r_interrupt(st):
 	if not _wait_idle(st, 3):
 		return False
 	ok, _ = _guarded(st, lambda: st.dev.device.enter_raw_repl(soft_reset=False), 5)
-	return ok and _alive(st)
+	## Harmless if the LED is still set up; restores it if the board lost it.
+	return ok and _prepare(st) and _alive(st)
 
 
 def _r_soft_reset(st):
@@ -474,7 +498,7 @@ def _r_soft_reset(st):
 	ok, _ = _guarded(st, st.dev.exec_main, 30)
 	if not ok:
 		return False
-	_restore(st)
+	_prepare(st)
 	return _alive(st)
 
 
@@ -621,28 +645,28 @@ def _end_stats(st, step, hz):
 	rows = list(st.rows)
 	n = len(rows)
 	cnt = Counter(o for _, _, o, _ in rows)
-	add = sorted(ms for _, k, o, ms in rows if k == "add" and o == "ok")
+	okms = sorted(ms for _, k, o, ms in rows if k == "call" and o == "ok")
 	allms = [ms for _, _, _, ms in rows]
 	span = rows[-1][0] - rows[0][0] if n > 1 else 0
 	s = {"step": step, "device": st.name, "rate_hz": hz, "n": n, "ok": cnt["ok"],
 		 "timeouts": cnt["timeout"], "errors": cnt["error"], "wrong": cnt["wrong"],
-		 "add_p50_ms": _pct(add, 50), "add_p99_ms": _pct(add, 99),
+		 "p50_ms": _pct(okms, 50), "p99_ms": _pct(okms, 99),
 		 "max_ms": round(max(allms), 1) if allms else None,
 		 "achieved_hz": round((n - 1) / span, 2) if span > 0 else None,
 		 "recoveries": sum(st.recov_step.values()), "recovered_by": dict(st.recov_step)}
 	s["clean"] = bool(n and s["timeouts"] == s["errors"] == s["wrong"] == 0
-					  and s["recoveries"] == 0 and s["add_p99_ms"] is not None
-					  and s["add_p99_ms"] <= A["p99_limit_ms"])
+					  and s["recoveries"] == 0 and s["p99_ms"] is not None
+					  and s["p99_ms"] <= A["p99_limit_ms"])
 	st.steps.append(s)
 	try:
 		exp.mstreams["steps"](step=step, device=st.name, rate_hz=hz,
-			**{k: s[k] for k in ("n", "ok", "timeouts", "errors", "wrong", "add_p50_ms",
-								 "add_p99_ms", "max_ms", "achieved_hz", "recoveries")})
+			**{k: s[k] for k in ("n", "ok", "timeouts", "errors", "wrong", "p50_ms",
+								 "p99_ms", "max_ms", "achieved_hz", "recoveries")})
 	except Exception as e:
 		log.error(f"steps stream: {e}")
 	print(f"  {st.name:<14} {step:<18} {hz!s:>6} Hz  n={n} ok={s['ok']} "
 		  f"timeout={s['timeouts']} error={s['errors']} wrong={s['wrong']} "
-		  f"p99={s['add_p99_ms']} ms  {'clean' if s['clean'] else 'NOT clean'}")
+		  f"p99={s['p99_ms']} ms  {'clean' if s['clean'] else 'NOT clean'}")
 	return s
 
 
@@ -875,24 +899,12 @@ def _discover():
 		st.uid = _uid(st)
 		ok, r = _guarded(st, lambda: st.dev('__import__("os").uname().release'), 5)
 		st.mpy = str(r) if ok else ""
-		for key, glob in (("tandh", "tandh"), ("light", "lit")):
-			ok, r = _guarded(st, lambda g=glob: st.dev(f'int("{g}" in globals())'), 5)
-			st.has[key] = ok and r == 1
-		cyc = []
-		for kind, w in A["mix"].items():
-			if kind in ("tandh", "light") and not st.has.get(kind):
-				continue
-			cyc += [kind] * int(w)
-		random.Random(st.uid or 0).shuffle(cyc)
-		st.cycle = cyc or ["add"]
-		_restore(st)
+		_prepare(st)
 		info = {"port": st.port, "board": st.board, "uid": st.uid, "mpy": st.mpy,
-				"owned": st.owned, "has": dict(st.has)}
+				"owned": st.owned, "led_ok": st.led_ok}
 		REPORT["devices"][st.name] = info
 		exp.mstreams["picos"](device=st.name, port=st.port, board=str(st.board),
-							  uid=str(st.uid), mpy=st.mpy,
-							  has_tandh=int(st.has["tandh"]),
-							  has_lit=int(st.has["light"])).panel()
+							  uid=str(st.uid), mpy=st.mpy, led_ok=int(st.led_ok)).panel()
 	return devs
 
 
@@ -902,8 +914,8 @@ def _finish_devices():
 			_release(st)                    # a call still blocked: free it
 		if not st.owned and not st.dev.connected:
 			_reconnect_once(st)             # leave the scope's own Pico usable
-		if st.dev.connected and st.has.get("light"):
-			_guarded(st, lambda s=st: s.dev("lit.setVs(0, 0, 0)"), 3)
+		if st.dev.connected and st.dev.device is not None:
+			_guarded(st, lambda s=st: s.dev.device.exec("_led.off()"), 3)
 		if st.owned and st.dev.device is not None:
 			_guarded(st, st.dev.disconnect, 5)
 
@@ -988,11 +1000,19 @@ def kernel_usb_events(text, since):
 ##  Run
 ## ==========================================================================
 
+_ACQ = re.compile(r"mjpeg_continuous|intensity_continuous|mjpeg_sampling|"
+				  r"light_perturbation|sampling_record")
+
+
 def _acquisition_running():
-	rc, out = _run("pgrep -af 'mjpeg_continuous|intensity_continuous|"
-				   "mjpeg_sampling|light_perturbation|sampling_record' | "
-				   "grep -v pgrep", timeout=5)
-	return out.strip() if rc == 0 and out.strip() else ""
+	## `ps ax` works on Linux and macOS. A `pgrep -af ... | grep -v pgrep`
+	## pipeline does not: macOS pgrep prints bare PIDs, so its own shell
+	## (whose arguments contain the pattern) matched and the run refused.
+	rc, out = _run("ps ax -o pid=,command=", timeout=5)
+	me = str(os.getpid())
+	hits = [l.strip() for l in (out or "").splitlines()
+			if _ACQ.search(l) and l.split(None, 1)[0] != me]
+	return "\n".join(hits)
 
 
 def start_acq_blocking():
@@ -1004,7 +1024,7 @@ def start_acq_blocking():
 	busy = _acquisition_running()
 	if busy:
 		print(Panel(f"[red]An acquisition appears to be running:\n{busy}\n\n"
-					f"Refusing: this test takes over the Pico and the lights.",
+					f"Refusing: this test takes over the Pico.",
 					title="refused"))
 		return
 
@@ -1064,7 +1084,7 @@ def start_acq_blocking():
 	for st in DEVS:
 		REPORT["devices"][st.name].update({
 			"peak_hz": st.peak_hz, "fatal": st.fatal, "recoveries": dict(st.recov_total),
-			"drills": st.drills, "steps": st.steps})
+			"drills": st.drills, "steps": st.steps, "led_ok": st.led_ok})
 	with open("pico_stress.json", "w") as f:
 		json.dump(REPORT, f, indent=2, default=str)
 	_write_report(REPORT)
@@ -1082,19 +1102,20 @@ def _write_report(R):
 			  f"- **Port** {d['port']}  **Board** {d['board']}  **uid** {d['uid']}  "
 			  f"**MicroPython** {d['mpy']}  **Mounted by the scope** {'no' if d['owned'] else 'yes'}",
 			  f"- **Peak (ramp)** {d.get('peak_hz') or 'no clean step'} Hz"
-			  + (f"; **burst** {burst['achieved_hz']} calls/s, a+b p50 {burst['add_p50_ms']} ms, "
-				 f"p99 {burst['add_p99_ms']} ms" if burst else ""),
+			  + (f"; **burst** {burst['achieved_hz']} calls/s, p50 {burst['p50_ms']} ms, "
+				 f"p99 {burst['p99_ms']} ms" if burst else ""),
 			  f"- **Recoveries** {d.get('recoveries') or 'none'}; **fatal** "
 			  f"{'YES' if d.get('fatal') else 'no'}"]
 		for dr in d.get("drills", []):
 			L.append(f"- **Drill {dr['kind']}** {'ok' if dr['ok'] else 'FAILED'} in "
 					 f"{dr['ms']} ms (port {dr['port']}); failed calls on the other "
 					 f"boards: {dr['other_boards_failed_calls'] or 'none'}")
-		L += ["", "| step | Hz | n | ok | timeouts | errors | wrong | a+b p50 ms | "
-			  "a+b p99 ms | max ms | achieved Hz | recoveries |",
+		L += [f"- **Onboard LED set up** {'yes' if d.get('led_ok') else 'NO'}"]
+		L += ["", "| step | Hz | n | ok | timeouts | errors | wrong | p50 ms | "
+			  "p99 ms | max ms | achieved Hz | recoveries |",
 			  "|---|---|---|---|---|---|---|---|---|---|---|---|"]
 		L += [f"| {s['step']} | {s['rate_hz']} | {s['n']} | {s['ok']} | {s['timeouts']} | "
-			  f"{s['errors']} | {s['wrong']} | {s['add_p50_ms']} | {s['add_p99_ms']} | "
+			  f"{s['errors']} | {s['wrong']} | {s['p50_ms']} | {s['p99_ms']} | "
 			  f"{s['max_ms']} | {s['achieved_hz']} | {s['recovered_by'] or '-'} |"
 			  for s in d.get("steps", [])]
 		L.append("")
@@ -1136,7 +1157,7 @@ def cleanup():
 	exp.__save__()
 	try:
 		print(exp.mstreams["steps"].tabulate("step", "device", "rate_hz", "n", "timeouts",
-											 "errors", "wrong", "add_p99_ms"))
+											 "errors", "wrong", "p99_ms"))
 	except Exception:
 		pass
 	exp.sync_dir()
