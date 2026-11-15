@@ -197,11 +197,14 @@ Not required: samples tick on the same wall-clock seconds on every scope.
 | `pico` stream | 1 min | the Pico's clock against this scope: `offset_s` (+ = Pico ahead), `error_s`, `phase` (`as_found`, then `after_set`) |
 
 `max_error_s = |offset| + root dispersion + root delay / 2` is chrony's own
-bound. Offsets are positive when the scope's clock is ahead.
+bound. Offsets are positive when the scope's clock is ahead (ntpdata's own
+sign is the opposite and is flipped). The settings (`exp.params`) are saved in
+`experiment.yaml` from the start of the run.
 
 **The Pico's clock.** Nothing sets the Pico's RTC (the firmware's NTP sync is
 commented out), so the run reads it as found for `pico_set_after_min` (5 min),
-sets it once to the Pi's UTC, then follows its drift. Each reading is an
+sets it once to the Pi's UTC, then follows its drift. The RP2040 RTC counts
+one second right after it is written, so the time is written one second early. Each reading is an
 NTP-style request and reply over the serial link, timed to the moment the
 Pico's seconds tick over (its RTC counts whole seconds): a few ms of error.
 All Pico calls, T&H included, run one at a time from the main loop with a

@@ -44,14 +44,18 @@ How it works -- standard tools only, nothing home-made
 Maximum error (chrony's documented bound, `chronyc tracking`):
 	max_error_s = |clock_offset_s| + root_dispersion_s + root_delay_s / 2
 This is relative to the stratum-1 server the NTP server follows. Scope to
-scope, the NTP server's own part is common to both and can be removed using
-its root delay and dispersion (server_root_delay_s, server_root_dispersion_s in
-the ntp stream); that is done in the calibration notebook
-(trappyframe: calibrations/fleet_clock_synchronization.ipynb).
+scope, the NTP server's own part is common to both. The calibration notebook
+(trappyframe: calibrations/fleet_clock_synchronization.ipynb) removes its root
+delay (server_root_delay_s in the ntp stream) but keeps its root dispersion:
+chrony's root dispersion comes from the sample it trusts most, often an older
+one, so it cannot be matched to the latest server_root_dispersion_s (test 1,
+2026-11-15: subtracting it gave a negative error 41-75% of the time).
 
 Sign convention: clock_offset_s and offset_s are positive when this scope's
-clock is AHEAD (fast); freq_ppm is positive when it would run fast. The ntpdata
-sign is checked live against `chronyc sources` (setup stream, sign_check).
+clock is AHEAD (fast); freq_ppm is positive when it would run fast. ntpdata's
+own Offset has the opposite sign (test 1: against `chronyc sources` and
+tracking, all 8 scopes), so it is negated here; the result is checked live
+against `chronyc sources` (setup stream, sign_check: expect "agree").
 
 RECOMMENDED: make sure the NTP server the scopes follow (here the NAS) is
 itself well synchronised before the experiment starts. This is a suggestion;
@@ -398,12 +402,13 @@ def read_ntpdata(server):
 		return None
 	kv = _kv(out)
 	poll = kv.get("Poll interval", "")
+	off = _num(kv.get("Offset"))      # ntpdata's sign: + = this scope BEHIND
 	return {
 		"server_leap": kv.get("Leap status", ""),
 		"server_stratum": _num(kv.get("Stratum")),
 		"server_root_delay_s": _num(kv.get("Root delay")),
 		"server_root_dispersion_s": _num(kv.get("Root dispersion")),
-		"offset_s": _num(kv.get("Offset")),
+		"offset_s": -off if off is not None else None,   # + = this scope ahead
 		"peer_delay_s": _num(kv.get("Peer delay")),
 		"peer_dispersion_s": _num(kv.get("Peer dispersion")),
 		"poll_s": _num(poll.split("(")[-1]) if "(" in poll else None,
@@ -480,8 +485,9 @@ def verify_setup(lane):
 
 
 def sign_check(nd, sources):
-	"""Does ntpdata's Offset use the documented `sources` sign (positive =
-	this clock ahead)? Both describe the same last exchange."""
+	"""Does the (negated) ntpdata offset use the documented `sources` sign
+	(positive = this clock ahead)? Both describe the last exchange, unless
+	chrony has not used it yet ("differ")."""
 	try:
 		meas = float(next(s for s in sources if s["name"] == nd["server"])
 					 ["meas_offset_s"])
@@ -636,10 +642,13 @@ def pico_probe(dev):
 
 def pico_set(dev, half_s):
 	"""Set the Pico RTC to this Pi's UTC on a whole second. half_s is the
-	estimated time from sending to the Pico starting (half the wire time)."""
+	estimated time from sending to the Pico starting (half the wire time).
+	The RP2040 RTC counts one second right after it is written (test 1,
+	2026-11-15: +998 to +1001 ms after the set on all 8 Picos), so it is
+	written one second early; the after_set readings measure the result."""
 	t0 = time.time()
 	target = math.floor(t0) + 2                  # at least a second away
-	d = datetime.datetime.fromtimestamp(target, datetime.timezone.utc)
+	d = datetime.datetime.fromtimestamp(target - 1, datetime.timezone.utc)
 	tup = (d.year, d.month, d.day, d.weekday(), d.hour, d.minute, d.second, 0)
 	wait_us = int((target - t0 - half_s) * 1e6)
 	dev.device.exec_(f"_fcs_set({tup}, {wait_us})")
@@ -767,6 +776,9 @@ def start_acq_blocking():
 	global exp
 	exp = Experiment.current
 	a = exp.attribs
+	## The framework writes exp.params to experiment.yaml only on exp.close()
+	## (test 1 was left open and lost them); linked here, every save has them.
+	exp.logs["attribs"] = a
 
 	lane = find_lane(a.get("lane_servers", LANE_SERVERS))
 	if not lane["server"]:
