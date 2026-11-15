@@ -32,7 +32,9 @@ hardware it touches is the board's onboard LED, which flickers with every call.
 
 Do not run it during an acquisition: it takes over the Pico.
 
-Steps -- attribs["steps"], in this order by default
+Steps -- attribs["steps"], in this order by default. The defaults are set
+for a SHORT run (about 4 min with one board, no soak); populate_exp() has
+the long-run values in its comments.
 -----
 ramp                rate steps (1, 2, 5, 10, 20, 50 Hz per board). A board's
                     peak is the highest step with no timeout, error, wrong
@@ -49,7 +51,9 @@ schedule_hang       a job that blocks exp.schedule for schedule_hang_s. How
 pico_hang           a call that never returns (a loop on the Pico), on each
                     board in turn. Shows what one hung Pico call does to every
                     other job on exp.schedule, and which recovery step clears it.
-soak                soak_h hours at soak_fraction x each board's peak.
+soak                soak_h hours at soak_fraction x each board's peak: a
+                    long steady run that catches rare failures. Off in the
+                    short run.
 
 The call
 --------
@@ -126,18 +130,21 @@ on each board, writes REPORT.md, and cleans up on its own.
 def populate_exp():
 	exp = Experiment.current
 	a = exp.attribs
+	## SHORT RUN (about 4 min with one board): test data to debug the script before
+	## the long run. For the long run, use the values in the comments and add
+	## "soak" back to the end of steps.
 	a["steps"] = ["ramp", "burst", "drill", "schedule_exception",
-				  "schedule_hang", "pico_hang", "soak"]
+				  "schedule_hang", "pico_hang"]
 	## exp.schedule polls every 10 ms, so 50 Hz is the useful ceiling.
 	a["ramp_hz"] = [1, 2, 5, 10, 20, 50]
-	a["ramp_step_s"] = 120
+	a["ramp_step_s"] = 15                    # long run: 120
 	a["p99_limit_ms"] = 100                  # round trip, for "clean"
-	a["burst_s"] = 60
+	a["burst_s"] = 15                        # long run: 60
 	a["drill_hz"] = 5                        # rate of the boards not drilled
-	a["drill_settle_s"] = 10
-	a["schedule_test_s"] = 20
-	a["schedule_hang_s"] = 30
-	a["soak_h"] = 1.0
+	a["drill_settle_s"] = 6                  # long run: 10
+	a["schedule_test_s"] = 10                # long run: 20
+	a["schedule_hang_s"] = 10                # long run: 30
+	a["soak_h"] = 1.0                        # used only when "soak" is in steps
 	a["soak_fraction"] = 0.5
 	## Watchdog and recovery. A call takes a few ms.
 	a["call_timeout_s"] = 5
