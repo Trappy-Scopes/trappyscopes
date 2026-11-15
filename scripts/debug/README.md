@@ -182,7 +182,7 @@ no lane address it stops and changes nothing.
 
 ```python
 create_exp()
-start_acq_blocking()     # 18 min by default (test run); exp.params["duration_h"]
+start_acq_blocking()     # 2 h by default; exp.params["duration_h"]
 ```
 
 Set `exp.params["start_at"] = "16:40"` on every scope for identical windows.
