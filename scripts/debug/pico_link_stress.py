@@ -18,11 +18,14 @@
 """
 AI Generated -- new file, Claude (Anthropic), 2026-11.
 
-Pico link stress test. Finds every MicroPython board on the scope -- the ones
-the scope mounted at start-up (e.g. `pico`) and any other board plugged in --
-and drives each one through the path production uses (SerialMPDevice ->
-pyboard raw REPL), from exp.schedule: the scheduler a recording uses. The
-main thread only watches.
+Pico link stress test. Tests every Pico plugged into the scope, all together:
+the ones the scope mounted at start-up (e.g. `pico`) are used as they are, and
+any other board is connected directly by its port. Each one is driven through
+the path production uses (SerialMPDevice -> pyboard raw REPL), from
+exp.schedule: the scheduler a recording uses. The main thread only watches.
+
+Run it with one Pico plugged in, then another one alone, then both: the runs
+together show how the link scales with the number of Picos on one machine.
 
 A bare-bones test: it assumes nothing is connected to the board. The only
 hardware it touches is the board's onboard LED, which flickers with every call.
@@ -88,7 +91,8 @@ the ladder. The step that brings the board back is logged:
 
 Output
 ------
-calls.csv    one row per call         events.csv  recoveries, drills, resets
+calls.csv    one row per call, with the board's uptime (pico_ms)
+events.csv   recoveries, drills, resets
 system.csv   1 Hz throttled flags and scheduler state
 kernel.log   kernel messages; USB lines in the run window go in the report
 pico_stress.json, REPORT.md
@@ -152,7 +156,7 @@ def populate_exp():
 	a["alive_timeout_s"] = 3
 	a["reenumerate_wait_s"] = 30
 	a["end_on_fatal"] = True
-	a["include_unmounted"] = True            # also boards the scope did not mount
+	a["include_unmounted"] = True            # also Picos the scope did not mount
 	a["sync_files"] = False
 	print(Panel(Pretty(a), title="Experiment Attributes"))
 
@@ -185,7 +189,7 @@ class _Dev:
 		self.uid, self.mpy, self.led_ok, self.rate = None, "", False, 0
 		self.busy_since, self.call_id, self.stuck_id = None, 0, None
 		self.need_recovery, self.recovering, self.paused, self.fatal = None, False, False, False
-		self.force_call, self.last_ticks = None, None
+		self.force_call, self.last_ticks, self.last_ticks_t = None, None, None
 		self.rows, self.guards = [], []
 		self.recov_total, self.recov_step = Counter(), Counter()
 		self.n_recoveries, self.last_recovery = 0, None
@@ -213,7 +217,7 @@ def _live():
 
 HEADERS = {
 	"calls": ["t_wall", "step", "rate_hz", "device", "port", "call",
-			  "latency_ms", "outcome", "detail"],
+			  "latency_ms", "outcome", "detail", "pico_ms"],
 	"events": ["t_wall", "step", "device", "event", "detail"],
 	"system": ["t_wall", "throttled", "schedule_alive"],
 }
@@ -257,6 +261,7 @@ def _event(st, event, detail=""):
 ##  One call, and the scheduled jobs
 ## ==========================================================================
 
+TICKS_PERIOD = 1 << 30                  # time.ticks_ms() wraps here on the RP2040
 LED_SETUP = 'import machine, time\n_led = machine.Pin("LED", machine.Pin.OUT)'
 
 
@@ -311,14 +316,22 @@ def _one_call(st, kind):
 	ms = (time.monotonic() - t0) * 1000
 	if st.stuck_id == cid:
 		outcome, detail = "timeout", f"released after {ms / 1000:.1f} s ({outcome}) {detail}".strip()
+	pico_ms = ""
 	if outcome == "ok" and kind == "call":
-		ticks = r[1]
+		ticks, now = r[1], time.monotonic()
+		pico_ms = ticks
 		if st.last_ticks is not None and ticks < st.last_ticks:
-			_event(st, "pico_uptime_reset", f"ticks_ms {st.last_ticks} -> {ticks}: the board rebooted")
-		st.last_ticks = ticks
+			## ticks_ms wraps every 2**30 ms (12.4 days). A drop is a reboot only
+			## when the previous value was too far from the wrap to explain it.
+			since_ms = (now - st.last_ticks_t) * 1000
+			if st.last_ticks + since_ms + 10_000 < TICKS_PERIOD:
+				_event(st, "pico_uptime_reset", f"ticks_ms {st.last_ticks} -> {ticks}: the board rebooted")
+			else:
+				_event(st, "pico_ticks_wrapped", f"ticks_ms {st.last_ticks} -> {ticks}")
+		st.last_ticks, st.last_ticks_t = ticks, now
 	st.rows.append((time.monotonic(), kind, outcome, ms))
 	_row("calls", f"{t_wall:.3f}", STEP, st.rate, st.name, st.port, kind,
-		 f"{ms:.1f}", outcome, detail)
+		 f"{ms:.1f}", outcome, detail, pico_ms)
 	if outcome != "ok" and not st.need_recovery:
 		st.need_recovery = f"{kind} {outcome}: {detail}"[:200]
 	return outcome
@@ -879,7 +892,15 @@ STEPS = {"ramp": step_ramp, "burst": step_burst, "drill": step_drill,
 ##  Discovery
 ## ==========================================================================
 
+def _usb_picos():
+	"""Ports of every MicroPython board on USB, as auto_connect sees them."""
+	return [p.split(" ")[0] for p in SerialMPDevice.potential_ports()
+			if "Board in FS mode" in p]
+
+
 def _discover():
+	"""Every Pico on USB. The scope's own are used as they are; the others are
+	connected directly, one SerialMPDevice per free port."""
 	devs, ports = [], set()
 	for name, d in list(scope.devices.items()):
 		if isinstance(d, SerialMPDevice) and d.connected:
@@ -887,7 +908,11 @@ def _discover():
 			ports.add(d.port)
 	if A["include_unmounted"]:
 		for i in range(16):
-			d = SerialMPDevice(name=f"stress_{i}", connect="autoconnect", search_name=False)
+			free = [p for p in _usb_picos()
+					if p not in ports and p not in SerialMPDevice.exclusion_list]
+			if not free:
+				break                       # every Pico on USB is already in the test
+			d = SerialMPDevice(name=f"usb_pico_{i}", connect="autoconnect", search_name=False)
 			if not d.connected or d.port in ports:
 				break
 			## auto_connect only excludes a port on a name match; do it here so
@@ -896,7 +921,7 @@ def _discover():
 			SerialMPDevice.exclusion_list.append(d.port)
 			d.search_name = d.board_name
 			ports.add(d.port)
-			name = str(d.board_name or f"stress_{i}")
+			name = str(d.board_name or f"usb_pico_{i}")
 			while name in {x.name for x in devs}:
 				name += "_b"
 			st = _Dev(name, d, owned=True)
@@ -986,7 +1011,11 @@ _KPICO = re.compile(r"cdc_acm|ttyACM|MicroPython|Board in FS mode", re.I)
 
 
 def kernel_usb_events(text, since):
-	"""USB lines in the run window, and the ones that name a Pico."""
+	"""USB lines in the run window, and the ones about a Pico: any line on a
+	USB path that a Pico has used (a keyboard hub's lines are not)."""
+	paths = {m.group(1) for line in text.splitlines()
+			 if re.search(r"idVendor=2e8a|Board in FS mode|MicroPython", line)
+			 for m in [re.search(r"usb (\d+-[\d.]+):", line)] if m}
 	out, t = [], None
 	for line in text.splitlines():
 		m = _KTIME.match(line)
@@ -1000,7 +1029,9 @@ def kernel_usb_events(text, since):
 			continue
 		if _KUSB.search(line):
 			out.append(line.strip())
-	return out, [l for l in out if _KPICO.search(l)]
+	pico = [l for l in out if _KPICO.search(l)
+			or any(f"usb {p}:" in l for p in paths)]
+	return out, pico
 
 
 ## ==========================================================================
@@ -1048,6 +1079,7 @@ def start_acq_blocking():
 	DEVS, STEP = [], "discover"
 	try:
 		DEVS = _discover()
+		REPORT["n_picos"] = len(DEVS)
 		if not DEVS:
 			REPORT["end"] = "no MicroPython board found"
 			print(Panel("[red]No MicroPython board found.", title="pico_link_stress"))
@@ -1102,7 +1134,8 @@ def _write_report(R):
 	L = [f"# Pico link stress -- {os.uname().nodename}", "",
 		 f"- **Started** {R['started']}", f"- **Finished** {R.get('finished')}",
 		 f"- **End** {R.get('end')}",
-		 f"- **Steps** {', '.join(R['attribs'].get('steps', []))}", ""]
+		 f"- **Steps** {', '.join(R['attribs'].get('steps', []))}",
+		 f"- **Picos** {R.get('n_picos', len(R['devices']))}: {', '.join(R['devices']) or '-'}", ""]
 	for name, d in R["devices"].items():
 		burst = next((s for s in d.get("steps", []) if s["step"] == "burst"), None)
 		L += [f"## {name}", "",
@@ -1144,9 +1177,9 @@ def _write_report(R):
 					 f"{x['other_boards_longest_wait_s'] or '-'}")
 	L += ["", "## System", "",
 		  f"- **Throttled flags seen** {', '.join(R.get('throttled_seen') or []) or 'none read'}",
-		  f"- **Kernel USB lines in the run window** {len(R.get('kernel_usb_lines', []))} "
-		  f"(naming a Pico: {len(R.get('kernel_pico_lines', []))})", ""]
-	L += [f"    {l}" for l in R.get("kernel_usb_lines", [])[:200]]
+		  f"- **Kernel USB lines in the run window** {len(R.get('kernel_usb_lines', []))}, "
+		  f"about a Pico: {len(R.get('kernel_pico_lines', []))} (listed)", ""]
+	L += [f"    {l}" for l in R.get("kernel_pico_lines", [])[:200]]
 	L += ["", "Every call in `calls.csv`; recoveries, drills and resets in `events.csv`; "
 		  "1 Hz throttled flags and scheduler state in `system.csv`; kernel messages in "
 		  "`kernel.log`."]
