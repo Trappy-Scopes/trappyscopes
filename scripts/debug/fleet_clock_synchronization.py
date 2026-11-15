@@ -654,7 +654,7 @@ def populate_exp():
 	exp = Experiment.current
 	exp.attribs["lane_servers"] = dict(LANE_SERVERS)
 	exp.attribs["chrony_server_options"] = SERVER_OPTIONS
-	exp.attribs["duration_h"] = 2.0
+	exp.attribs["duration_h"] = 0.3     # 18 min test run; set back to 2.0 for the full run
 	exp.attribs["tracking_period_s"] = 10
 	## "HH:MM" (local) to start every scope at the same moment, or None to
 	## start at once. Not needed for the analysis -- samples tick on the same
