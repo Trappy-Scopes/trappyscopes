@@ -298,9 +298,11 @@ def populate_exp():
 	exp.attribs["paced_mb_s"] = 15.7
 	exp.attribs["required_mb_s"] = 15.7
 	## Flag a drive when a stream at required_mb_s would have piled up this
-	## many seconds of video waiting for it (see _behind).
+	## many seconds of video waiting for it (see _behind). It becomes CRITICAL
+	## only if the pile exceeds what the page cache can hold before Linux
+	## starts throttling writers (see page_cache_limits) -- below that, a real
+	## recording, which writes through the page cache, never feels the stall.
 	exp.attribs["behind_warn_s"] = 2
-	exp.attribs["behind_crit_s"] = 10
 	## Never leave the SSD fuller than this during the workload.
 	exp.attribs["min_free_fraction"] = 0.15
 	## SD card: small and bounded, never more than this fraction of free space.
@@ -988,6 +990,55 @@ def kernel_storage_errors(text, since, name, kind):
 	return out
 
 
+def page_cache_limits(vm, meminfo):
+	"""How much unwritten data the page cache holds before Linux slows a
+	writer down. Pure -- unit-testable; `vm` maps dirty_* names to values from
+	/proc/sys/vm, `meminfo` maps /proc/meminfo keys to kB.
+
+	Each limit is dirty_*_bytes if set, else dirty_*_ratio % of dirtyable
+	memory (approximated here by MemAvailable). Writers run unthrottled until
+	dirty pages pass the midpoint of the two ("freerun"); above it
+	balance_dirty_pages() starts making write() wait.
+	"""
+	avail = meminfo.get("MemAvailable", 0) * 1024
+	def lim(kind):
+		b = int(vm.get(f"dirty_{kind}bytes", 0) or 0)
+		return b if b else int(vm.get(f"dirty_{kind}ratio", 0) or 0) / 100.0 * avail
+	bg, hard = lim("background_"), lim("")
+	return {"mem_total_mb": round(meminfo.get("MemTotal", 0) / 1024),
+			"mem_available_mb": round(avail / 2**20),
+			"dirty_background_mb": round(bg / 1e6), "dirty_limit_mb": round(hard / 1e6),
+			"freerun_mb": round((bg + hard) / 2 / 1e6),
+			"vm": {k: vm[k] for k in sorted(vm)}}
+
+
+def read_page_cache(outdir):
+	"""Read the vm.dirty_* settings and memory once, keep the raw text."""
+	vm, mem = {}, {}
+	for k in ("dirty_ratio", "dirty_background_ratio", "dirty_bytes",
+			  "dirty_background_bytes", "dirty_expire_centisecs",
+			  "dirty_writeback_centisecs"):
+		try:
+			with open(f"/proc/sys/vm/{k}") as f:
+				vm[k] = f.read().strip()
+		except Exception:
+			pass
+	try:
+		with open("/proc/meminfo") as f:
+			for line in f:
+				p = line.split()
+				if p and p[0].rstrip(":") in ("MemTotal", "MemAvailable"):
+					mem[p[0].rstrip(":")] = int(p[1])
+	except Exception:
+		pass
+	pc = page_cache_limits(vm, mem)
+	d = os.path.join(outdir, "raw", "system")
+	os.makedirs(d, exist_ok=True)
+	with open(os.path.join(d, "page_cache.json"), "w") as f:
+		json.dump({"vm": vm, "meminfo_kb": mem, "derived": pc}, f, indent=2)
+	return pc
+
+
 def fstrim_result(text):
 	"""fstrim -v output -> {supported, bytes_trimmed, raw}."""
 	m = re.search(r"\((\d+) bytes\) trimmed", text or "")
@@ -999,7 +1050,7 @@ def fstrim_result(text):
 ##  Findings
 ## ==========================================================================
 
-def findings_for(dev, ident, static, before, after, wl, a, kern=()):
+def findings_for(dev, ident, static, before, after, wl, a, kern=(), pc=None):
 	F = []
 	required = a["required_mb_s"]
 	## The SD card holds the OS, not recordings: its speed matters only if a
@@ -1066,11 +1117,17 @@ def findings_for(dev, ident, static, before, after, wl, a, kern=()):
 			F.append(("CRITICAL", f"{bad} chunk(s) read back WRONG",
 					  "Silent corruption: the write reported success."))
 		worst = min(f["mean_mb_s"] for f in files)
-		if worst / required < 3:
-			F.append(("INFO" if sd else "CRITICAL", f"Slowest file {worst} MB/s -- "
-					  f"under 3x the {required} MB/s an acquisition needs",
-					  sd_why if sd else ""))
 		cgb, post = wl.get("cache_gb"), wl.get("post_cache_mb_s")
+		## The drive is judged on its speed after the cache, the state a long
+		## recording runs in -- not on one slow file (M8: 46.3 MB/s for one
+		## file, 65.9 MB/s sustained).
+		steady = post if post is not None else worst
+		if sd and worst / required < 3:
+			F.append(("INFO", f"Slowest file {worst} MB/s -- under 3x the "
+					  f"{required} MB/s an acquisition needs", sd_why))
+		elif not sd and steady / required < 3:
+			F.append(("CRITICAL", f"Sustained write {steady} MB/s -- under 3x the "
+					  f"{required} MB/s an acquisition needs", ""))
 		if cgb is not None:
 			F.append(("INFO", f"Write cache ran out after {cgb} GB; "
 					  f"{post} MB/s after it",
@@ -1080,16 +1137,19 @@ def findings_for(dev, ident, static, before, after, wl, a, kern=()):
 		behind = max(f.get("behind_mb_max", 0) for f in files)
 		behind_v = behind / required
 		rt = sum(f.get("chunks_over_rt", 0) for f in files)
-		lvl = ("CRITICAL" if behind_v > a.get("behind_crit_s", 10) else
+		room = (pc or {}).get("freerun_mb")
+		lvl = ("CRITICAL" if room and behind > room else
 			   "WARN" if behind_v > a.get("behind_warn_s", 2) else None)
 		if lvl:
+			absorb = (f"The page cache holds ~{room} MB before writers are "
+					  f"throttled, so a real recording would "
+					  f"{'NOT ' if behind > room else ''}absorb this."
+					  if room else "Page-cache limits unknown.")
 			F.append(("INFO" if sd else lvl,
 					  f"A {required} MB/s stream would fall {behind:.0f} MB "
 					  f"({behind_v:.0f} s of video) behind this drive",
 					  sd_why if sd else
-					  f"{rt} chunk(s) slower than real time. This test bypasses "
-					  f"the page cache; a real recording writes through it, which "
-					  f"can absorb part of this."))
+					  f"{rt} chunk(s) slower than real time. {absorb}"))
 	order = {"CRITICAL": 0, "WARN": 1, "INFO": 2, "OK": 3}
 	F.sort(key=lambda x: order.get(x[0], 9))
 	return F
@@ -1168,6 +1228,10 @@ def start_acq_blocking():
 
 		## Phase 2: the workload.
 		wls = {dev["name"]: workload(dev, a, outdir) for dev in devs}
+		## What a real recording's writes go through: how much the page cache
+		## absorbs before write() blocks. Read after the workload, at the same
+		## free memory a recording would see.
+		report["page_cache"] = read_page_cache(outdir)
 
 		## Phase 3: let the drives settle, then SMART again.
 		PHASE = "idle_settle"
@@ -1189,7 +1253,8 @@ def start_acq_blocking():
 			wl = wls[dev["name"]]
 			life, unit = lifetime_written(before or {}, after or {},
 										  (wl or {}).get("bytes_written"))
-			F = findings_for(dev, ident, static, before, after, wl, a, kern)
+			F = findings_for(dev, ident, static, before, after, wl, a, kern,
+							 report["page_cache"])
 			report["devices"].append({"device": dev, "identity": ident,
 									  "smart_before": before, "smart_after": after,
 									  "lifetime_written_tb": round(life / 1e12, 2) if life else None,
@@ -1225,6 +1290,13 @@ def start_acq_blocking():
 def _write_report(report):
 	L = [f"# Storage health -- {os.uname().nodename}", "",
 		 f"- **Started** {report['started']}", f"- **Finished** {report.get('finished')}", ""]
+	pc = report.get("page_cache") or {}
+	if pc:
+		L += ["## Page cache", "",
+			  f"- **RAM** {pc['mem_total_mb']} MB, {pc['mem_available_mb']} MB available",
+			  f"- **Unwritten data before writers are throttled** ~{pc['freerun_mb']} MB "
+			  f"(dirty background {pc['dirty_background_mb']} MB, limit {pc['dirty_limit_mb']} MB; "
+			  f"vm {pc['vm']})", ""]
 	for d in report["devices"]:
 		dev, ident = d["device"], d["identity"]
 		wl, files = d["workload"] or {}, (d["workload"] or {}).get("files", [])
