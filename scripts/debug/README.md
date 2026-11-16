@@ -201,10 +201,14 @@ bound. Offsets are positive when the scope's clock is ahead (ntpdata's own
 sign is the opposite and is flipped). The settings (`exp.params`) are saved in
 `experiment.yaml` from the start of the run.
 
-**The Pico's clock.** Nothing sets the Pico's RTC (the firmware's NTP sync is
-commented out), so the run reads it as found for `pico_set_after_min` (5 min),
-sets it once to the Pi's UTC, then follows its drift. The RP2040 RTC counts
-one second right after it is written, so the time is written one second early. Each reading is an
+**The Pico's clock.** The firmware never sets the Pico's RTC (its NTP sync is
+commented out); it keeps its time through a soft reset and restarts at
+2021-01-01 on a power loss or `machine.reset()`. The run reads it as found for
+`pico_set_after_min` (5 min), then sets it once and follows its drift. The set
+is two calls, both logged in the `pico_rtc_set` event: `scope.node.set_time()`
+checks the Pi's own clock (NTP), then `pico.set_time()` copies the Pi's UTC on
+a whole second (the RP2040 RTC counts one second right after it is written,
+so the time is written one second early). Each reading is an
 NTP-style request and reply over the serial link, timed to the moment the
 Pico's seconds tick over (its RTC counts whole seconds): a few ms of error.
 All Pico calls, T&H included, run one at a time from the main loop with a

@@ -63,11 +63,14 @@ the run warns but does not stop.
 
 The Pico's clock (pico stream)
 ------------------------------
-Nothing in trappyscopes or the Pico firmware sets the Pico's RTC (the
-firmware's own NTP sync, DTSync, is commented out), so it keeps whatever time
-it had since power-up. This run reads it over the existing serial link:
+The Pico's RTC keeps whatever time it had since power-up or its last set (the
+firmware's own NTP sync, DTSync, is commented out; a soft reset keeps it, a
+power loss or machine.reset() restarts it at 2021-01-01). This run reads it
+over the existing serial link:
   as found   the first pico_set_after_min minutes, RTC untouched
-  set        once, to this Pi's UTC, on a whole second
+  set        once: scope.node.set_time() checks this Pi's own clock (NTP),
+             then pico.set_time() copies this Pi's UTC on a whole second
+             (hive/processorgroups); both results go in the pico_rtc_set event
   after_set  the rest of the run: the drift, in ppm, is the slope
 Method: Cristian's algorithm (NTP's request-response, over serial). The
 MicroPython RTC counts whole seconds, so the Pico waits for its seconds to tick
@@ -509,7 +512,7 @@ def sign_check(nd, sources):
 ##   _fcs_probe()  waits for the RTC seconds to tick over, then returns
 ##                 (q, p, e, busy) in us since it started, and the new datetime:
 ##                 the tick fell between q and e, best estimate p.
-##   _fcs_set()    waits wait_us, then sets the RTC.
+## The RTC is set by the Pico's own SerialMPDevice.set_time() (hive).
 PICO_CODE = """
 import machine, time, sys, os
 def _fcs_probe():
@@ -523,11 +526,6 @@ def _fcs_probe():
             return None
     e = tu()
     return (td(q, a), td(p, a), td(e, a), td(tu(), a), d)
-def _fcs_set(d, wait_us):
-    a = time.ticks_us()
-    while time.ticks_diff(time.ticks_us(), a) < wait_us:
-        pass
-    machine.RTC().datetime(d)
 def _fcs_info():
     ns = []
     for _ in range(3):
@@ -638,21 +636,6 @@ def pico_probe(dev):
 			"offset_s": _pico_epoch(d) - tick,
 			"error_s": half + max(p - q, e - p) * 1e-6,
 			"wire_s": 2 * half, "wait_s": p * 1e-6, "tick": tick, "half_s": half}
-
-
-def pico_set(dev, half_s):
-	"""Set the Pico RTC to this Pi's UTC on a whole second. half_s is the
-	estimated time from sending to the Pico starting (half the wire time).
-	The RP2040 RTC counts one second right after it is written (test 1,
-	2026-11-15: +998 to +1001 ms after the set on all 8 Picos), so it is
-	written one second early; the after_set readings measure the result."""
-	t0 = time.time()
-	target = math.floor(t0) + 2                  # at least a second away
-	d = datetime.datetime.fromtimestamp(target - 1, datetime.timezone.utc)
-	tup = (d.year, d.month, d.day, d.weekday(), d.hour, d.minute, d.second, 0)
-	wait_us = int((target - t0 - half_s) * 1e6)
-	dev.device.exec_(f"_fcs_set({tup}, {wait_us})")
-	return {"target_utc": d.isoformat(), "wait_us": wait_us}
 
 
 ## ==========================================================================
@@ -874,13 +857,15 @@ def start_acq_blocking():
 				if pico is not None and not _pico_stuck and wall >= next_pico:
 					next_pico += pico_period
 					if set_at is not None and wall >= set_at and pico_phase == "as_found":
-						half = last_pico["half_s"] if last_pico else 0.002
-						ok, info = _pico_call(lambda: pico_set(pico, max(half, 0.0)),
-											  "_fcs_set()")
+						## The Pico inherits this scope's time; this scope's own
+						## clock is checked first, and both are logged.
+						host = ScopeAssembly.current.main_pg.set_time()
+						ok, info = _pico_call(pico.set_time, "set_time()")
 						if ok:
 							pico_phase = "after_set"
 							exp.log_event("pico_rtc_set", attribs={
-								**info, "offset_before_s": (last_pico or {}).get("offset_s")})
+								**info, "host": host,
+								"offset_before_s": (last_pico or {}).get("offset_s")})
 						set_at = None              # once, even if it failed
 					r = record_pico(pico, pico_phase)
 					if r:

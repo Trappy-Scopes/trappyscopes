@@ -26,6 +26,21 @@ class ProcessorGroup:
 	def __call__(self, command):
 		pass
 
+	def set_time(self):
+		"""Bring this processor group's clock to the right time.
+
+		Each kind decides what that means: a Linux machine checks that NTP keeps
+		its clock right, a MicroPython board copies the time of the machine it is
+		attached to. Nothing calls this on its own: the caller chooses, and checks
+		the machine first when a board inherits its time.
+
+		Returns a dict of what was found or done, or None when the group has no
+		clock of its own (this default).
+
+		AI Generated (Claude, Anthropic), 2026-11-16.
+		"""
+		return None
+
 	def emit_proxy(self, object_, *args, **kwargs):
 		return ProcessorGroup.Proxy(object_, self)
 
