@@ -49,7 +49,7 @@ def do_light_calibration():
 	exp.params["volt_limits"] = {"red":[0, 3], "green":[0,3], "blue":[0,3]}
 	exp.params["step_size"] = 0.1
 	exp.params["measurements"] = [["red"], ["green"], ["blue"]]
-	exp.params["stabilization_delay_s"] = 1
+	exp.params["stabilization_delay_s"] = 0.2
 
 	control_volt_vs_sample_intensity.single_channel_calibration()
 	control_volt_vs_sample_intensity.generate_single_point_calibration_report(exp)
