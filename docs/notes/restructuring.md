@@ -1167,3 +1167,73 @@ commands in flight at once would need the pending-ack table to be keyed by ID.
   `PoseidonController` works around its behaviour (see the `poseidon_pumps`
   README and the `arduino.py` docstring). A rewrite to the §15.3 protocol would
   remove all of those workarounds.
+
+## 16. Device-side configuration, and the light meter (2026-11-16)
+
+!!! note "Provenance"
+    Written by **Claude** (Anthropic) with Yatharth on 2026-11-16, while
+    reworking the light calibration
+    (`scripts/calibration/control_volt_vs_sample_intensity.py`).
+
+### 16.1 The config gap ✅ on `main` (e48c980), not yet in `dev`
+
+The handshake makes a `ProcessorGroup.Proxy` for every Pico object. Each proxy
+has a `config` dict on the scope's side, and nothing ever asks the Pico to fill
+it. As a result:
+
+- `scope.get_config()` records `config: {}` for every Pico object.
+- `scope.<obj>.config()` lands on that empty dict, so it raises `TypeError` and
+  never reaches the Pico.
+
+The fix: a Pico object may define `get_config()`. At handshake the scope calls
+it once and copies the result into the proxy's `config`. Objects without
+`get_config()` are skipped, and errors are logged, never raised. Every run then
+records the device's own configuration through the existing `get_config()` path.
+
+- The fix is `SerialMPDevice.device_config()` in
+  `hive/processorgroups/micropython.py` on `main`, because the scopes run
+  `main`. It has to be carried into `dev`, whose `micropython.py` has diverged.
+- The handshake was tested against `lux1` with stand-ins for each case. Whether
+  the scopes' light Picos still work after it is still to be checked on a scope.
+- **Later:** the light Picos should report their PWM frequency and level count
+  the same way. At 3 MHz there are 42 levels, one per 0.0786 V. This needs a
+  firmware patch on the scopes, so it waits.
+
+### 16.2 The light meter (`lux1`) ✅ pico_firmware 10c9a7c, 8b36047
+
+The sensor's code had never been committed anywhere: it existed only on the
+device. It is now in the `pico_firmware` repo, first exactly as found and then
+reworked. `lux1` was resynced from the repo on 2026-11-16, and a full backup of
+the device is in `pico_firmware/_backup_lux1_2026-11-16/` (not tracked).
+
+**A nested copy filled the flash.** `lux1` was 104% full: 39 files of a stale
+`pico_firmware/pico_firmware/` copy sat inside the real firmware.
+`sync_what.yaml` excludes that folder, but `SerialMPDevice.sync_files()` on
+`main` does not read `sync_what.yaml`, and its `SKIP_DIRS` does not list the
+folder. So a sync from `main` copies it again. `dev`'s
+`core/installer/mpyfirmware.py` does read the exclusions. Other Picos synced
+from `main` probably carry the copy too. Check with `mpremote df`.
+
+
+- **The sensor is a TSL2561** (Seeed Grove Digital Light Sensor).
+  - Chip ID register 0x0A reads 0x50, which means TSL2561 T/FN/CL.
+  - The Pico code wrapped it in a class called `TSL2591`. From August 2025 on,
+    the PFD conversion used TSL2591 datasheet constants (Re = 257.5).
+  - The raw counts are valid and only need refitting. Readings at the
+    TSL2561's full-scale count (37177 at 101 ms) are saturated.
+- **Rename:** the Pico object becomes `lightmeter`, so the scope uses
+  `scope.lightmeter`. Old runs keep the name `sensor`.
+- **Its record lives on the sensor, not the scope.** The sensor moves between
+  scopes, so a scope-side shelf (`~/<name>`) would split into one copy per scope.
+  - The sensor Pico keeps its own record in `vault/lightmeter.json`.
+  - `lightmeter.get_config()` returns it, together with values read back from
+    the chip: board name and unique ID, chip ID, gain, integration time,
+    full-scale count, and a hash of the driver file.
+  - With that, no shelf is needed for the sensor.
+- **`lightmeter.configure(gain, integration_ms)`** accepts only the TSL2561's
+  options (1× or 16×; 13.7, 101 or 402 ms). `get_config()` reports what is set.
+- **Where the conversion constants live:** Re, the colour factors and the
+  datasheet revision belong to the analysis. They go into the calibration's own
+  record, not the sensor's.
+- **When `dev`'s `trappyverse/state` lands,** nothing changes for the light
+  meter, because its record is not on the scope.
