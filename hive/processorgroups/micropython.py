@@ -202,10 +202,30 @@ class SerialMPDevice(MicropythonDevice):
 			all_pico_devs = self.exec_cleanup("Handshake.obj_list(globals_=globals())")
 			for device in all_pico_devs:
 				proxy_device = self.emit_proxy(device)
+				proxy_device.config = self.device_config(device)
 				scope.add_device(device, proxy_device, description="Micropython proxy peripheral.")
 		except Exception as e:
 			print(e)
 			log.error(f"{self.name} handshake failed!")
+
+	def device_config(self, obj):
+		"""The Pico object's own get_config(), or {} when it has none.
+
+		AI Generated (Claude, Anthropic), 2026-11-16. Filled into the proxy's
+		config at handshake, so scope.get_config() -- and with it every run --
+		records what the device reports about itself. Never raises: an object
+		without get_config(), a failing call or a non-dict answer all give {}.
+		"""
+		try:
+			config = self.exec_cleanup(
+				f"{obj}.get_config() if hasattr({obj}, 'get_config') else {{}}")
+		except Exception as e:
+			log.warning(f"{self.name}: {obj}.get_config() failed: {e}")
+			return {}
+		if not isinstance(config, dict):
+			log.warning(f"{self.name}: {obj}.get_config() did not return a dict: {config!r}")
+			return {}
+		return config
 
 	# -------------  Serial Utilities -----------------------
 

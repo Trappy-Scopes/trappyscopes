@@ -41,7 +41,7 @@ def set_ch(channels, vals):
 
 
 
-def measure_stream(channels, beacon=False, sensor_name="sensor"):
+def measure_stream(channels, beacon=False, sensor_name="lightmeter"):
 	"""
 	Open a measurement stream for each "measurement" and iterate over intensity values.
 	"""
@@ -58,7 +58,7 @@ def measure_stream(channels, beacon=False, sensor_name="sensor"):
 
 	name_stream = lambda chs :  '_'.join(chs)
 	if not name_stream(channels) in exp.mstreams.keys():
-		ms = exp.new_measurementstream(name_stream(channels), monitors=["channels", "beacon", "temp"], measurements=["volts", "counts"])
+		ms = exp.new_measurementstream(name_stream(channels), monitors=["channels", "beacon", "temp"], measurements=["volts", "counts", "ch1", "saturated"])
 	else:
 		ms = exp.mstreams[name_stream(channels)]
 	channel_limits = {ch: exp.params["volt_limits"][ch] for ch in  channels}
@@ -70,9 +70,10 @@ def measure_stream(channels, beacon=False, sensor_name="sensor"):
 	for volts in grid:
 		set_ch(channels, volts)
 		time.sleep(exp.params["stabilization_delay_s"])
-		count_value = scope[sensor_name].read()
+		reading = scope[sensor_name].read()      ## {"ch0", "ch1", "saturated"}; counts is ch0
 
-		m = ms(channels=channels, counts=count_value, volts=list(volts), beacon=beacon, temp=scope.tandh.read()["temp"])
+		m = ms(channels=channels, counts=reading["ch0"], ch1=reading["ch1"], saturated=reading["saturated"],
+		       volts=list(volts), beacon=beacon, temp=scope.tandh.read()["temp"])
 		print(m)
 
 		
