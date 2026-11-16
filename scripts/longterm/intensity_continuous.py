@@ -861,13 +861,18 @@ def record_sensor():
 	anything escaping here kills the scheduler thread and the rest of the run.
 
 	Uses the T&H thread's last reading rather than reading the sensor, so the
-	serial link only ever has one user."""
+	serial link only ever has one user.
+
+	With no fresh reading, no row is written. It used to write temp=0,
+	humidity=0, which reads as data: on 2026-11-13 those rows, written after
+	the T&H thread had stopped, broke the notebook's temperature fit."""
 	try:
 		tandh = Experiment.current.mstreams["tandh"]
 		temp, hum = _tandh_now()
 		if temp == "":
-			print("[red]TandH reading failed![default]")
-			temp, hum = 0, 0
+			log.error("tandh: no fresh reading, row skipped")
+			print("[red]T&H: no fresh reading, row skipped[default]")
+			return
 		tandh(temp=temp, humidity=hum).panel()
 	except Exception as e:
 		log.error(f"record_sensor failed: {type(e).__name__}: {e}")
