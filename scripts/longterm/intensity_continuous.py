@@ -82,6 +82,7 @@ import json
 import logging as log
 import shutil
 import subprocess
+import sys
 import threading
 import time
 
@@ -354,8 +355,11 @@ def start_recording():
 def drain_encoder(window):
 	"""Take whatever the encoder still holds and write it out.
 
-	Called before an encoder is discarded, so the tail of a window is not lost
-	when the camera is restarted mid-flight.
+	Called after stop_recording() and before the encoder is discarded, so the
+	frames still being encoded at the stop are included. encoder.drain()
+	already hands the tail to flush_fn (_write_intensities); writing it here
+	as well put the last ~30 s into intensities.csv twice (2026-11-09 and
+	2026-11-13 runs).
 	"""
 	global encoder
 	try:
@@ -363,7 +367,6 @@ def drain_encoder(window):
 	except Exception as e:
 		log.error(f"drain failed: {type(e).__name__}: {e}")
 		return
-	_write_intensities(records)
 	_summarise(records, window)
 
 
@@ -524,14 +527,13 @@ def recover(window):
 	"""
 	global encoder, sink, scope
 
-	drain_encoder(window)
-
 	## Level 1: stop and restart the recording on the existing camera.
 	try:
 		try:
 			scope.cam.cam.stop_recording()
 		except Exception as e:
 			log.error(f"stop_recording during recovery: {e}")
+		drain_encoder(window)
 		start_recording()
 		if _frames_advance():
 			return 1, True
@@ -1054,11 +1056,11 @@ def start_acq_blocking():
 			pass
 		stop_kernel_log()
 		stop_tandh()            # before anything else talks to the Pico
-		drain_encoder(window)
 		try:
 			scope.cam.cam.stop_recording()
 		except Exception as e:
 			log.error(f"stop_recording at end: {e}")
+		drain_encoder(window)
 		try:
 			scope.cam.close()
 		except Exception as e:
@@ -1072,9 +1074,9 @@ def start_acq_blocking():
 				title="run complete"))
 
 	## ExpScheduler.loop is `while not self.end_thread`, and nothing else sets
-	## that flag -- without this the scheduler thread spins forever and the
-	## process never exits, which is exactly what left eight experiments open
-	## for two days on 2026-11-09.
+	## that flag -- without this the scheduler thread spins forever. (The runs
+	## of 2026-11-09 and 2026-11-13 never got here: stop_recording() above
+	## deadlocked on the encoder's lock, fixed in rpi_hq_picam2.py.)
 	cleanup()
 
 
@@ -1272,9 +1274,12 @@ def collect_diagnostics():
 	imports nothing from this framework so it still works if the framework is
 	what broke.
 	"""
-	for root in (os.getcwd(), os.path.expanduser("~/trappyscopes"),
-				 os.path.dirname(os.path.dirname(os.path.dirname(
-					 os.path.abspath(__file__))))):
+	## Not __file__: scripts are exec'd into the shell's namespace, where it is
+	## undefined (the NameError that broke cleanup on 2026-11-15). The
+	## framework's own modules know where the checkout is.
+	repo = os.path.dirname(os.path.dirname(os.path.abspath(
+		sys.modules[Experiment.__module__].__file__)))
+	for root in (repo, os.path.expanduser("~/trappyscopes")):
 		script = os.path.join(root, "scripts", "debug", "collect_diagnostics.py")
 		if os.path.exists(script):
 			log.info(f"Collecting system diagnostics with {script}")
@@ -1287,47 +1292,59 @@ def collect_diagnostics():
 	return False
 
 
+def _step(what, fn):
+	"""One cleanup step. A failure is logged and the next step still runs."""
+	try:
+		return fn()
+	except Exception as e:
+		log.error(f"cleanup: {what} failed: {type(e).__name__}: {e}")
+		print(f"[red]cleanup: {what} failed: {type(e).__name__}: {e}")
+
+
 def cleanup():
-	"""Save, offload and stop the schedule. Does NOT close the experiment --
+	"""Stop the schedule, save and offload. Does NOT close the experiment --
 	exp.close() joins the scheduler thread, so it cannot be called from one.
-	Type exp.close() afterwards."""
+	Type exp.close() afterwards.
+
+	The schedule is stopped first and every later step is guarded, so one
+	failing step (the __file__ NameError of 2026-11-15) cannot skip the save
+	and the sync."""
 	global exp, scope
 	exp = Experiment.current
 	scope = ScopeAssembly.current
+	exp.schedule.clear()
+	exp.schedule.end_thread = True
 	_pico_call(lambda: scope.lit.setVs(0, 0, 0), "lights off")
 
 	## The libcamera log lives outside the experiment because it has to exist
 	## before the experiment does. Copy it in so the bundle is self-contained.
-	try:
+	def copy_libcamera_log():
 		src = os.environ.get("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
 		if os.path.exists(src):
 			shutil.copy2(src, "libcamera.log")
-	except Exception as e:
-		log.error(f"libcamera log copy failed: {e}")
+	_step("libcamera log copy", copy_libcamera_log)
 
 	stats = run_stats()
-	try:
+
+	def write_stats():
 		with open("run_stats.yaml", "w") as f:
 			for k, v in stats.items():
 				f.write(f"{k}: {v}\n")
-	except Exception as e:
-		log.error(f"run_stats write failed: {e}")
-	exp.log_event("run_stats", attribs=stats)
+	_step("run_stats write", write_stats)
+	_step("run_stats event", lambda: exp.log_event("run_stats", attribs=stats))
 	print(Panel(Pretty(stats), title="run statistics"))
 
-	collect_diagnostics()
-
-	exp.logs.update(scope.get_config())
-	exp.schedule.clear()
-	exp.schedule.end_thread = True
-	exp.__save__()
+	_step("system diagnostics", collect_diagnostics)
+	_step("scope config", lambda: exp.logs.update(scope.get_config()))
+	_step("note", lambda: exp.note("Intensity run offloaded and schedule "
+								   "stopped. Experiment left open"))
+	_step("save", exp.__save__)
 	try:
 		print(exp.mstreams["stalls"].tabulate("n", "reason", "level",
 											  "recovered", "recover_s"))
 	except Exception:
 		pass
-	exp.sync_dir()
-	exp.note("Intensity run offloaded and schedule stopped. Experiment left open")
+	_step("sync", exp.sync_dir)
 	print(Panel("[yellow]Offloaded, schedule stopped.\n"
 				"The experiment is still OPEN. Type [bold]exp.close()[/bold] "
 				"to finish it.", title="cleanup"))

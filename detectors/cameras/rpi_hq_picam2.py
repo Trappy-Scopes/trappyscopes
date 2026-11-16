@@ -67,7 +67,12 @@ class JpegEncoderGrayChannel(JpegEncoder):
         ## One record per frame: {"t_ns": <sensor timestamp>, "g": mean, ...}
         ## Empty unless intensity_channels was given. Drain it with drain().
         self.intensities = []
-        self._lock = Lock()
+        ## Not `_lock`: that name is picamera2 Encoder's own lock, and stop()
+        ## holds it while waiting for the encode threads to finish. Sharing it
+        ## meant a frame still being encoded at stop() waited on stop(), and
+        ## stop() waited on that frame -- stop_recording() hung forever at the
+        ## end of every intensity_continuous run (2026-11-09 and 2026-11-13).
+        self._intensity_lock = Lock()
 
     def __repr__(self):
         """Readable identity for the experiment event log.
@@ -120,7 +125,7 @@ class JpegEncoderGrayChannel(JpegEncoder):
         record.update({self.NAMES[c]: float(frame[..., c].mean())
                        for c in self.intensity_channels})
 
-        with self._lock:
+        with self._intensity_lock:
             self.intensities.append(record)
             batch = self.__take_batch__()
         if batch:
@@ -128,7 +133,7 @@ class JpegEncoderGrayChannel(JpegEncoder):
 
     def __take_batch__(self):
         """
-        Called with self._lock held. Return a list of records to hand to
+        Called with self._intensity_lock held. Return a list of records to hand to
         __flush__ (and detach from self.intensities), or None to keep
         accumulating. The base class never batches.
         """
@@ -143,7 +148,7 @@ class JpegEncoderGrayChannel(JpegEncoder):
         Take every record accumulated so far, in timestamp order, and reset.
         Call this after stop_recording().
         """
-        with self._lock:
+        with self._intensity_lock:
             batch, self.intensities = self.intensities, []
         return sorted(batch, key=lambda r: r["t_ns"])
 
@@ -203,7 +208,7 @@ class JpegEncoderRedWithBGStats(JpegEncoderGrayChannel):
         self._next_flush = None
 
     def __take_batch__(self):
-        """Called with self._lock held."""
+        """Called with self._intensity_lock held."""
         if self.flush_fn is None or not self.flush_interval_s:
             return None
 
