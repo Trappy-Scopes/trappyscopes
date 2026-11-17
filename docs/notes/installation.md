@@ -37,12 +37,27 @@ python3 -m venv --system-site-packages ~/trappyvenv
 # 4. Bootstrap: just enough to start the CLI
 ~/trappyvenv/bin/pip install -r ~/trappyscopes/bootstrap-requirements.txt
 
-# 5. Install trappyscopes and the hardware profile
+# 5. Start the launcher (the `trappyscope` command does not exist yet)
 cd ~/trappyscopes
-~/trappyvenv/bin/python main.py --install
+~/trappyvenv/bin/python -m launcher --launcher
 ```
 
-Step 5, in order:
+In the launcher, open **Install / setup >** and run, in order:
+
+1. **Create configuration file**: copies the default template to
+   `~/trappyverse/trappyconfig.yaml`. Then set `name` (the scope ID) and the
+   blocks you need, e.g. `config_server` (see below).
+2. **Check virtual environment**: offers to record the running venv as
+   `config.venv` (`source ~/trappyvenv/bin/activate`).
+3. **Install packages + hardware profiles**: answer *n* to conda-forge and
+   *y* to "Proceed". The `sudo apt` steps need no password on the scopes.
+
+Afterwards the command exists in the venv: `~/trappyvenv/bin/trappyscope --launcher`
+(or `trappyscope --launcher` after `source ~/trappyvenv/bin/activate`).
+
+Without menus: `~/trappyvenv/bin/python main.py --install` runs step 3 directly.
+
+Step 3, in order:
 
 1. `pip install -e .`: trappyscopes as an editable package, with the
    dependencies in `pyproject.toml`.
@@ -55,6 +70,26 @@ Step 5, in order:
    then `sudo apt-mark hold python3-picamera2 python3-av python3-simplejpeg python3-libcamera`.
 
 See [Hardware profiles](hardware_profiles.md) for what each package is for.
+
+## Config server (settings sync)
+
+```yaml
+name: <scope ID>                 # the folder on the server is <destination>/<name>
+config:
+  config_server:
+    active: true
+    server: 192.168.0.248        # the NAS on the scope LAN; check the route (see below)
+    share: <share>
+    destination: <folder>        # used literally: no {date} templating here
+    username: <username>
+    password: <password>
+```
+
+Launcher → **Configuration > Sync configuration file**. It mounts
+`//<server>/<share>` at `/mnt/<share>` (`sudo mount -t cifs`), then rsyncs
+`~/trappyverse/` with `<destination>/<name>/`. On the bench Pi the default
+route is `eth0`, so the NAS's institute address (172.22.50.240) is not
+reachable from it; 192.168.0.248 is.
 
 ## Check
 
