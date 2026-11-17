@@ -19,7 +19,7 @@ monitor temperature to correlate its effects.
 def create_exp():
 	global exp, scope
 	exp = Experiment.Construct(["light", "longterm", "stability"])
-	tandh = exp.new_measurementstream("lux_sensor_count", measurements=["light", "counts", "temp"])
+	tandh = exp.new_measurementstream("lux_sensor_count", measurements=["light", "ch0", "ch1", "saturated", "temp"])
 
 	## Define a light condition
 	exp.attribs["light"] = (2,0,0)
@@ -44,10 +44,10 @@ def start():
 	def record_sensor():
 		global exp, scope
 		try:
-			value = scope.sensor.read()
+			value = scope.lightmeter.read()      ## {"ch0", "ch1", "saturated"}
 		except:
 			print("[red]:Light sensor reading failed![default]")
-			value =  {"counts":None, "success":False}
+			value =  {"ch0": None, "ch1": None, "saturated": None}
 		r = photon_counts(light=exp.attribs["light"], temp=scope.tandh.read()["temp"], **value)
 		r.panel()	
 	

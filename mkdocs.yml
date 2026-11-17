@@ -1,23 +1,30 @@
 # mkdocs.yml
 site_name: Trappy-Scopes Control Layer Interface
-site_url: https://trappy-scopes.github.io/scope-cli
-repo_url: https://github.com/Trappy-Scopes/scope-cli
+site_url: https://trappy-scopes.github.io/trappyscopes/
+repo_url: https://github.com/Trappy-Scopes/trappyscopes
 
 nav:
   - Home: index.md
   - Introduction: notes/intro.md
   - hive:
       - Overview: hive/index.md
-      - API Reference: hive/hive.md
+      - API Reference: hive/api.md
   - expframework:
       - Overview: expframework/index.md
+      - Experiment: expframework/experiment.md
+      - Measurement streams: expframework/measurement.md
+      - Scheduler: expframework/scheduler.md
+      - Clocks: expframework/clocks.md
+      - Notebook: expframework/notebook.md
+      - File sync: expframework/sync.md
+      - Protocols: expframework/protocol.md
+      - Script engine: expframework/scriptengine.md
+      - Reports: expframework/report.md
+      - Plotting: expframework/plotter.md
       - API Reference: expframework/api.md
   - core:
       - Overview: core/index.md
       - API Reference: core/api.md
-  - optics:
-      - Overview: optics/index.md
-      - API Reference: optics/api.md
   - Notes:
       - Introduction: notes/assmble_trappy_scopes.md
       - Experiment Hello World: notes/coin_toss.md
@@ -41,6 +48,19 @@ plugins:
   - blogging
   - external-markdown
   - mermaid2
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: sphinx
+            members_order: source
+            merge_init_into_class: true
+            filters: ["!^_"]
+            show_source: true
+            show_if_no_docstring: true
+            show_root_heading: true
+            heading_level: 2
 
 #  - autorefs
 #  - redirects
@@ -86,7 +106,6 @@ markdown_extensions:
   - toc:
       permalink: true
   - admonition
-  - pymdownx.superfences
   - pymdownx.highlight
   - attr_list
   - md_in_html
@@ -97,12 +116,3 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:mermaid2.fence_mermaid_custom
-  - pymdownx.superfences:
-      custom_fences:
-        - name: model-viewer
-          class: model-viewer
-          format: !!python/name:pymdownx.superfences.fence_code_format
-extra_javascript:
-  - https://cdn.jsdelivr.net/npm/es-module-shims@1.8.3/dist/es-module-shims.min.js
-  - https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js
-  - https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js

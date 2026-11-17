@@ -15,6 +15,16 @@ from hive.detector import Detector
 # Used to print exceptions properly.
 
 
+## kwargs that hold live objects rather than parameters. read() writes its
+## kwargs into the experiment event log, and exp.logs is dumped to YAML on every
+## __save__(), so an object carrying a thread lock (any picamera2 encoder) raises
+## `TypeError: cannot pickle '_thread.lock' object` -- on that save and on every
+## save afterwards, long after the call that introduced it. Excluded from the log
+## only; the action still receives the real object.
+## See docs/notes/picamera2.md -- the proper fix belongs in Experiment.log().
+NOLOG_KWARGS = ("encoder",)
+
+
 class Camera(Detector):
 	"""
 	Abstract specialisation for TrappyScope Cameras.
@@ -79,6 +89,13 @@ class Camera(Detector):
 		## ----- Indicate operation ----------
 		#ScopeAssembly.current.set_status("waiting")		
 
+		## False if any iteration failed. read() deliberately does not raise --
+		## it is called from scheduled jobs, and ExpScheduler.loop has no
+		## try/except, so an escaping exception kills the scheduler thread and
+		## with it the rest of an overnight run. Callers check the return value
+		## (and that the file exists) instead.
+		ok = True
+
 		for it in range(no_iterations):
 
 			## Begin iteration
@@ -90,11 +107,23 @@ class Camera(Detector):
 			try:
 				self.pre_action_callback(local_filename, iteration=it, **kwargs)
 				self.actions[action](local_filename, iteration=it, **kwargs)
-				Experiment.current.log(f"cam_acq_{action}", attribs={**kwargs, "iteration": it, "filename":local_filename})
+				Experiment.current.log(f"cam_acq_{action}",
+					attribs={**{k: v for k, v in kwargs.items() if k not in NOLOG_KWARGS},
+							 "iteration": it, "filename": local_filename})
 				self.post_action_callback(local_filename, iteration=it, **kwargs)
 			except Exception as e:
-				Camera.console.print_exception(e)
-				log.error("[green] EXCEPTION HANDLED [default] Exception caught in Camera.capture method.")
+				## print_exception() takes no positional arguments -- it reads
+				## the current exception from sys.exc_info(). Passing one raised
+				## a TypeError from inside the handler, which replaced the real
+				## error with "Console.print_exception() takes 1 positional
+				## argument but 2 were given" and escaped read() entirely. Every
+				## camera failure was masked that way.
+				ok = False
+				Camera.console.print_exception()
+				log.error(f"Camera action '{action}' failed: {type(e).__name__}: {e}")
+				Experiment.current.log("cam_acq_failed",
+					attribs={"action": action, "filename": local_filename,
+							 "iteration": it, "error": f"{type(e).__name__}: {e}"})
 				
 
 
@@ -106,7 +135,9 @@ class Camera(Detector):
 			gc.collect()
 			## End of iteration -----------------------------
 		gc.collect()
-		Experiment.current.log("cam_acq_finish", attribs={"filename": local_filename})
+		Experiment.current.log("cam_acq_finish", attribs={"filename": local_filename,
+														  "ok": ok})
+		return ok
 
 	def __process_filename__(self, *args, **kwargs):
 		"""

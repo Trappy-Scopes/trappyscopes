@@ -27,6 +27,7 @@ jobs:
           pip install mkdocs-blogging-plugin
           pip install mkdocs-embed-external-markdown
           pip install mkdocs-mermaid2-plugin
+          pip install "mkdocstrings[python]"
 
 
       - name: Build and Deploy MkDocs

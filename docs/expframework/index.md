@@ -131,5 +131,16 @@ The `exp.notebook` property (implemented in the `ExpNotebook` class can be used 
 4. `exp.multiprompt`: accept multiple prompts from the user.
 5. `exp.interrupt`: mark an interruption in the experiment sequence.
 
+## Sections
 
-
+- [Experiment](experiment.md)
+- [Measurement streams](measurement.md)
+- [Scheduler](scheduler.md)
+- [Clocks](clocks.md)
+- [Notebook](notebook.md)
+- [File sync](sync.md)
+- [Protocols](protocol.md)
+- [Script engine](scriptengine.md)
+- [Reports](report.md)
+- [Plotting](plotter.md)
+- [API reference](api.md)

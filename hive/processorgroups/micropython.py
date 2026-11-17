@@ -1,6 +1,10 @@
+import ast
+import datetime
+import math
 import platform
 import logging as log
 import os
+import time
 
 from core.utilities.resolvetypes import resolve_type
 from core.external import pyboard
@@ -8,6 +12,34 @@ from rich import print
 
 from .abstractprocessorgroup import ProcessorGroup as AbstractProcessorGroup
 from .serialdevice import SerialDevice
+
+
+## Sent to the board by SerialMPDevice.set_time(); the firmware is not changed.
+##   _st_probe()  waits for the RTC's seconds to tick over, then returns
+##                (q, p, e, busy, datetime) in us since it started: the tick
+##                fell between q and e, best estimate p.
+##   _st_set()    waits wait_us, then writes the RTC.
+## AI Generated (Claude, Anthropic), 2026-11-16; the same code as the probe in
+## scripts/debug/fleet_clock_synchronization.py, tested there on all 8 Picos.
+_SET_TIME_CODE = """
+import machine, time
+def _st_probe():
+    r = machine.RTC(); tu = time.ticks_us; td = time.ticks_diff
+    a = tu(); s0 = r.datetime()[6]; q = p = a
+    while True:
+        q = p; p = tu(); d = r.datetime()
+        if d[6] != s0:
+            break
+        if td(p, a) > 2000000:
+            return None
+    e = tu()
+    return (td(q, a), td(p, a), td(e, a), td(tu(), a), d)
+def _st_set(d, wait_us):
+    a = time.ticks_us()
+    while time.ticks_diff(time.ticks_us(), a) < wait_us:
+        pass
+    machine.RTC().datetime(d)
+"""
 
 
 class MicropythonDevice(AbstractProcessorGroup):
@@ -124,10 +156,11 @@ class SerialMPDevice(MicropythonDevice, SerialDevice):
 		return mpdevices
 	
 	def connect(self, port):
+		opened = None
 		try:
 			port = port.strip()
 			log.debug(f"Attempting connection to — {port}")
-			self.device = pyboard.Pyboard(port, 115200)
+			self.device = opened = pyboard.Pyboard(port, 115200)
 			self.port = port
 			self.connected = True
 			log.debug(f"Connected to port: {self.port}")
@@ -135,6 +168,18 @@ class SerialMPDevice(MicropythonDevice, SerialDevice):
 		except Exception as e:
 			log.debug(f"Connection failed - {port}!")
 			log.error(e)
+			## A failed connect leaves the object disconnected. Before this,
+			## `connected` kept its old value (True after a wrong-board match),
+			## so auto_connect() went on to use a closed port and crashed.
+			self.connected = False
+			## The serial open is exclusive: release the port if this call opened it.
+			if opened is not None:
+				try:
+					opened.close()
+				except Exception:
+					pass
+				## Closed, so __del__ must not touch it (see disconnect()).
+				self.device = None
 			return
 
 		## board.name is informational (used for auto_connect()'s optional
@@ -150,18 +195,25 @@ class SerialMPDevice(MicropythonDevice, SerialDevice):
 			self.board_name = None
 
 	def disconnect(self):
-		self.device.exit_raw_repl()
-		self.device.close()
-		## Cleared so __del__'s `if self.device:` guard sees nothing left to
-		## close -- without this, __del__ still finds the (now-closed)
-		## Pyboard object truthy later and tries to exit_raw_repl() a port
-		## that's already shut, raising PortNotOpenError at garbage-
-		## collection time. This was the actual bug; __del__'s own
-		## try/except is only a backstop for a device that was never
-		## disconnect()'d at all.
-		self.device = None
-		if self.port in SerialMPDevice.exclusion_list:
-			SerialMPDevice.exclusion_list.remove(self.port)
+		## An explicit disconnect always marks the object disconnected and frees
+		## its port, even when the device is dead and exit_raw_repl() fails.
+		## The error is still raised to the caller.
+		try:
+			self.device.exit_raw_repl()
+		finally:
+			self.connected = False
+			if self.port in SerialMPDevice.exclusion_list:
+				SerialMPDevice.exclusion_list.remove(self.port)
+			try:
+				self.device.close()
+			finally:
+				## Cleared so __del__'s `if self.device:` guard sees nothing left
+				## to close -- without this, __del__ still finds the (now-closed)
+				## Pyboard object truthy later and tries to exit_raw_repl() a port
+				## that's already shut, raising PortNotOpenError at garbage-
+				## collection time. __del__'s own try/except is only a backstop
+				## for a device that was never disconnect()'d at all.
+				self.device = None
 
 	def auto_connect(self, port=None):
 		"""
@@ -216,10 +268,101 @@ class SerialMPDevice(MicropythonDevice, SerialDevice):
 			all_pico_devs = self.exec_cleanup("Handshake.obj_list(globals_=globals())")
 			for device in all_pico_devs:
 				proxy_device = self.emit_proxy(device)
+				proxy_device.config = self.device_config(device)
 				scope.add_device(device, proxy_device, description="Micropython proxy peripheral.")
 		except Exception as e:
 			print(e)
 			log.error(f"{self.name} handshake failed!")
+
+	def device_config(self, obj):
+		"""The Pico object's own get_config(), or {} when it has none.
+
+		AI Generated (Claude, Anthropic), 2026-11-16. Filled into the proxy's
+		config at handshake, so scope.get_config() -- and with it every run --
+		records what the device reports about itself. Never raises: an object
+		without get_config(), a failing call or a non-dict answer all give {}.
+		"""
+		try:
+			config = self.exec_cleanup(
+				f"{obj}.get_config() if hasattr({obj}, 'get_config') else {{}}")
+		except Exception as e:
+			log.warning(f"{self.name}: {obj}.get_config() failed: {e}")
+			return {}
+		if not isinstance(config, dict):
+			log.warning(f"{self.name}: {obj}.get_config() did not return a dict: {config!r}")
+			return {}
+		return config
+
+	# -------------  Time -----------------------------------
+
+	def set_time(self, verify=True):
+		"""Copy the time of the machine this runs on to the board's RTC, in UTC.
+
+		Whether that machine's own clock is right is not checked here: ask its
+		processor group first (scope.node.set_time() on a scope).
+
+		One reading of the board's clock measures the serial delay, then the
+		time is written on a whole second. The RP2040 RTC counts one second
+		right after it is written, so the time is written one second early
+		(fleet clock tests 1 and 2, 2026-11-15/16, all 8 Picos). verify=True
+		reads the clock once more: -0.1 to -1.5 ms after the set in test 2.
+		Takes 1.5-4 s. Raises if the board does not answer.
+
+		Returns {"set_utc", "offset_ms", "error_ms"}: the whole second the board
+		was set on, then its clock minus this machine's right after (+ = board
+		ahead) and the worst-case error of that reading; both None without
+		verify, or if the RTC did not tick.
+
+		AI Generated (Claude, Anthropic), 2026-11-16.
+		"""
+		self.device.exec_(_SET_TIME_CODE)
+		before = self._read_time()
+		half = before["half_s"] if before else 0.002
+		t0 = time.time()
+		target = math.floor(t0) + 2                       # at least a second away
+		d = datetime.datetime.fromtimestamp(target - 1, datetime.timezone.utc)
+		tup = (d.year, d.month, d.day, d.weekday(), d.hour, d.minute, d.second, 0)
+		self.device.exec_(f"_st_set({tup}, {int((target - t0 - max(half, 0.0)) * 1e6)})")
+		result = {"set_utc": datetime.datetime.fromtimestamp(
+					  target, datetime.timezone.utc).isoformat(),
+				  "offset_ms": None, "error_ms": None}
+		after = self._read_time() if verify else None
+		if after:
+			result.update(offset_ms=round(after["offset_s"] * 1e3, 3),
+						  error_ms=round(after["error_s"] * 1e3, 3))
+		log.info(f"{self.name}: RTC set to UTC {result}")
+		return result
+
+	def _read_time(self):
+		"""One reading of the board's clock against this machine's, NTP-style:
+		{"offset_s", "error_s", "half_s"} (half_s: half the time on the wire),
+		or None if the RTC's seconds did not tick within 2 s. Needs
+		_SET_TIME_CODE loaded.
+
+		AI Generated (Claude, Anthropic), 2026-11-16.
+		"""
+		got, first = [], []
+
+		def take(b):                       # pyboard calls this as bytes arrive
+			if not first:
+				first.append(time.time())
+			got.append(b)
+
+		t0 = time.time()
+		_, err = self.device.exec_raw("print(repr(_st_probe()))", timeout=5,
+									  data_consumer=take)
+		if err:
+			raise RuntimeError(err.decode("utf-8", "replace").strip()[-300:])
+		r = ast.literal_eval(b"".join(got).decode().strip("\x04\r\n "))
+		if r is None:
+			return None
+		q, p, e, busy, d = r
+		half = (first[0] - t0 - busy * 1e-6) / 2
+		tick = t0 + p * 1e-6 + half                  # this machine's time at the tick
+		board = datetime.datetime(d[0], d[1], d[2], d[4], d[5], d[6],
+								  tzinfo=datetime.timezone.utc).timestamp()
+		return {"offset_s": board - tick, "error_s": half + max(p - q, e - p) * 1e-6,
+				"half_s": half}
 
 	# -------------  Serial Utilities -----------------------
 
