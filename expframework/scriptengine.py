@@ -3,7 +3,6 @@ from rich.rule import Rule
 from rich.panel import Panel
 from rich.table import Table
 import os
-from importlib import import_module
 from collections.abc import Iterable
 
 
@@ -15,19 +14,19 @@ class ScriptEngine:
 	"""
 	Scripts execution framework.
 
-	TODO: Importing module fails when an experiment is already loaded. Use `raise_exceptions=False` in that case.
-
 	Payload copying - scipts are copied to the experiemnt/scripts folder.
 	Copying is performed:
 	1. When experiments are created - all the scripts in the past
 	2. With an open experiment: when the script passes the commitment phase, i.e.
-	   after its successfully imported and is about to be executed.
+	   when it is about to be executed.
 
 	AI Generated -- `symbols`/`loaded` and the tracking in run() below,
-	added by Claude (Anthropic), 2026-09. The double import_module()+exec()
-	load itself is untouched (that's a separate, bigger, not-yet-approved
-	rewrite -- see docs/notes/scripts_measurements_plotting.md §A.1/§A.2);
-	these are additive: every script's top-level names still land in the
+	added by Claude (Anthropic), 2026-09. Since 2026-11-17 a script is run
+	once, by exec(): the import_module() that only read `__description__`
+	(and ran the whole script a first time) is gone; the description is read
+	from the source (_static_description()). See
+	docs/notes/scripts_measurements_plotting.md §A.1/§A.2. The tracking is
+	additive: every script's top-level names still land in the
 	same shared `globals_`, deliberately (a later create_exp() replacing
 	an earlier one is a feature, not a bug -- see §A.2/§G) -- what's new
 	is *visibility* into when that happens, and a live record of what's
@@ -38,6 +37,31 @@ class ScriptEngine:
 	modules = []
 	symbols = {}   ## AI Generated -- {name: source script path} -- who last defined each top-level name
 	loaded = []    ## AI Generated -- [{"path", "description", "roles": {"setup"/"start"/"cleanup": [names]}}]
+
+	@staticmethod
+	def _static_description(path):
+		"""A script's description without running it: a module-level
+		`__description__ = "..."`, or the string passed to a module-level
+		`describe("...")` / `Script.describe("...")` call. None if neither."""
+		import ast
+		try:
+			with open(path) as f:
+				tree = ast.parse(f.read(), path)
+		except (OSError, SyntaxError):
+			return None
+		for node in tree.body:
+			if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) \
+					and isinstance(node.value.value, str) \
+					and any(isinstance(t, ast.Name) and t.id == "__description__" for t in node.targets):
+				return node.value.value
+			call = node.value if isinstance(node, (ast.Expr, ast.Assign)) else None
+			if isinstance(call, ast.Call) and call.args and isinstance(call.args[0], ast.Constant) \
+					and isinstance(call.args[0].value, str):
+				name = call.func.attr if isinstance(call.func, ast.Attribute) else getattr(call.func, "id", "")
+				if name == "describe":
+					return call.args[0].value
+		return None
+
 
 	def run(globals_, scripts=None, raise_exceptions=False):
 		"""Run a list of scripts."""
@@ -55,26 +79,14 @@ class ScriptEngine:
 					raise FileNotFoundError
 			elif script != None:
 
-				## Import script as a module
-				try:
-					import_path = script.lstrip(os.sep).replace(".py", "").replace(os.sep, ".")
-					script_mod = import_module(import_path)
-					ScriptEngine.modules.append(script_mod)
-				except Exception as e:
-					print(f"Script could not be imported as a module: {script}")
-					if raise_exceptions:
-						raise e
-					else:
-						ScriptEngine.modules.append(None)
-
-				## Now execute the script
+				## The description is read from the source. The script used to be
+				## imported as a module just to read it -- which ran its whole top
+				## level once on import and again in the exec() below, so every
+				## startup script ran twice.
 				if True:
 					print('\n', Rule(title=f"Running script: {script}", align="center", style="yellow"))
-					description = "No script description."
-					if ScriptEngine.modules[-1] is not None:
-						if "__description__" in dir(ScriptEngine.modules[-1]):
-							description = ScriptEngine.modules[-1].__description__
-						print(Panel(description, title="description"))
+					description = ScriptEngine._static_description(script) or "No script description."
+					print(Panel(description, title="description"))
 
 					## Commitment to execution is performed
 					ScriptEngine.payload.append(os.path.abspath(script))

@@ -19,6 +19,12 @@
 
 ### A.1 What `ScriptEngine.run()` actually does today
 
+> **Fixed 2026-11-17 (dev):** the import pass is gone. `run()` reads
+> `__description__` (or a `describe("...")` call) from the source with `ast`
+> and executes the script once, with `exec`. The text below describes the
+> earlier behaviour. The shared `globals_` (§A.2) is unchanged.
+
+
 `ScriptEngine.run(globals_, scripts=None, raise_exceptions=False)`
 (`expframework/scriptengine.py`): for each script path, `import_module()`s
 it (to read an optional `__description__`), prints that description, then
