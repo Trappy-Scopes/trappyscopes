@@ -26,6 +26,44 @@ from core.permaconfig.sharing import Share
 _SELF_LABEL = "trappyscopes (this codebase)"
 
 
+def _entry(value):
+	"""AI Generated -- one git_dependencies entry, in either shape.
+
+	    label: /path/to/repo                       -- no branch pinned
+	    label: {path: /path/to/repo, branch: dev}  -- pinned
+
+	The bare-string form is what every existing trappyconfig.yaml uses, so it
+	has to keep working; the mapping form is additive.
+	"""
+	if isinstance(value, dict):
+		return value.get("path"), value.get("branch")
+	return value, None
+
+
+def declared_branches():
+	"""AI Generated -- {label: branch} for every repo that pins one.
+
+	trappyscopes' own checkout is pinned by `config.branch`; the others by a
+	`branch:` key on their git_dependencies entry. A repo that pins nothing is
+	absent from this map and is left on whatever is checked out.
+	"""
+	TrappyConfig()
+	branches = {}
+	try:
+		own = TrappyConfig.current.leaf("config", "branch")
+	except Exception:
+		own = None
+	if own:
+		branches[_SELF_LABEL] = str(own)
+
+	git_dependencies = TrappyConfig.current.expanded("config", "git_dependencies")
+	for value in git_dependencies.values():
+		path, branch = _entry(value)
+		if branch:
+			branches[path] = str(branch)
+	return branches
+
+
 def _status(path):
 	"""Returns (dirty, ahead, behind, error) for the repo at `path`."""
 	try:
@@ -36,15 +74,16 @@ def _status(path):
 		return None, None, None, "path does not exist"
 
 	dirty = repo.is_dirty()
+	branch = None
 	try:
 		branch = repo.active_branch.name
 		repo.remotes.origin.fetch()
 		ahead = sum(1 for _ in repo.iter_commits(f"origin/{branch}..HEAD"))
 		behind = sum(1 for _ in repo.iter_commits(f"HEAD..origin/{branch}"))
 	except Exception as e:
-		return dirty, None, None, f"fetch failed: {e}"
+		return dirty, None, None, branch, f"fetch failed: {e}"
 
-	return dirty, ahead, behind, None
+	return dirty, ahead, behind, branch, None
 
 
 def all_repos():
@@ -61,7 +100,11 @@ def all_repos():
 	the other's entries wholesale instead of union them."""
 	TrappyConfig()  # ensures TrappyConfig.current is set, same as everywhere else
 	git_dependencies = TrappyConfig.current.expanded("config", "git_dependencies")
-	repos = {path: path for path in git_dependencies.values()}
+	repos = {}
+	for value in git_dependencies.values():
+		path, _ = _entry(value)
+		if path:
+			repos[path] = path
 	repos[_SELF_LABEL] = Share.scopecli_fullpath
 	return repos
 
@@ -70,8 +113,11 @@ def status_table(repos):
 	"""(Table, {label: (dirty, ahead, behind, error)}) for `repos` (as
 	returned by all_repos()) -- built together so the menu that follows
 	doesn't have to re-fetch what the table just showed."""
+	branches = declared_branches()
+
 	table = Table(title="Repository status")
 	table.add_column("Repository")
+	table.add_column("Branch")
 	table.add_column("Dirty")
 	table.add_column("Ahead")
 	table.add_column("Behind")
@@ -80,10 +126,20 @@ def status_table(repos):
 	statuses = {}
 	for label, path in repos.items():
 		path = os.path.expanduser(path)
-		dirty, ahead, behind, error = _status(path)
-		statuses[label] = (dirty, ahead, behind, error)
+		dirty, ahead, behind, branch, error = _status(path)
+		statuses[label] = (dirty, ahead, behind, branch, error)
+
+		## "dev" when it matches or nothing is pinned; "main -> dev" in red
+		## when the checkout is not on the branch the config asks for.
+		want = branches.get(label)
+		if want and branch and want != branch:
+			shown = f"[red]{branch} -> {want}[/red]"
+		else:
+			shown = branch or "-"
+
 		table.add_row(
 			label,
+			shown,
 			"-" if dirty is None else ("yes" if dirty else "no"),
 			"-" if ahead is None else str(ahead),
 			"-" if behind is None else str(behind),
@@ -109,6 +165,54 @@ def pull(label, path, console):
 		console.print(f"[red]Pull failed: {e}[/red]")
 
 
+def checkout(label, path, branch, console):
+	"""AI Generated -- put one repo on the branch its config asks for.
+
+	Refuses on a dirty checkout rather than stashing or forcing. A scope with
+	uncommitted work has it for a reason -- usually an edit made at the bench
+	-- and silently moving the branch out from under it is worse than leaving
+	the device on the wrong branch and saying so.
+
+	Creates a local tracking branch when one does not exist yet, so a device
+	that has only ever had `main` can be moved to `dev` without anyone
+	running git by hand on it.
+	"""
+	path = os.path.expanduser(path)
+	try:
+		repo = git.Repo(path)
+	except Exception as e:
+		console.print(f"[red]{label}: not a git repository ({e})[/red]")
+		return False
+
+	if repo.is_dirty():
+		console.print(f"[red]{label}: uncommitted changes -- not switching to "
+					  f"'{branch}'. Commit or stash them first.[/red]")
+		return False
+
+	try:
+		repo.remotes.origin.fetch(prune=True)
+		if branch in (h.name for h in repo.heads):
+			repo.git.checkout(branch)
+		elif f"origin/{branch}" in (r.name for r in repo.remotes.origin.refs):
+			repo.git.checkout("-b", branch, f"origin/{branch}")
+			console.print(f"[dim]{label}: created local '{branch}' tracking "
+						  f"origin/{branch}[/dim]")
+		else:
+			console.print(f"[red]{label}: no branch '{branch}' locally or on "
+						  f"origin.[/red]")
+			return False
+	except Exception as e:
+		console.print(f"[red]{label}: checkout of '{branch}' failed: {e}[/red]")
+		return False
+
+	console.print(f"[green]{label}[/green] is now on [bold]{branch}[/bold]")
+	if label == _SELF_LABEL:
+		console.print("[yellow]trappyscopes itself changed branch -- restart the "
+					  "launcher (exit and run `trappyscope` again). This session "
+					  "is still running the code it loaded at start.[/yellow]")
+	return True
+
+
 def check_and_sync(console=None):
 	"""Show status for every declared repo (all_repos()), then -- if
 	confirmed -- pull whichever are behind their remote. Non-interactive
@@ -119,8 +223,24 @@ def check_and_sync(console=None):
 	table, statuses = status_table(repos)
 	console.print(table)
 
-	pullable = [label for label, (dirty, ahead, behind, error) in statuses.items()
-				if error is None and behind]
+	## Branch first: pulling a repo that is on the wrong branch pulls the
+	## wrong branch, so offer the switch before the pull and re-read status
+	## afterwards.
+	branches = declared_branches()
+	wrong = [(label, branches[label]) for label, (_, _, _, branch, error)
+			 in statuses.items()
+			 if error is None and label in branches and branch != branches[label]]
+	if wrong:
+		listed = ", ".join(f"{label} -> {want}" for label, want in wrong)
+		if Confirm.ask(f"Switch {len(wrong)} repo(s) to the branch the config "
+					   f"asks for ({listed})?", default=True):
+			for label, want in wrong:
+				checkout(label, repos[label], want, console)
+			table, statuses = status_table(repos)
+			console.print(table)
+
+	pullable = [label for label, (dirty, ahead, behind, branch, error)
+				in statuses.items() if error is None and behind]
 	if not pullable:
 		return
 	if not Confirm.ask(f"Pull {len(pullable)} repo(s) that are behind?", default=True):

@@ -31,7 +31,7 @@
 ## -------------------------------------------------------------------------------------##
 
 name: <TrappySomething>            ## Name of the scope (scopeid)
-
+description: Mystery device that does strange things. # Short device description.
 
 ## Trappy-Scopes configuration options
 config:
@@ -45,6 +45,7 @@ config:
       active: false          # Config block is active. The function is turned on.
       command: source ~/opt/miniconda3/bin/activate 
       name: trappy                # Name of the virtual environment that will be called after the command
+  branch: main
   git_sync:                  # Automatically git-sync certain repositories
     active: false                # Config block is active. The function is turned on.
     command: git pull           # Exact command to use for git syncronisation

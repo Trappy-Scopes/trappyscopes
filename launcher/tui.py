@@ -621,7 +621,8 @@ def _show_repo_menu():
 		if choice is None or choice == "back":
 			return
 
-		dirty, ahead, behind, error = statuses.get(choice, (None, None, None, None))
+		dirty, ahead, behind, branch, error = statuses.get(
+			choice, (None, None, None, None, None))
 		if error:
 			console.print(f"[red]Cannot sync {choice}: {error}[/red]")
 		elif not behind:
