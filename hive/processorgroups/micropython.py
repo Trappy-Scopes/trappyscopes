@@ -60,8 +60,15 @@ class MicropythonDevice(AbstractProcessorGroup):
 		pass
 
 	def __del__(self):
+		## disconnect() and a failed connect() clear self.device once the port
+		## is closed, so this only fires for a device that was never
+		## disconnected. Best-effort: the port may already be gone, and there
+		## is no one to report a failure to from inside __del__.
 		if self.device:
-			self.device.exit_raw_repl()
+			try:
+				self.device.exit_raw_repl()
+			except Exception:
+				pass
 
 	def __call__(self, command):
 		raise Exception("Method not defined!")
@@ -168,6 +175,8 @@ class SerialMPDevice(MicropythonDevice):
 					opened.close()
 				except Exception:
 					pass
+				## Closed, so __del__ must not touch it (see disconnect()).
+				self.device = None
 
 	def disconnect(self):
 		## An explicit disconnect always marks the object disconnected and frees
@@ -179,7 +188,14 @@ class SerialMPDevice(MicropythonDevice):
 			self.connected = False
 			if self.port in SerialMPDevice.exclusion_list:
 				SerialMPDevice.exclusion_list.remove(self.port)
-			self.device.close()
+			try:
+				self.device.close()
+			finally:
+				## Cleared so __del__'s `if self.device:` guard sees nothing left
+				## to close. Without this, __del__ later calls exit_raw_repl() on
+				## the closed port and raises PortNotOpenError at garbage-
+				## collection time.
+				self.device = None
 
 	def auto_connect(self, port=None):
 		"""
