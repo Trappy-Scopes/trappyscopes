@@ -49,6 +49,8 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 28 | wallpaper failed: `docs/assets/white_logo.png` missing | `.gitignore` ignored every `*.png`, so the logos were never committed | `docs/assets/*.png` allowed, logos committed (ba15e52) |
 | 29 | wallpaper "set" but unchanged | `set_wallpaper()` used gsettings first; Raspberry Pi OS ships it but draws the desktop with pcmanfm | pcmanfm unless GNOME; reaches the desktop session from SSH (ba15e52) |
 | 30 | every launch asked about conda-forge (graphviz) and "Proceed?" | Launch normally re-ran the profile install each time; graphviz had no users | runs only until installed; graphviz dropped from the Pi profile (ba15e52) |
+| 31 | every startup script ran twice (banner printed twice) | `ScriptEngine.run()` imported the script to read `__description__`, then exec'd it | description read from the source with `ast`; one exec (5c113a6) |
+| 32 | Launch normally always ran install and repository sync | no way to turn steps off | `config.launch: {install, config_sync, repo_sync}`, all on by default (see installation.md) |
 
 Open:
 
@@ -72,9 +74,9 @@ Open:
   `pimoroni_rgb_sparkly_rainbows_cntlr.py`.
 - `pico_firmware/controllers/pimoroni_rgb_sparkly_rainbows.py` imports
   `picokeypad` and is imported by nothing (the 2024 keypad circuit used it).
-- `ScriptEngine` imports a startup script as a module and then executes it, so
-  its top level runs twice (keypad_pump_control prints its banner twice).
-  Harmless for that script; wrong for one with side effects at load.
+- `exp` in the CLI is set by convention only (`create_exp()`, `exp = findexp()`);
+  when `Experiment.current` changes any other way, `exp` stays behind
+  (restructuring.md §4.2's latent bug). `scope` has no such gap.
 - At exit: `ImportError: sys.meta_path is None` from `ScopeAssembly.__del__`,
   and `ScopeAssembly.close()` crashes when no scope was built. Harmless.
 - `opencv-python` 5.0 and numpy 2.4.6 in `~/.local` (an old
@@ -93,6 +95,7 @@ Open:
 - [ ] **Step 5: the link-break diagnosis.** Leads: the over-full flash (fixed
   in step 4) and the reply parsing (fixed on `dev`).
 - [ ] Bring the `strip("None")` fix to `main` once the bench has run on it.
+- [ ] Set `config.launch` on the bench config (Yatharth testing; not touched).
 - [ ] Make the template's defaults apply in `TrappyConfig` (then a minimal
   config becomes safe; "Create configuration file" could offer one).
 - [ ] Move the firmware cache out of `~/trappyverse/` (or exclude it from the

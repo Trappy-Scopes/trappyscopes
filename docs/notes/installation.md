@@ -59,6 +59,18 @@ cd ~/trappyscopes && ./trappyscope              # Launch normally: config, sync,
 cd ~/trappyscopes && ./trappyscope --launcher   # the menu
 ```
 
+`./trappyscope` runs Launch normally: the hardware-profile install, the
+config check, the settings sync and the repository sync, then the CLI. Turn
+steps off in the config (the launcher menu still offers each one):
+
+```yaml
+config:
+  launch:
+    install: false       # hardware-profile install (uv, apt, conda-forge)
+    config_sync: true    # sync ~/trappyverse with config_server
+    repo_sync: false     # repository status; clone, switch branch, pull
+```
+
 `./trappyscope` uses `~/trappyvenv` by itself. The same command is
 `~/trappyvenv/bin/trappyscope`, or `trappyscope` after
 `source ~/trappyvenv/bin/activate`.
