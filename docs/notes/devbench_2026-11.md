@@ -50,7 +50,7 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 29 | wallpaper "set" but unchanged | `set_wallpaper()` used gsettings first; Raspberry Pi OS ships it but draws the desktop with pcmanfm | pcmanfm unless GNOME; reaches the desktop session from SSH (ba15e52) |
 | 30 | every launch asked about conda-forge (graphviz) and "Proceed?" | Launch normally re-ran the profile install each time; graphviz had no users | runs only until installed; graphviz dropped from the Pi profile (ba15e52) |
 | 31 | every startup script ran twice (banner printed twice) | `ScriptEngine.run()` imported the script to read `__description__`, then exec'd it | description read from the source with `ast`; one exec (5c113a6) |
-| 32 | Launch normally always ran install and repository sync | no way to turn steps off | `config.launch: {install, config_sync, repo_sync}`, all on by default (see installation.md) |
+| 32 | Launch normally always ran install and repository sync | no way to turn steps off | `config.launch: {install, config_sync, repo_sync}`, all off by default and on the bench (see installation.md) |
 
 Open:
 
@@ -95,7 +95,7 @@ Open:
 - [ ] **Step 5: the link-break diagnosis.** Leads: the over-full flash (fixed
   in step 4) and the reply parsing (fixed on `dev`).
 - [ ] Bring the `strip("None")` fix to `main` once the bench has run on it.
-- [ ] Set `config.launch` on the bench config (Yatharth testing; not touched).
+- [x] Set `config.launch` on the bench config (all off).
 - [ ] Make the template's defaults apply in `TrappyConfig` (then a minimal
   config becomes safe; "Create configuration file" could offer one).
 - [ ] Move the firmware cache out of `~/trappyverse/` (or exclude it from the

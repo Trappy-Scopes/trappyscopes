@@ -12,7 +12,7 @@ of sys.argv in one pass before the launcher/fast-track branch is even
 chosen, so there's nothing extra to forward here.
 
 config.launch turns the install, config sync and repo sync steps on or off
-(all on by default); the launcher menu offers each of them on its own either
+(all off by default); the launcher menu offers each of them on its own either
 way.
 
 Environment activation was the one open piece of this sequence (§7.3 step
@@ -31,8 +31,9 @@ LAUNCH_STEPS = ("install", "config_sync", "repo_sync")
 def launch_steps():
 	"""{step: on/off} from config.launch -- which pre-flight steps Launch
 	normally runs. Missing keys, a missing block and a missing config file
-	all mean on. Read from the file directly: the install step runs before
-	the config check, possibly before a config exists."""
+	all mean off, like the template. Read from the file directly: the
+	install step runs before the config check, possibly before a config
+	exists."""
 	import os
 	import yaml
 	from core.permaconfig.config import TrappyConfig
@@ -45,7 +46,7 @@ def launch_steps():
 			except Exception:
 				block = {}
 			break
-	return {step: bool(block.get(step, True)) for step in LAUNCH_STEPS}
+	return {step: bool(block.get(step, False)) for step in LAUNCH_STEPS}
 
 
 def run(console=None):
@@ -54,7 +55,7 @@ def run(console=None):
 	skipped = [s for s, on in steps.items() if not on]
 	if skipped:
 		console.print(f"[dim]config.launch: skipping {', '.join(skipped)} "
-					  f"(each is still in the launcher menu).[/dim]")
+					  f"(turn on in config.launch, or run from the launcher menu).[/dim]")
 
 	## Hardware-profile install (uv, apt, conda-forge). Asks before installing.
 	if steps["install"]:

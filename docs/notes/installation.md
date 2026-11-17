@@ -59,15 +59,15 @@ cd ~/trappyscopes && ./trappyscope              # Launch normally: config, sync,
 cd ~/trappyscopes && ./trappyscope --launcher   # the menu
 ```
 
-`./trappyscope` runs Launch normally: the hardware-profile install, the
-config check, the settings sync and the repository sync, then the CLI. Turn
-steps off in the config (the launcher menu still offers each one):
+`./trappyscope` runs Launch normally: the config check, then the CLI. Three
+more pre-flight steps are off by default; turn them on in the config, or run
+them from the launcher menu (`./trappyscope --launcher`) when needed:
 
 ```yaml
 config:
   launch:
     install: false       # hardware-profile install (uv, apt, conda-forge)
-    config_sync: true    # sync ~/trappyverse with config_server
+    config_sync: false   # sync ~/trappyverse with config_server
     repo_sync: false     # repository status; clone, switch branch, pull
 ```
 
