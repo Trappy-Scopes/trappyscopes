@@ -24,6 +24,7 @@ from core.permaconfig.config import TrappyConfig
 from core.permaconfig.sharing import Share
 
 _SELF_LABEL = "trappyscopes (this codebase)"
+MISSING = "path does not exist"  # _status() error for a declared repo not cloned yet
 
 
 def _entry(value):
@@ -69,9 +70,9 @@ def _status(path):
 	try:
 		repo = git.Repo(path)
 	except git.InvalidGitRepositoryError:
-		return None, None, None, "not a git repository"
+		return None, None, None, None, "not a git repository"
 	except git.NoSuchPathError:
-		return None, None, None, "path does not exist"
+		return None, None, None, None, MISSING
 
 	dirty = repo.is_dirty()
 	branch = None
@@ -84,6 +85,39 @@ def _status(path):
 		return dirty, None, None, branch, f"fetch failed: {e}"
 
 	return dirty, ahead, behind, branch, None
+
+
+def declared_repos():
+	"""AI Generated -- {path: (url, branch)} for every config.git_dependencies
+	entry, keyed like all_repos() so a status row can be cloned by its label."""
+	TrappyConfig()
+	deps = TrappyConfig.current.expanded("config", "git_dependencies") or {}
+	declared = {}
+	for url, value in deps.items():
+		path, branch = _entry(value)
+		if path:
+			declared[path] = (url, branch)
+	return declared
+
+
+def clone(label, path, console):
+	"""AI Generated -- clone a declared repository that is not on this machine
+	yet, on its pinned branch if the config pins one. Without this, a fresh
+	scope could not get pico_firmware (or any dependency) from the launcher."""
+	url, branch = declared_repos().get(label, (None, None))
+	if not url:
+		console.print(f"[red]{label}: no URL declared in config.git_dependencies.[/red]")
+		return False
+	target = os.path.expanduser(path)
+	try:
+		os.makedirs(os.path.dirname(target), exist_ok=True)
+		git.Repo.clone_from(url, target, **({"branch": branch} if branch else {}))
+	except Exception as e:
+		console.print(f"[red]Clone of {url} failed: {e}[/red]")
+		return False
+	console.print(f"[green]cloned[/green] {url} -> {target}"
+				  + (f" (branch {branch})" if branch else ""))
+	return True
 
 
 def all_repos():
@@ -222,6 +256,17 @@ def check_and_sync(console=None):
 	repos = all_repos()
 	table, statuses = status_table(repos)
 	console.print(table)
+
+	## Missing first: a declared repo that is not on this machine yet.
+	declared = declared_repos()
+	missing = [label for label, status in statuses.items()
+			   if status[4] == MISSING and label in declared]
+	if missing and Confirm.ask(f"Clone {len(missing)} declared repo(s) not on this "
+							   f"machine yet ({', '.join(missing)})?", default=True):
+		for label in missing:
+			clone(label, repos[label], console)
+		table, statuses = status_table(repos)
+		console.print(table)
 
 	## Branch first: pulling a repo that is on the wrong branch pulls the
 	## wrong branch, so offer the switch before the pull and re-read status

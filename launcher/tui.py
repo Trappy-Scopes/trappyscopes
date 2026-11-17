@@ -624,7 +624,10 @@ def _show_repo_menu():
 
 		dirty, ahead, behind, branch, error = statuses.get(
 			choice, (None, None, None, None, None))
-		if error:
+		if error == repo_sync.MISSING:
+			if Confirm.ask(f"{choice} is not on this machine yet. Clone it?", default=True):
+				repo_sync.clone(choice, repos[choice], console)
+		elif error:
 			console.print(f"[red]Cannot sync {choice}: {error}[/red]")
 		elif not behind:
 			console.print(f"[dim]{choice} is already up to date.[/dim]")
