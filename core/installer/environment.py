@@ -161,7 +161,13 @@ def _machine_local_profiles_dir():
 
 def _configured_profile_dirs(config=None):
 	if config is None:
-		config = TrappyConfig().get()
+		## A fresh machine installs before it has a trappyconfig.yaml: no
+		## configured profile dirs then, only the native and machine-local ones.
+		from core.exceptions import TS_ConfigNotFound
+		try:
+			config = TrappyConfig().get()
+		except TS_ConfigNotFound:
+			return []
 	return (config.get("config") or {}).get("hardware_profile_dirs") or []
 
 

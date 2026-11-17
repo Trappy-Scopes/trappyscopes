@@ -13,6 +13,11 @@ top-level names of the interactive session.
 See expenv/__init__.py for the available environments.
 """
 
+## Parsed first: core.argparser handles the flags that must work before any
+## configuration exists (--install on a fresh machine, --intro, --loc, ...)
+## and exits for them. build() below needs trappyconfig.yaml.
+import core.argparser  # noqa: F401
+
 from expenv import build
 
 globals().update(build())
