@@ -36,14 +36,10 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 15 | first push to a new scope folder failed (`rsync: mkdir ... No such file or directory`) | rsync creates only the last path component | create the remote folder first (06ed9d3) |
 | 16 | "Nothing to transfer -- both sides already match" printed after a failed rsync | the message ignored the exit codes | only on success (06ed9d3) |
 | 17 | NAS username and password printed in a traceback | on the `mount` command line; `CalledProcessError` shows the command | 0600 credentials file, removed after mount (06ed9d3) |
+| 18 | `config_server.destination: "{scope}"` became a folder named `{scope}` | the field was used literally (and `{scope}` is not a template name) | templated like `file_server.destination`; scope ID appended unless placed; template default `""` (671faf4) |
 
 Open:
 
-- The default template's `config_server.destination: "{date}"` is wrong:
-  that field is not templated, so it would create a folder named `{date}`.
-- `config_server.destination` is used literally, so `"{scope}"` became a
-  folder named `{scope}`. Decide: template it like `file_server.destination`
-  (supported names: `{scopeid}`, `{date}`, `{time}`, `{user}`), or keep it literal.
 - Not bugs: "Couldn't chdir to /mnt/config_server" came from a launcher started
   before the Pi pulled dce7260; mount's "fstab has been modified" hint is noise
   (`/etc/fstab` unchanged since 2024).
@@ -60,7 +56,7 @@ Open:
   or flags for each prompt, so a scope can be set up by one command.
 - [ ] Minimal config option: "Create configuration file" copies the full
   204-line template; bench step 2 needs one with only `config_server`.
-- [ ] Fix the template's `config_server.destination: "{date}"`.
+- [x] Fix the template's `config_server.destination: "{date}"`.
 - [ ] Finish one `main.py --install` run end to end (stopped part-way when
   the bench moved to the launcher).
 - [x] Start the launcher on a fresh machine (`python -m launcher`).
