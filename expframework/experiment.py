@@ -214,6 +214,8 @@ class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit, ExpPolicy):
 		if data_dir is None:
 			data_dir = TrappyConfig.current.leaf("Experiment", "exp_dir")
 		dir_ = os.path.join(os.path.expanduser(data_dir), name)
+		## The experiments directory itself may not exist yet on a fresh scope.
+		os.makedirs(os.path.expanduser(data_dir), exist_ok=True)
 		os.mkdir(dir_)
 		os.mkdir(os.path.join(dir_, "postprocess"))
 		os.mkdir(os.path.join(dir_, "analysis"))
