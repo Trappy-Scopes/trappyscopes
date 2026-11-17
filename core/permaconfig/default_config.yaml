@@ -57,7 +57,8 @@ config:
     active: false
     server: <ip>/<address>
     share: <name-of-server-share>
-    destination: "{date}"   # Sub folder inside the share. This will create a folder with the "current date" opon operation.
+    destination: ""         # Folder inside the share; the scope's folder is <destination>/<name>. Templated
+                            # ({scopeid}, {date}, {time}, {user}); "{scopeid}" places the scope folder itself.
     username: <username>
     password: <password>
   config_redact_fields:     # Fields that will be redacted, if the config file is copied

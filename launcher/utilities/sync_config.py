@@ -23,6 +23,23 @@ from core.permaconfig.sharing import Share
 import core.sync as sync
 
 
+def destination_for(block, config):
+	"""(path inside the share, scopeid) for this scope's config folder.
+
+	The launcher runs before the experiment environment sets Share.scopeid,
+	so the scope ID comes from the config's `name`. It is appended to the
+	templated destination unless the template already places it, so
+	"configs" and "configs/{scopeid}" both give configs/<scopeid>.
+	"""
+	import re
+	scopeid = Share.scopeid or config.get("name", "unknown-scope")
+	raw = block.get("destination") or ""
+	templated = (TrappyConfig.current or TrappyConfig()).template(raw, scopeid=scopeid)
+	if re.search(r"\{\s*scopeid\b", raw):
+		return templated, scopeid
+	return os.path.join(templated, scopeid), scopeid
+
+
 def sync_trappyverse(config=None, console=None):
 	"""
 	Sync ~/trappyverse/ with the config server. Returns True if both
@@ -38,24 +55,20 @@ def sync_trappyverse(config=None, console=None):
 		console.print("[yellow]config_server is not configured or is inactive -- nothing to sync.[/yellow]")
 		return True
 
-	## AI Generated -- unlike Experiment.file_server.destination,
-	## config_server.destination is never templated (see
-	## TrappyConfig.template()) -- scopeid is already appended
-	## structurally right below regardless of this value's content, so
-	## there's little need for it to support the same "{date}"-style
-	## substitution. Warn rather than silently create a folder literally
-	## named "{date}" if someone assumes it works the same way.
-	if "{" in block["destination"] or "}" in block["destination"]:
-		console.print(
-			f"[yellow]config_server.destination ('{block['destination']}') looks like it's "
-			f"meant to be a template, but this field is used literally, not evaluated -- "
-			f"unlike Experiment.file_server.destination.[/yellow]"
-		)
+	## config_server.destination is templated like Experiment.file_server.
+	## destination (TrappyConfig.template(): {scopeid}, {date}, {time},
+	## {user}). Checked before mounting, so a bad template fails cleanly.
+	try:
+		destination, scopeid = destination_for(block, config)
+	except Exception as e:
+		console.print(f"[red]config_server.destination ('{block.get('destination')}') "
+					  f"is not a valid template: {e!r}. Names: {{scopeid}}, {{date}}, "
+					  f"{{time}}, {{user}}.[/red]")
+		return False
 
 	mount_point = sync.mount(block["server"], block["share"],
 							  block["username"], block["password"])
-	scopeid = Share.scopeid or config.get("name", "unknown-scope")
-	remote = os.path.join(mount_point, block["destination"], scopeid) + "/"
+	remote = os.path.join(mount_point, destination).rstrip("/") + "/"
 	local = os.path.join(os.path.expanduser("~"), "trappyverse") + "/"
 	os.makedirs(local, exist_ok=True)
 

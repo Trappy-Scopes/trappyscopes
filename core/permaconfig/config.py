@@ -195,7 +195,7 @@ class TrappyConfig(confuse.Configuration):
 	## docs/notes/scripts_measurements_plotting.md §G.10.
 	TEMPLATE_VARS = ("scopeid", "date", "time", "user")
 
-	def template(self, raw):
+	def template(self, raw, **overrides):
 		"""Evaluate `raw` as an f-string template against exactly the
 		four known context vars in TEMPLATE_VARS -- for a caller that
 		already has the raw template string (e.g. ExpSync, which cached
@@ -224,6 +224,13 @@ class TrappyConfig(confuse.Configuration):
 			"user": User.name(),
 			"__builtins__": {},
 		}
+		## A caller that runs before these are set (e.g. the launcher, before
+		## the experiment environment sets Share.scopeid) passes them in.
+		## Only the four known names, so the namespace stays closed.
+		for key, value in overrides.items():
+			if key not in ("scopeid", "date", "time", "user"):
+				raise KeyError(f"unknown template name: {key}")
+			context[key] = value
 		return eval(f'f"""{raw}"""', context)
 
 	def leaf_templated(self, *path):
