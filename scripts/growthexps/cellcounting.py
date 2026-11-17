@@ -29,7 +29,7 @@ from expframework.experiment import Experiment
 print(Panel(Markdown(
 """Use `create_exp()` to open a new experiment, or `findexp()` to reopen an old one.
 Use `new_count(name, *counts, mutant=..., condition=...)` to log a cell count for a colony
-(`condition` is free text, e.g. "10 mM DCMU" - recorded with that count).
+(`condition` is free text, e.g. "10 uM DCMU" - recorded with that count).
 Use `log_media_addition(name, volume_before_ml, media_added_ml)` whenever you add fresh media.
 Use `fit_curve(names)` or `analyse_growth()` to fit growth-curves and populate the `analysis/` folder.
 Use `growth_rate_segments(name)` / `plot_growth_rate_segments(name)` for a colony diluted repeatedly (a continuously-fed culture) - fit_curve calls this automatically for colonies with 2+ media additions.
@@ -159,7 +159,7 @@ def _condition_history(sub_df):
 	One-line summary of the conditions a colony's counts were taken under,
 	in time order, with consecutive repeats collapsed - e.g. a culture
 	counted twice untreated and then twice with DCMU reads
-	"(none) -> 10 mM DCMU". Returns None if no count of this colony has a
+	"(none) -> 10 uM DCMU". Returns None if no count of this colony has a
 	condition at all (so an ordinary experiment stays blank rather than
 	filling with "(none)").
 
@@ -230,7 +230,7 @@ def new_count(name, *counts, df=2, sep=None, mutant=None, condition=None,
 		growth across mutants in the analysis step.
 	condition : str, optional
 		Free-text treatment / condition this count was taken under, e.g.
-		"10 mM DCMU" (a growth inhibitor) or "lights off". Recorded with
+		"10 uM DCMU" (a growth inhibitor) or "lights off". Recorded with
 		*this count only* - it is not carried over to later counts, so pass
 		it on every count the condition applies to. Leading/trailing
 		whitespace is stripped; an empty string is treated as no condition.
