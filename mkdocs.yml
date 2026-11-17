@@ -28,6 +28,8 @@ nav:
       - Introduction: notes/assmble_trappy_scopes.md
       - Experiment Hello World: notes/coin_toss.md
       - Advanced Configuration: notes/advanced_config.md
+      - Installation: notes/installation.md
+      - Hardware profiles: notes/hardware_profiles.md
       - Restructuring plan: notes/restructuring.md
       - Hive: notes/hive.md
       - Optics: notes/optics.md
