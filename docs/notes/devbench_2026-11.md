@@ -39,6 +39,11 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 18 | `config_server.destination: "{scope}"` became a folder named `{scope}` | the field was used literally (and `{scope}` is not a template name) | templated like `file_server.destination`; scope ID appended unless placed; template default `""` (671faf4) |
 | 19 | a pinned `git_dependencies` entry (`{path, branch}`) would crash the protocol resolver and "Check new features" | both treated every entry as a path | both accept the mapping form (9dc05b7) |
 | 20 | Repository utility crashed (`expected 5, got 4`) and could not get `pico_firmware` | `_status()`'s missing-path returns not updated with branch pinning; no clone action | 5 values everywhere; declared repos missing from the machine can be cloned on their pinned branch (ca536c5) |
+| 21 | CLI crashed: `KeyError: 'set_wallpaper'` | `TrappyConfig().get()` does not fill a section's missing keys from the template; the compact bench config left keys out | config rebuilt as the full template with the bench values (open: make the template's defaults apply) |
+| 22 | Pico replies mangled (`None` -> `''`, `"done"` -> `"d"`) | `.strip("\r\nNone")` strips characters, not a word | strip newlines, drop one trailing `None` line (361fd16) |
+| 23 | `main.py` had 10 s to start a circuit | it runs as one raw-REPL command with pyboard's default timeout | 30 s for `exec_main()` only (361fd16) |
+| 24 | CLI crashed listing experiments; creating one would fail too | `~/experiments` does not exist on a fresh scope | `list_all()` returns `[]`; `Experiment.new()` creates the directory (96bb2cd, 8ef0d1d) |
+| 25 | the keypad Pico would be flashed with stock MicroPython | one global firmware image | `config.micropython.boards.<board.name>` overrides (655a19e); `pico_kp` uses Pimoroni's picow v1.24.0-beta2 |
 
 Open:
 
@@ -49,6 +54,18 @@ Open:
   `pimoroni_rgb_sparkly_rainbows_cntlr.py`.
 - The settings sync never deletes (latest copy wins, both ways): a file
   removed on one side comes back from the other.
+- Both Picos' flash is over-full (statvfs free −116 KB and −132 KB of 848):
+  they still carry the stale nested `pico_firmware/pico_firmware/`. Step 4.
+- The pump Pico restores `pumpstate.txt` at boot: pumps 1 and 2 come back
+  pulsing (5 s on per 60 s) every time `main.py` runs.
+- `pico_firmware/controllers/pimoroni_rgb_sparkly_rainbows.py` imports
+  `picokeypad`; nothing imports it any more (the 2024 keypad circuit did).
+- "Launch normally" runs the installer's profile step every launch and asks
+  "Proceed?" again.
+- At exit: `ImportError: sys.meta_path is None` from `ScopeAssembly.__del__`
+  (interpreter already shutting down). Harmless.
+- `opencv-python` 5.0 and numpy 2.4.6 in `~/.local` (pip `--user`): pip warns;
+  only the webcam driver imports cv2.
 - Not bugs: "Couldn't chdir to /mnt/config_server" came from a launcher started
   before the Pi pulled dce7260; mount's "fstab has been modified" hint is noise
   (`/etc/fstab` unchanged since 2024).
@@ -81,3 +98,15 @@ defaults: the two Picos (`pico_pumps`, `pico_kp`), `branch: dev`, the venv,
 `git_dependencies` (pico_firmware pinned to `main`, protocols), keyboard
 shortcuts and `micropython` (1.20.0; firmware image to choose at step 4).
 `Experiment.file_server` is left inactive with placeholders.
+
+### Step 3: the CLI and the scope (2026-11-17)
+
+`trappyscope` runs Launch normally end to end: config check, settings sync,
+repository status, then the CLI. Both Picos mount (`pico_pumps`, `pico_kp`)
+and `scope.draw_tree()` shows `node`, `pico_pumps` with `pump1`–`pump3` and
+`pumpset`, and `pico_kp` with `kp`. `scope.pumpset.state()` and
+`scope.kp.health()` answer (keypad: 0 errors, 0 dropped).
+
+Pico firmware as found: `pico_pumps` MicroPython v1.19.1-992 (preview, 2023),
+Pico W; `pico_kp` Pimoroni picow v1.24.0-beta2, Pico W. Board names and
+circuit ids were already right.
