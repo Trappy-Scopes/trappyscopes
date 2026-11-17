@@ -65,6 +65,15 @@ rclone version | head -1                                                        
 groups | grep -c dialout                                                         # 1: needed for the Picos
 ```
 
+## Left out of the install
+
+| What | Why | Later |
+|---|---|---|
+| `trappy-explorer` (analysis and reports, the old `ExpReport`) | optional | separate install |
+| Qt: `pyqt5`, `pyqt5-qt5`, `pyqt5-sip`, `pyqtgraph`, `qtconsole`, `qtpy` | used only by `gui/`, which is stale. picamera2 does not need Qt: apt only *recommends* `python3-pyqt5`, apt installs it anyway, and the venv sees it, so `Preview.QT`/`QTGL` still work. Our default preview is `Preview.DRM`. | an optional `gui` extra, if `gui/` is revived |
+| `trackpy`, `pims` | used only by `scripts/celltracking/livetrack.py` | install with that script |
+| docs-site and unused packages (`markdown`, `pymdown-extensions`, `paginate`, `pathspec`, `mermaid-py`, `diagrams`, `graphviz`, `beepy`, `icalendar`, `imageio-ffmpeg`, `mpremote`, `textual-dev`, `ipython`, `ipywidgets`, `jupyterlab-widgets`, `joblib`, `json-tricks`, `scikit-learn`) | imported nowhere in the code, and on no scope (one or two only on M1) | none |
+
 ## Notes
 
 - System `pip` refuses to install (PEP 668). Always use `~/trappyvenv/bin/pip`
@@ -76,8 +85,6 @@ groups | grep -c dialout                                                        
   on the system Python; inside the venv, the venv's numpy 1.26.4 wins.
 - To move a lock: `sudo apt-mark unhold python3-picamera2` (and the others), then change
   `pyproject.toml` and `hardware-profiles/raspberrypi/` together.
-- Not installed: `trappy-explorer` (analysis and reports, including the old
-  `ExpReport`). It is an optional install, left out for now.
 - macOS (development only): the same steps without apt. `native` packages
   come from brew, and `apt_only` is skipped. Use Python 3.11 or 3.12, because
   numpy 1.26.4 has no 3.13 wheels.
