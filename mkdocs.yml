@@ -20,6 +20,8 @@ nav:
       - API Reference: optics/api.md
   - Notes:
       - Introduction: notes/assmble_trappy_scopes.md
+      - Experiment Hello World: notes/coin_toss.md
+      - Advanced Configuration: notes/advanced_config.md
       - Restructuring plan: notes/restructuring.md
       - Hive: notes/hive.md
       - Optics: notes/optics.md
