@@ -55,7 +55,9 @@ def _check_git_dependencies(config):
 				 "Repository utility will show no extra repos for this device")]
 
 	rows = []
-	for url, path in deps.items():
+	for url, value in deps.items():
+		## An entry is a path, or {path, branch} when the branch is pinned.
+		path = value.get("path") if isinstance(value, dict) else value
 		expanded = os.path.expanduser(path)
 		exists = os.path.isdir(expanded)
 		rows.append((f"git_dependencies[{url}]", path,

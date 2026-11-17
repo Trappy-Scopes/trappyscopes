@@ -213,7 +213,9 @@ def _git_dependency_url(path):
     deps = TrappyConfig.current.expanded("config", "git_dependencies") or {}
     path = os.path.expanduser(path)
     for url, local in deps.items():
-        if os.path.expanduser(local) == path:
+        ## An entry is a path, or {path, branch} when the branch is pinned.
+        local = local.get("path") if isinstance(local, dict) else local
+        if local and os.path.expanduser(local) == path:
             return url
     return None
 
