@@ -78,6 +78,10 @@ def mount(server, share, username, password):
 
 	if system == "Linux":
 		mount_point = f"/mnt/{share}"
+		## mount needs an existing mount point; /mnt is root-owned and empty on
+		## a fresh Pi. If the mount below fails it raises, so nothing is ever
+		## written into this bare directory (the ghost-mount failure).
+		subprocess.run(["sudo", "mkdir", "-p", mount_point], check=True)
 		command = [
 			"sudo", "mount", "-t", "cifs", f"//{server}/{share}", mount_point,
 			"-o", f"username={username},password={password},rw,"
