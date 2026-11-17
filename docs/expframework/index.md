@@ -141,6 +141,5 @@ The `exp.notebook` property (implemented in the `ExpNotebook` class can be used 
 - [File sync](sync.md)
 - [Protocols](protocol.md)
 - [Script engine](scriptengine.md)
-- [Reports](report.md)
 - [Plotting](plotter.md)
 - [API reference](api.md)

@@ -11,6 +11,10 @@
 native:
   - fim     # terminal image viewer, used by scripts/celltracking, scripts/alignmenttools
   - tree
+  - rsync   # config sync (launcher/utilities/sync_config.py, via core/sync.py's sync());
+            # Raspberry Pi OS already ships it, listed so the requirement is explicit
+  - rclone  # experiment data sync (expframework/expsync.py). Its SMB backend needs
+            # rclone >= 1.60: Bookworm's apt package is 1.60.1, Bullseye's (1.53) has none
 
 apt_only:
   - python3-picamera2   # linked against this board's own libcamera build --

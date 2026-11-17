@@ -20,8 +20,4 @@
 
 ::: expframework.scriptengine
 
-::: expframework.report
-
 ::: expframework.plotter
-
-::: expframework.special

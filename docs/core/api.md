@@ -47,12 +47,4 @@
 
 ::: core.permaconfig.yaml_logger
 
-::: core.precision.timing
-
-::: core.startup
-    options:
-      members: [device_metadata, session, og_directory, scopeid, scope, server, exppanel, expmap, lab]
-
-::: core.startup.useractions
-
 ::: core.utilities.fluff

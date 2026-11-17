@@ -30,7 +30,7 @@ from rich.pretty import Pretty
 
 from picamera2.request import MappedArray
 
-from core.precision.timing import precise_sleep
+from core.idioms.precisetiming import precise_sleep
 from detectors.cameras.rpi_hq_picam2 import JpegEncoderGrayRedCh
 from expframework.experiment import Experiment
 from hive.assembly import ScopeAssembly

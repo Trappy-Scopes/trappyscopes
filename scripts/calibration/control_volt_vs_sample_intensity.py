@@ -210,8 +210,6 @@ def generate_single_point_calibration_report(exp):
 	plt.legend()
 	plotpng = "control_volt_vs_intensity_calibration_plot.png"
 	fig.savefig(plotpng)
-	#exp.add_image(plotpng, caption="Light calibration plots. PFD is photon flux density in units of umol per square meter per second.")
-	#exp.generate_report()
 	return fig, ax
 
 

@@ -1237,3 +1237,31 @@ from `main` probably carry the copy too. Check with `mpremote df`.
   record, not the sensor's.
 - **When `dev`'s `trappyverse/state` lands,** nothing changes for the light
   meter, because its record is not on the scope.
+
+## 17. Keeping `dev` and `main` together (2026-11-17)
+
+!!! note "Provenance"
+    Written by **Claude** (Anthropic) with Yatharth on 2026-11-17, after the
+    first merge of `main` into `dev`.
+
+- **Who runs what.** The fleet stays on `main`, the stable branch. `dev` runs on
+  one test instrument (a Pi 4B with four peristaltic pumps and the keypad) in
+  parallel. The end goal is one reviewed merge of `dev` back into `main`.
+- **Merge `main` into `dev` whenever `main` gets new commits.** That way `dev`
+  always carries the fleet's fixes, and the final `dev` → `main` merge stays
+  small. Do not merge `dev` into `main` until that final review.
+- **Each merge:**
+  1. `git merge origin/main` on `dev`, as one merge commit.
+  2. Resolve conflicts by keeping both sides' fixes, and say in the merge
+     message what each side fixed.
+  3. Bring `main`'s new scripts to `dev`'s layout in one follow-up commit
+     (imports, removed modules, docs API pages).
+  4. Check that everything compiles and imports before pushing `dev`.
+- **A fix made on one branch that the other also needs** goes onto both. The
+  first case was the Pico link (`SerialMPDevice.connect()`/`disconnect()`).
+- **First merge:** `4e91f59`. Its one conflict was
+  `hive/processorgroups/micropython.py`. Follow-up: `core.precision.timing` →
+  `core.idioms.precisetiming` in two scripts. The API pages for the modules
+  `dev` removed (`core.precision.timing`, `core.startup`,
+  `core.startup.useractions`, `expframework.report`, `expframework.special`)
+  are left out of `dev`'s docs. `main` keeps them.

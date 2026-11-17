@@ -19,7 +19,6 @@ nav:
       - File sync: expframework/sync.md
       - Protocols: expframework/protocol.md
       - Script engine: expframework/scriptengine.md
-      - Reports: expframework/report.md
       - Plotting: expframework/plotter.md
       - API Reference: expframework/api.md
   - core:
