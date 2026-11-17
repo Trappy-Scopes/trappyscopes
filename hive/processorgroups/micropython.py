@@ -366,12 +366,28 @@ class SerialMPDevice(MicropythonDevice, SerialDevice):
 
 	# -------------  Serial Utilities -----------------------
 
-	def __call__(self, command):
+	## main.py runs as one raw-REPL command, so a circuit's whole start-up has
+	## to fit in one exec_() timeout. 10 s (pyboard's default) is too tight.
+	EXEC_MAIN_TIMEOUT_S = 30
+
+	def exec_main(self):
+		"""Execute main.py on the Pico, with EXEC_MAIN_TIMEOUT_S to finish."""
+		self.__call__('exec(open("main.py").read())', timeout=self.EXEC_MAIN_TIMEOUT_S)
+
+	def __call__(self, command, timeout=10):
 		log.debug(f"{self.name} << {command}")
 		printed =  'print(' + str(command).replace('\'', '\"') + ')'
-		ret = self.device.exec_(printed)
+		ret = self.device.exec_(printed, timeout=timeout)
 		log.debug(f"{self.name} >> {ret.decode()}")
-		return resolve_type(ret.decode().strip("\r\nNone").strip("\r\n"))
+		## print(<command>) prints the command's return value last. A None
+		## return under other output leaves a final "None" line: drop exactly
+		## that line. The old .strip("\r\nNone") stripped the *characters*
+		## \r \n N o n e from both ends, so a reply like "done" came back "d".
+		## A bare "None" is left for resolve_type(), which makes it None.
+		text = ret.decode().strip("\r\n")
+		if text.endswith("\nNone"):
+			text = text[:-len("None")].rstrip("\r\n")
+		return resolve_type(text)
 
 	## ---------------------------------------------------------------- sync
 	SKIP_DIRS = ("__pycache__", ".git", ".idea", ".vscode", "micropython-async")
