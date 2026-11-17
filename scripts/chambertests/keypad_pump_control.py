@@ -55,13 +55,14 @@ from actuators.pumps.supervisor import LinkSupervisor
 PULSE_ON_S     = 5
 PULSE_PERIOD_S = 60
 PULSE_OFF_S    = PULSE_PERIOD_S - PULSE_ON_S
+PERFUSION_SPEED = 0.083   ## pumps 1 and 2: pulse-mode speed (31% of the 0.03-0.2 band)
 
 ENVELOPE = {
 	1: {"fast_speed": 0.5,  "slow_min": 0.03, "slow_max": 0.20,
-		"slow_speed": 0.10, "pulse_duty": (PULSE_ON_S, PULSE_OFF_S),
+		"slow_speed": PERFUSION_SPEED, "pulse_duty": (PULSE_ON_S, PULSE_OFF_S),
 		"continuous": False, "kick": (0.0, 0)},
 	2: {"fast_speed": 0.5,  "slow_min": 0.03, "slow_max": 0.20,
-		"slow_speed": 0.10, "pulse_duty": (PULSE_ON_S, PULSE_OFF_S),
+		"slow_speed": PERFUSION_SPEED, "pulse_duty": (PULSE_ON_S, PULSE_OFF_S),
 		"continuous": False, "kick": (0.0, 0)},
 	## pump3 (DFR0523, aeration). Do NOT lower these to reduce aeration: the
 	## DFR0523 stalls long before it slows down usefully. Below roughly 0.5 the
