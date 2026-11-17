@@ -78,22 +78,32 @@ def mount(server, share, username, password):
 
 	if system == "Linux":
 		mount_point = f"/mnt/{share}"
+		## Already mounted (an earlier sync this boot): mounting again fails
+		## with error(16), and that message goes to the terminal, not into
+		## the exception, so it cannot be caught by text.
+		if os.path.ismount(mount_point):
+			log.info(f"{mount_point} already mounted.")
+			return mount_point
 		## mount needs an existing mount point; /mnt is root-owned and empty on
 		## a fresh Pi. If the mount below fails it raises, so nothing is ever
 		## written into this bare directory (the ghost-mount failure).
 		subprocess.run(["sudo", "mkdir", "-p", mount_point], check=True)
-		command = [
-			"sudo", "mount", "-t", "cifs", f"//{server}/{share}", mount_point,
-			"-o", f"username={username},password={password},rw,"
-				  f"file_mode=0777,dir_mode=0777,uid=1000,gid=1000",
-		]
+		## Credentials go in a 0600 file, not on the command line, where `ps`
+		## and any traceback of the failed command would show the password.
+		import tempfile
+		fd, credfile = tempfile.mkstemp(prefix="ts-smb-")
 		try:
+			with os.fdopen(fd, "w") as f:
+				f.write(f"username={username}\npassword={password}\n")
+			command = [
+				"sudo", "mount", "-t", "cifs", f"//{server}/{share}", mount_point,
+				"-o", f"credentials={credfile},rw,"
+					  f"file_mode=0777,dir_mode=0777,uid=1000,gid=1000",
+			]
 			subprocess.run(command, check=True)
 			time.sleep(5)
-		except subprocess.CalledProcessError as e:
-			if "error(16)" not in str(e):
-				raise
-			log.info("Share already mounted.")
+		finally:
+			os.remove(credfile)
 		return mount_point
 
 	elif system == "Darwin":

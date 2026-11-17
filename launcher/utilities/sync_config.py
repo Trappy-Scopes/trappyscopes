@@ -72,6 +72,9 @@ def sync_trappyverse(config=None, console=None):
 		if not Confirm.ask(f"Create it now?", default=True):
 			console.print("[dim]Not synced.[/dim]")
 			return True
+		## rsync creates only the last path component; destination/ may not
+		## exist on the share yet either.
+		os.makedirs(remote, exist_ok=True)
 		pull_ok, pulled = True, []
 	else:
 		pull_result = sync.sync(remote, local, mode="update", itemize=True)
@@ -87,7 +90,7 @@ def sync_trappyverse(config=None, console=None):
 		console.print(f"[cyan]Pulled from server ({len(pulled)}):[/cyan] {', '.join(pulled)}")
 	if pushed:
 		console.print(f"[cyan]Pushed to server ({len(pushed)}):[/cyan] {', '.join(pushed)}")
-	if not pulled and not pushed:
+	if not pulled and not pushed and pull_ok and push_ok:
 		console.print("[dim]Nothing to transfer -- both sides already match.[/dim]")
 
 	ok = pull_ok and push_ok
