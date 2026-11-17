@@ -614,8 +614,9 @@ FAST_SPEED  = 0.5
 SLOW_MIN    = 0.03      ## pump1, pump2 -- kitronik channels
 SLOW_MAX    = 0.2
 PULSE_ON_S  = 5
-PULSE_PERIOD_S = 180       ## one pulse every 3 minutes
+PULSE_PERIOD_S = 60        ## one pulse per minute: 5 s on / 55 s off
 PULSE_OFF_S = PULSE_PERIOD_S - PULSE_ON_S
+SLOW_START  = 0.083     ## pump1, pump2 start speed
 P3_SLOW_MIN = 0.45      ## pump3 -- DFR0523 aeration: driven hard, it stalls
 P3_SLOW_MAX = 1.0       ##   and hums under head load at low drive
 P3_SLOW_START = 0.6
@@ -714,7 +715,8 @@ def add_pumps(simulated=None, names=("pump1", "pump2", "pump3")):
 		else:
 			pump = SimPump(name, ml_per_min=rate, fast_speed=FAST_SPEED,
 							slow_min=SLOW_MIN, slow_max=SLOW_MAX,
-							pulse_on_s=PULSE_ON_S, pulse_off_s=PULSE_OFF_S)
+							pulse_on_s=PULSE_ON_S, pulse_off_s=PULSE_OFF_S,
+							slow_speed=SLOW_START)
 		if getattr(scope, name, None) is None:
 			scope.add_device(name, pump,
 								description="Simulated peristaltic pump {}".format(n))
