@@ -7,3 +7,4 @@ gpiozero>=2.0
 rpi-lgpio>=0.6          # gpiozero's GPIO backend on recent Pi OS (Pi 5's
                         # kernel driver moved away from RPi.GPIO's old model)
 smbus2>=0.4             # I2C, for onboard sensors
+numpy==1.26.4           # locked with picamera2 0.3.31: apt's simplejpeg needs numpy 1.x

@@ -17,9 +17,11 @@ native:
             # rclone >= 1.60: Bookworm's apt package is 1.60.1, Bullseye's (1.53) has none
 
 apt_only:
-  - python3-picamera2   # linked against this board's own libcamera build --
-                        # not something pip or conda can install correctly;
-                        # must match the exact Raspberry Pi OS image in use
+  - python3-picamera2=0.3.31-1  # locked; pulls the matching python3-libcamera.
+                                # Built for the system Python (3.11), which is why
+                                # the venv sees system packages. A "=version" entry
+                                # is held after install (apt-mark hold) so an
+                                # apt upgrade cannot move it.
 
 conda_forge:
   - graphviz    # the `dot` binary (diagrams, graphviz python packages)

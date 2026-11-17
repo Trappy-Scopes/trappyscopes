@@ -39,7 +39,10 @@ from core.permaconfig.config import TrappyConfig
 def ensure_uv(console=None):
 	"""Return a working `uv`, installing it via pip if not already present."""
 	console = console or Console()
-	exe = shutil.which("uv")
+	## The running interpreter's own bin/ first: a venv used as
+	## ~/trappyvenv/bin/python without `activate` is not on PATH.
+	local_uv = os.path.join(os.path.dirname(sys.executable), "uv")
+	exe = local_uv if os.access(local_uv, os.X_OK) else shutil.which("uv")
 	if exe:
 		return exe
 
@@ -50,7 +53,7 @@ def ensure_uv(console=None):
 		console.print(f"[red]Failed to install uv:[/red] {result.stderr.strip()}")
 		return None
 
-	exe = shutil.which("uv")
+	exe = local_uv if os.access(local_uv, os.X_OK) else shutil.which("uv")
 	if exe is None:
 		console.print("[red]uv installed but not found on PATH.[/red]")
 	return exe
@@ -261,6 +264,14 @@ def install_native(packages, console=None, dry_run=False):
 	if not dry_run:
 		subprocess.run(command, check=False)
 
+	## A "name=version" entry is a lock: hold it so `apt upgrade` cannot move it.
+	pinned = [p.split("=", 1)[0] for p in packages if "=" in p]
+	if pinned and system == "Linux":
+		hold = ["sudo", "apt-mark", "hold", *pinned]
+		console.print(f"$ {' '.join(hold)}")
+		if not dry_run:
+			subprocess.run(hold, check=False)
+
 
 def install_conda_forge(packages, console=None, dry_run=False):
 	console = console or Console()
@@ -290,7 +301,11 @@ def apply_plan(plan, console=None, dry_run=False, extra_pip_args=(), include_con
 
 	if plan["uv_requirements"]:
 		uv = ensure_uv(console=console)
-		command = [uv, "pip", "install", "-r", plan["uv_requirements"], *extra_pip_args]
+		## --python: install into the interpreter running the installer (the
+		## venv). Without it uv looks for VIRTUAL_ENV or a ./.venv, and a venv
+		## used as ~/trappyvenv/bin/python without `activate` has neither.
+		command = [uv, "pip", "install", "--python", sys.executable,
+				   "-r", plan["uv_requirements"], *extra_pip_args]
 		console.print(f"$ {' '.join(command)}")
 		if not dry_run:
 			subprocess.run(command, check=False)
