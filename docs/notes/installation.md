@@ -79,6 +79,13 @@ Step 3, in order:
 
 See [Hardware profiles](hardware_profiles.md) for what each package is for.
 
+## Configuration
+
+Keep `~/trappyverse/trappyconfig.yaml` a **full copy of the template**
+(`core/permaconfig/default_config.yaml`), changing values in place. Keys left
+out of a section are not filled from the template's defaults (for example a
+missing `set_wallpaper`), so a compact file can fail at start-up.
+
 ## Config server (settings sync)
 
 ```yaml
@@ -98,6 +105,19 @@ Launcher → **Configuration > Sync configuration file**. It mounts
 `~/trappyverse/` with `<destination>/<name>/`. On the bench Pi the default
 route is `eth0`, so the NAS's institute address (172.22.50.240) is not
 reachable from it; 192.168.0.248 is.
+
+## Picos
+
+1. Launcher → **Repository utility**: clone `pico_firmware` (declared in
+   `config.git_dependencies`).
+2. Launcher → **MicroPython > Flash** for each board: the default image, or the
+   board's own under `config.micropython.boards` (see
+   [Hardware profiles](hardware_profiles.md#micropython-firmware)).
+3. Launcher → **MicroPython > Sync**: copies `pico_firmware` onto the board.
+   `board.py` (`name`, `circuit_id`) must match the config's `devices` entry
+   (`search_name`).
+4. `./trappyscope`: the scope mounts each board; `scope.draw_tree()` lists the
+   boards and the objects their circuits create.
 
 ## Check
 

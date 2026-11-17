@@ -70,7 +70,7 @@ then held (`apt-mark hold`), so `apt upgrade` cannot move it.
 | `hive/processorgroups/micropython.py`: `SerialMPDevice` | the Picos: connect, handshake, `set_time()`, `device_config()`, file sync | same |
 | `hive/processorgroups/serialdevice.py`: `SerialDevice`, `FixedVocabSerialDevice` | serial boards that are not MicroPython (e.g. Arduino) | same |
 | `core/idioms/devicetree.py` | lists attached serial/USB devices (launcher "Device tree") | `pyserial` |
-| `core/installer/mpyfirmware.py` | flashes MicroPython and syncs `pico_firmware` (reads its `sync_what.yaml`) | a Pico in BOOTSEL mode for a first flash |
+| `core/installer/mpyfirmware.py` | flashes MicroPython (per-board images, below) and syncs `pico_firmware` (reads its `sync_what.yaml`) | the `RPI-RP2` drive mounted, or picotool |
 
 ## Installer functions (`core/installer/environment.py`)
 
@@ -83,3 +83,39 @@ then held (`apt-mark hold`), so `apt upgrade` cannot move it.
 | `apply_plan()` | runs the plan: `requirements.txt` with `uv pip install --python <venv>`, then `native`, then `apt_only` (Linux), then `conda_forge` if asked |
 | `install_native()` | `apt-get install` or `brew install`; holds `name=version` entries |
 | `ensure()` | all of the above, in order |
+
+## MicroPython firmware
+
+Which MicroPython build a Pico gets is set in the scope config, not in a
+profile:
+
+```yaml
+config:
+  micropython:
+    version: "1.20.0"
+    firmware_image: https://micropython.org/resources/firmware/RPI_PICO_W-20230426-v1.20.0.uf2
+    firmware_dir: ~/code/Trappy-Scopes/pico_firmware
+    boards:                        # per board, by board.name in its board.py
+      pico_kp:
+        version: "1.24.0"
+        firmware_image: https://github.com/pimoroni/pimoroni-pico/releases/download/v1.24.0-beta2/picow-v1.24.0-beta2-pimoroni-micropython.uf2
+```
+
+- **Default:** stock MicroPython 1.20.0 for the Pico W, from micropython.org
+  (the fleet's version). Used by every board without a `boards` entry.
+- **Per board:** a board that needs another build names it under `boards`. The
+  keypad Pico runs Pimoroni's build (`picow v1.24.0-beta2`), so it has an entry;
+  flashing it with the default would replace that.
+- **Flashing** (launcher: MicroPython > Flash): reads the board's version,
+  `board.name` and circuit; picks the board's entry or the default; skips a
+  board already at that version unless told to reflash; downloads the image
+  once (asks first) into `~/trappyverse/state/firmware_cache/`; resets the
+  board into BOOTSEL; then uses picotool if it is on PATH, otherwise copies the
+  `.uf2` to the `RPI-RP2` drive. Bookworm's apt has no picotool, so on a Pi the
+  drive must be mounted: a desktop session automounts it, a headless one does not.
+- **Files survive a MicroPython flash** (`board.py`, `vault/`, `pumpstate.txt`).
+  Sync `pico_firmware` afterwards (MicroPython > Sync), which follows the
+  firmware repo's `sync_what.yaml`.
+- **Identity:** the device registry (`~/trappyverse/state/device_registry.yaml`)
+  keys a board by its USB serial number, which is the chip ID. Flashing does not
+  change it; re-register only to refresh the cached version or the role.

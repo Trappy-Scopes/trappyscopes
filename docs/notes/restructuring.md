@@ -1259,6 +1259,8 @@ from `main` probably carry the copy too. Check with `mpremote df`.
   4. Check that everything compiles and imports before pushing `dev`.
 - **A fix made on one branch that the other also needs** goes onto both. The
   first case was the Pico link (`SerialMPDevice.connect()`/`disconnect()`).
+- **Merges so far:** `4e91f59` (the first, below), `0a66897` and `af17454`
+  (main's copies of fixes dev already had; conflicts resolved to dev).
 - **First merge:** `4e91f59`. Its one conflict was
   `hive/processorgroups/micropython.py`. Follow-up: `core.precision.timing` →
   `core.idioms.precisetiming` in two scripts. The API pages for the modules

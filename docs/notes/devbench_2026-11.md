@@ -45,65 +45,72 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 24 | CLI crashed listing experiments; creating one would fail too | `~/experiments` does not exist on a fresh scope | `list_all()` returns `[]`; `Experiment.new()` creates the directory (96bb2cd, 8ef0d1d) |
 | 25 | the keypad Pico would be flashed with stock MicroPython | one global firmware image | `config.micropython.boards.<board.name>` overrides (655a19e); `pico_kp` uses Pimoroni's picow v1.24.0-beta2 |
 | 26 | `flash()` gave up on the UF2 drive and asked to check again | it looked once, right after the reset, before the drive was mounted | polls up to 15 s (45d41df) |
+| 27 | `./trappyscope` did not start | the repo-root script ran the removed `startup.py`, then `python -i main.py` with the system Python | runs `python -m launcher` with `~/trappyvenv` (f9e3eac) |
 
 Open:
 
+- **Template defaults are not applied.** `TrappyConfig().get()` returns a
+  section as the file has it, without the template's missing keys, so a config
+  must be a full copy of the template (finding 21). Fix in `TrappyConfig`.
+- `main` still has the `strip("None")` reply bug (fixed on `dev`, 361fd16).
 - The template's `ScopeAssembly:` section is never read: the assembly builds
-  from a top-level `devices:` block. The bench config uses `devices:`.
+  from a top-level `devices:` block.
+- `pumpstate.txt` sits at the Pico's root; it belongs in `vault/`. Pumps 1 and
+  2 restore from it on every boot (they come back pulsing).
+- The firmware cache is `~/trappyverse/state/firmware_cache/`, inside the folder
+  the settings sync mirrors: the .uf2 images were uploaded to the config share.
+- Flashing without picotool (not in Bookworm's apt) copies the .uf2 to the
+  `RPI-RP2` drive, so it needs the drive mounted. Works on the bench because a
+  desktop session automounts it; a headless scope would need a manual mount.
+- The settings sync never deletes (latest copy wins, both ways): a file
+  removed on one side comes back from the other.
+- "Launch normally" runs the installer's profile step every launch and asks
+  "Proceed?" again.
+- Wallpaper (`set_wallpaper: true`) fails: `docs/assets/white_logo.png` is
+  missing on `dev`. Non-fatal.
 - `scripts/chambertests/keypad_pump_control.py` tells the user to run the
   keypad circuit `pimoroni_rgb_keypad_pumpctrl`; the file is
   `pimoroni_rgb_sparkly_rainbows_cntlr.py`.
-- The settings sync never deletes (latest copy wins, both ways): a file
-  removed on one side comes back from the other.
-- Both Picos' flash is over-full (statvfs free −116 KB and −132 KB of 848):
-  they still carry the stale nested `pico_firmware/pico_firmware/`. Step 4.
-- The pump Pico restores `pumpstate.txt` at boot: pumps 1 and 2 come back
-  pulsing (5 s on per 60 s) every time `main.py` runs.
 - `pico_firmware/controllers/pimoroni_rgb_sparkly_rainbows.py` imports
-  `picokeypad`; nothing imports it any more (the 2024 keypad circuit did).
-- "Launch normally" runs the installer's profile step every launch and asks
-  "Proceed?" again.
-- At exit: `ImportError: sys.meta_path is None` from `ScopeAssembly.__del__`
-  (interpreter already shutting down). Harmless.
-- `opencv-python` 5.0 and numpy 2.4.6 in `~/.local` (pip `--user`): pip warns;
-  only the webcam driver imports cv2.
-- The firmware cache is `~/trappyverse/state/firmware_cache/`, inside the folder
-  the settings sync mirrors: the .uf2 images get uploaded to the config share.
-  Move the cache out of `trappyverse/` or exclude it from the sync.
-- Wallpaper (`set_wallpaper: true`) fails: `docs/assets/white_logo.png` is
-  missing on `dev`. Non-fatal.
+  `picokeypad` and is imported by nothing (the 2024 keypad circuit used it).
+- At exit: `ImportError: sys.meta_path is None` from `ScopeAssembly.__del__`,
+  and `ScopeAssembly.close()` crashes when no scope was built. Harmless.
+- `opencv-python` 5.0 and numpy 2.4.6 in `~/.local` (an old
+  `pip3 install --break-system-packages`): pip warns; only the webcam driver
+  imports cv2. The venv's numpy 1.26.4 wins inside the venv.
 - Not bugs: "Couldn't chdir to /mnt/config_server" came from a launcher started
   before the Pi pulled dce7260; mount's "fstab has been modified" hint is noise
   (`/etc/fstab` unchanged since 2024).
 
-- `picotool` is not in Bookworm's apt. Flashing falls back to copying the UF2
-  onto the `RPI-RP2` drive, which must be mounted. Check at step 4.
-- `hive/assembly.py`: `ScopeAssembly.close()` at exit crashes when no scope was
-  built (old bug).
-
 ## Todo (2026-11-17)
 
-- [ ] **Install without the menus.** Everything above is manual (launcher
-  menus and prompts). Add a scripted path, e.g. `trappyscope --install --yes`
-  or flags for each prompt, so a scope can be set up by one command.
-- [ ] Minimal config option: "Create configuration file" copies the full
-  204-line template; bench step 2 needs one with only `config_server`.
-- [x] Fix the template's `config_server.destination: "{date}"`.
-- [ ] Finish one `main.py --install` run end to end (running, Claude).
+- [ ] **Install without the menus.** Everything is manual (launcher menus and
+  prompts). Add a scripted path, e.g. `trappyscope --install --yes` or flags
+  for each prompt, so a scope can be set up by one command.
 - [ ] Install / setup step 3 through the launcher, by hand (Yatharth, next time).
-- [ ] Keypad Pico firmware: a per-board firmware image in `config.micropython`,
-  documented, in case a board needs a non-default build (Pimoroni).
-- [x] Start the launcher on a fresh machine (`python -m launcher`).
+- [ ] **Step 5: the link-break diagnosis.** Leads: the over-full flash (fixed
+  in step 4) and the reply parsing (fixed on `dev`).
+- [ ] Bring the `strip("None")` fix to `main` once the bench has run on it.
+- [ ] Make the template's defaults apply in `TrappyConfig` (then a minimal
+  config becomes safe; "Create configuration file" could offer one).
+- [ ] Move the firmware cache out of `~/trappyverse/` (or exclude it from the
+  settings sync); move `pumpstate.txt` into `vault/`.
+- [x] Finish one `main.py --install` run end to end (Claude, 17 Nov).
+- [x] Per-board MicroPython image (`config.micropython.boards`), documented in
+  [Hardware profiles](hardware_profiles.md).
+- [x] Fix the template's `config_server.destination: "{date}"`.
+- [x] Start the launcher on a fresh machine (`python -m launcher`, `./trappyscope`).
 - [x] Install / setup works without a config.
 
 ### Step 2–3: configuration (2026-11-17)
 
-`~/trappyverse/trappyconfig.yaml` on the Pi, built from MDev's config (main)
-and synced to `config_server/ctrlcmd/`. It sets only what differs from the
-defaults: the two Picos (`pico_pumps`, `pico_kp`), `branch: dev`, the venv,
-`git_dependencies` (pico_firmware pinned to `main`, protocols), keyboard
-shortcuts and `micropython` (1.20.0; firmware image to choose at step 4).
-`Experiment.file_server` is left inactive with placeholders.
+`~/trappyverse/trappyconfig.yaml` on the Pi: the full template with the bench
+values from MDev's config (main), synced to `config_server/ctrlcmd/`. A compact
+file was tried first and failed (finding 21). Bench values: the two Picos
+(`pico_pumps`, `pico_kp`), `branch: dev`, the venv, `git_dependencies`
+(pico_firmware pinned to `main`, protocols), keyboard shortcuts,
+`micropython` (1.20.0 default; `boards.pico_kp` = Pimoroni build),
+`set_wallpaper: true`, and `Experiment.file_server` on (rclone to the NAS).
 
 ### Step 3: the CLI and the scope (2026-11-17)
 
