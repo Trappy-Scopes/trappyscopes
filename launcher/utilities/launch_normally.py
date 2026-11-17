@@ -11,6 +11,10 @@ Share.argparse by the time boot() runs -- core.argparser parses the whole
 of sys.argv in one pass before the launcher/fast-track branch is even
 chosen, so there's nothing extra to forward here.
 
+config.launch turns the install, config sync and repo sync steps on or off
+(all on by default); the launcher menu offers each of them on its own either
+way.
+
 Environment activation was the one open piece of this sequence (§7.3 step
 0, since the very first session on this codebase) -- now implemented, via
 core.installer.environment.
@@ -18,26 +22,53 @@ core.installer.environment.
 
 from rich.console import Console
 
-from . import check_config, sync_config, repo_sync, environment, installer, boot as boot_
+from . import check_config, sync_config, repo_sync, environment, boot as boot_
+
+
+LAUNCH_STEPS = ("install", "config_sync", "repo_sync")
+
+
+def launch_steps():
+	"""{step: on/off} from config.launch -- which pre-flight steps Launch
+	normally runs. Missing keys, a missing block and a missing config file
+	all mean on. Read from the file directly: the install step runs before
+	the config check, possibly before a config exists."""
+	import os
+	import yaml
+	from core.permaconfig.config import TrappyConfig
+	block = {}
+	for path in TrappyConfig.default_paths:
+		if os.path.exists(path):
+			try:
+				with open(path) as f:
+					block = ((yaml.safe_load(f) or {}).get("config") or {}).get("launch") or {}
+			except Exception:
+				block = {}
+			break
+	return {step: bool(block.get(step, True)) for step in LAUNCH_STEPS}
 
 
 def run(console=None):
 	console = console or Console()
+	steps = launch_steps()
+	skipped = [s for s, on in steps.items() if not on]
+	if skipped:
+		console.print(f"[dim]config.launch: skipping {', '.join(skipped)} "
+					  f"(each is still in the launcher menu).[/dim]")
 
-	## The hardware-profile install runs here only until trappyscopes is
-	## installed; after that, Install / setup > 3 re-runs it when wanted.
-	## Running it on every launch re-asked "Proceed?" (and conda-forge) each time.
-	if not installer.status()[0]:
+	## Hardware-profile install (uv, apt, conda-forge). Asks before installing.
+	if steps["install"]:
 		environment.ensure()
 
 	if not check_config.check(console=console):
 		return
 
-	if sync_config.sync_trappyverse(console=console):
+	if steps["config_sync"] and sync_config.sync_trappyverse(console=console):
 		if not check_config.check(console=console):
 			return
 
-	repo_sync.check_and_sync(console=console)
+	if steps["repo_sync"]:
+		repo_sync.check_and_sync(console=console)
 
 	## AI Generated -- moved here from expenv/recipes/freestyle.py.
 	## After repo sync, not before -- so the wallpaper's version line

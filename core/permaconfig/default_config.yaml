@@ -70,6 +70,11 @@ config:
                                  # Also accepts a dotted path to any module exposing `build(config)`.
                                  # See `expenv/__init__.py`. The legacy value `core.startup` still maps to `freestyle`.
   startup_scripts: []            # Scripts to run by default when the CLI is started.
+  launch:                        # What `./trappyscope` (Launch normally) runs before the CLI. Each step
+                                 # is also in the launcher menu, to run on its own.
+    install: true                # hardware-profile install (uv, apt, conda-forge); asks before installing
+    config_sync: true            # sync ~/trappyverse with config_server (when that block is active)
+    repo_sync: true              # repository status; offers to clone, switch branch and pull
   micropython:                   # MicroPython device management (launcher's "MicroPython" submenu)
     version:                     # Locked/supported MicroPython version, e.g. "1.20.0" -- a
                                   # device already at this version is skipped when flashing.
