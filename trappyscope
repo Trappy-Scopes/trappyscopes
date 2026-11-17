@@ -1,51 +1,21 @@
-#!/bin/bash
-
-
-## Only works on linux machines
-hname=hostname
-
-#sudo chrt -r 98 tmux -T 256 new-session -s $hname
-
-#tmux send-keys -t $hanme "python -i main.py" #"${@:2:99}"'
-
-#python -i main.py "${@:2:99}"
-
-## ------------------------------------------
-## TRAPPY-SCOPES launch script
-## 
+#!/usr/bin/env bash
+## Start Trappy-Scopes from this checkout, with the scope's venv.
 ##
-## ------------------------------------------
+##   ./trappyscope              Launch normally (config, sync, repos, then the CLI)
+##   ./trappyscope --launcher   the launcher menu
+##
+## Uses ~/trappyvenv if it exists (TRAPPY_VENV overrides the path), otherwise
+## the python3 on PATH. Same entry point as the `trappyscope` command that
+## `pip install -e .` puts in the venv; this one works before the venv is
+## activated, and before that install has run (see docs/notes/installation.md).
 
-echo "------------------------------------------------"
-value="$(python startup.py)"
-echo "${value}"
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-
-# Set IFS to newline to process each line correctly
-IFS=$'\n'
-
-# Loop over each line and process only those that contain '='
-for line in $value; do
-    if [[ "$line" == *"="* ]]; then
-        eval "$line"
-    fi
-done
-#echo $ui_mode
-
-## ------------- Run what needs to be run -----------
-eval "$to_run"
-## ------------- Run what needs to be run -----------
-
-echo "------------------------------------------------"
-if [ "$ui_mode" == "interactive" ]; then
-	python -i main.py "${@:1:99}"
-elif [ "$ui_mode" == "gui" ]; then
-	python viewer.py --noep "${@:1:99}"
+VENV="${TRAPPY_VENV:-$HOME/trappyvenv}"
+if [ -x "$VENV/bin/python" ]; then
+	PY="$VENV/bin/python"
 else
-	echo "Invalid trappy-ui mode!"
+	PY="python3"
 fi
 
-
-#{ python startup.py; result=$?; } || true
-# the result of a.py is in $result
-#
+exec "$PY" -m launcher "$@"

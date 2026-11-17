@@ -52,8 +52,16 @@ In the launcher, open **Install / setup >** and run, in order:
 3. **Install packages + hardware profiles**: answer *n* to conda-forge and
    *y* to "Proceed". The `sudo apt` steps need no password on the scopes.
 
-Afterwards the command exists in the venv: `~/trappyvenv/bin/trappyscope --launcher`
-(or `trappyscope --launcher` after `source ~/trappyvenv/bin/activate`).
+Afterwards, start the scope from the checkout:
+
+```bash
+cd ~/trappyscopes && ./trappyscope              # Launch normally: config, sync, repos, then the CLI
+cd ~/trappyscopes && ./trappyscope --launcher   # the menu
+```
+
+`./trappyscope` uses `~/trappyvenv` by itself. The same command is
+`~/trappyvenv/bin/trappyscope`, or `trappyscope` after
+`source ~/trappyvenv/bin/activate`.
 
 Without menus: `~/trappyvenv/bin/python main.py --install` runs step 3 directly.
 
