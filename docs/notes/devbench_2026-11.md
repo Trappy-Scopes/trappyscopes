@@ -46,6 +46,9 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 25 | the keypad Pico would be flashed with stock MicroPython | one global firmware image | `config.micropython.boards.<board.name>` overrides (655a19e); `pico_kp` uses Pimoroni's picow v1.24.0-beta2 |
 | 26 | `flash()` gave up on the UF2 drive and asked to check again | it looked once, right after the reset, before the drive was mounted | polls up to 15 s (45d41df) |
 | 27 | `./trappyscope` did not start | the repo-root script ran the removed `startup.py`, then `python -i main.py` with the system Python | runs `python -m launcher` with `~/trappyvenv` (f9e3eac) |
+| 28 | wallpaper failed: `docs/assets/white_logo.png` missing | `.gitignore` ignored every `*.png`, so the logos were never committed | `docs/assets/*.png` allowed, logos committed (ba15e52) |
+| 29 | wallpaper "set" but unchanged | `set_wallpaper()` used gsettings first; Raspberry Pi OS ships it but draws the desktop with pcmanfm | pcmanfm unless GNOME; reaches the desktop session from SSH (ba15e52) |
+| 30 | every launch asked about conda-forge (graphviz) and "Proceed?" | Launch normally re-ran the profile install each time; graphviz had no users | runs only until installed; graphviz dropped from the Pi profile (ba15e52) |
 
 Open:
 
@@ -64,15 +67,14 @@ Open:
   desktop session automounts it; a headless scope would need a manual mount.
 - The settings sync never deletes (latest copy wins, both ways): a file
   removed on one side comes back from the other.
-- "Launch normally" runs the installer's profile step every launch and asks
-  "Proceed?" again.
-- Wallpaper (`set_wallpaper: true`) fails: `docs/assets/white_logo.png` is
-  missing on `dev`. Non-fatal.
 - `scripts/chambertests/keypad_pump_control.py` tells the user to run the
   keypad circuit `pimoroni_rgb_keypad_pumpctrl`; the file is
   `pimoroni_rgb_sparkly_rainbows_cntlr.py`.
 - `pico_firmware/controllers/pimoroni_rgb_sparkly_rainbows.py` imports
   `picokeypad` and is imported by nothing (the 2024 keypad circuit used it).
+- `ScriptEngine` imports a startup script as a module and then executes it, so
+  its top level runs twice (keypad_pump_control prints its banner twice).
+  Harmless for that script; wrong for one with side effects at load.
 - At exit: `ImportError: sys.meta_path is None` from `ScopeAssembly.__del__`,
   and `ScopeAssembly.close()` crashes when no scope was built. Harmless.
 - `opencv-python` 5.0 and numpy 2.4.6 in `~/.local` (an old
@@ -110,7 +112,9 @@ file was tried first and failed (finding 21). Bench values: the two Picos
 (`pico_pumps`, `pico_kp`), `branch: dev`, the venv, `git_dependencies`
 (pico_firmware pinned to `main`, protocols), keyboard shortcuts,
 `micropython` (1.20.0 default; `boards.pico_kp` = Pimoroni build),
-`set_wallpaper: true`, and `Experiment.file_server` on (rclone to the NAS).
+`set_wallpaper: true`, `Experiment.file_server` on (rclone to the NAS),
+and `startup_scripts: [scripts/chambertests/keypad_pump_control.py]`
+(the keypad drives the pumps: `create_exp()` -> `connect()` -> `start()`).
 
 ### Step 3: the CLI and the scope (2026-11-17)
 
