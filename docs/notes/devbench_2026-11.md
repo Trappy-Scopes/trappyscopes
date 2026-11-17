@@ -32,13 +32,21 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 11 | Install / setup menu crashed without a config, so "Create configuration file" could not be reached | the venv check's `status()` raised `TS_ConfigNotFound` while the panel was drawn | returns "create it first"; steps reordered: config, then venv (6fb5078) |
 | 12 | venv shown "(not set)" | `config.venv` only understood conda | plain venvs checked by directory; the running venv can be recorded in the config, comments kept (6fb5078) |
 | 13 | settings sync would fail to mount | `/mnt/<share>` does not exist on a fresh Pi | `mount()` creates it (dce7260) |
+| 14 | second settings sync in a boot crashed (`mount error(16)`, exit 32) | the share stays mounted; the "already mounted" check searched the exception text, but mount's message goes to the terminal | skip when already mounted (06ed9d3) |
+| 15 | first push to a new scope folder failed (`rsync: mkdir ... No such file or directory`) | rsync creates only the last path component | create the remote folder first (06ed9d3) |
+| 16 | "Nothing to transfer -- both sides already match" printed after a failed rsync | the message ignored the exit codes | only on success (06ed9d3) |
+| 17 | NAS username and password printed in a traceback | on the `mount` command line; `CalledProcessError` shows the command | 0600 credentials file, removed after mount (06ed9d3) |
 
 Open:
 
 - The default template's `config_server.destination: "{date}"` is wrong:
   that field is not templated, so it would create a folder named `{date}`.
-- `mount()` puts the SMB password on the `mount` command line (visible in
-  `ps`). A credentials file would avoid that.
+- `config_server.destination` is used literally, so `"{scope}"` became a
+  folder named `{scope}`. Decide: template it like `file_server.destination`
+  (supported names: `{scopeid}`, `{date}`, `{time}`, `{user}`), or keep it literal.
+- Not bugs: "Couldn't chdir to /mnt/config_server" came from a launcher started
+  before the Pi pulled dce7260; mount's "fstab has been modified" hint is noise
+  (`/etc/fstab` unchanged since 2024).
 
 - `picotool` is not in Bookworm's apt. Flashing falls back to copying the UF2
   onto the `RPI-RP2` drive, which must be mounted. Check at step 4.
