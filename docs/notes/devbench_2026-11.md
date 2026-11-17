@@ -89,6 +89,9 @@ Open:
 
 ## Todo (2026-11-17)
 
+MicroPython items (flash space, firmware sync, firmware layout) are collected
+in [Restructuring: MicroPython](restructuring_micropython.md).
+
 - [ ] **Install without the menus.** Everything is manual (launcher menus and
   prompts). Add a scripted path, e.g. `trappyscope --install --yes` or flags
   for each prompt, so a scope can be set up by one command.

@@ -31,6 +31,7 @@ nav:
       - Installation: notes/installation.md
       - Hardware profiles: notes/hardware_profiles.md
       - Restructuring plan: notes/restructuring.md
+      - "Restructuring: MicroPython": notes/restructuring_micropython.md
       - Hive: notes/hive.md
       - Optics: notes/optics.md
       - Project Management: notes/projectman.md

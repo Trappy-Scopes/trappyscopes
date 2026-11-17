@@ -1094,6 +1094,10 @@ and is not what is being claimed.
 
 ---
 
+!!! info "MicroPython machinery"
+    Planned work on the Picos (firmware sync, flash space, firmware layout) is
+    collected in [Restructuring: MicroPython](restructuring_micropython.md).
+
 ## 15. Serial devices that are not MicroPython boards (2026-10-13)
 
 !!! note "Provenance"
