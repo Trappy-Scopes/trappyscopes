@@ -44,6 +44,7 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 23 | `main.py` had 10 s to start a circuit | it runs as one raw-REPL command with pyboard's default timeout | 30 s for `exec_main()` only (361fd16) |
 | 24 | CLI crashed listing experiments; creating one would fail too | `~/experiments` does not exist on a fresh scope | `list_all()` returns `[]`; `Experiment.new()` creates the directory (96bb2cd, 8ef0d1d) |
 | 25 | the keypad Pico would be flashed with stock MicroPython | one global firmware image | `config.micropython.boards.<board.name>` overrides (655a19e); `pico_kp` uses Pimoroni's picow v1.24.0-beta2 |
+| 26 | `flash()` gave up on the UF2 drive and asked to check again | it looked once, right after the reset, before the drive was mounted | polls up to 15 s (45d41df) |
 
 Open:
 
@@ -66,6 +67,11 @@ Open:
   (interpreter already shutting down). Harmless.
 - `opencv-python` 5.0 and numpy 2.4.6 in `~/.local` (pip `--user`): pip warns;
   only the webcam driver imports cv2.
+- The firmware cache is `~/trappyverse/state/firmware_cache/`, inside the folder
+  the settings sync mirrors: the .uf2 images get uploaded to the config share.
+  Move the cache out of `trappyverse/` or exclude it from the sync.
+- Wallpaper (`set_wallpaper: true`) fails: `docs/assets/white_logo.png` is
+  missing on `dev`. Non-fatal.
 - Not bugs: "Couldn't chdir to /mnt/config_server" came from a launcher started
   before the Pi pulled dce7260; mount's "fstab has been modified" hint is noise
   (`/etc/fstab` unchanged since 2024).
@@ -110,3 +116,19 @@ and `scope.draw_tree()` shows `node`, `pico_pumps` with `pump1`–`pump3` and
 Pico firmware as found: `pico_pumps` MicroPython v1.19.1-992 (preview, 2023),
 Pico W; `pico_kp` Pimoroni picow v1.24.0-beta2, Pico W. Board names and
 circuit ids were already right.
+
+### Step 4: Pico firmware (2026-11-17)
+
+- Both boards backed up to `~/pico_backups/<board>_2026-11-17_1715/`, old
+  `/pico_firmware` removed (nested copy included), current firmware synced:
+  free flash −116/−132 KB → 228/212 KB.
+- MicroPython: `pico_pumps` flashed 1.19.1 (2023 preview) → **1.20.0** (stock
+  Pico W, the default); `pico_kp` reflashed with its board entry, **Pimoroni
+  picow v1.24.0-beta2**. File systems kept (`board.py`, `pumpstate.txt`,
+  `vault/`); the whole `pico_firmware` tree then rewritten again. Registry
+  versions refreshed; registration itself is by USB serial (chip ID), unchanged.
+- Perfusion defaults (pumps 1, 2): 5 s on / 55 s off, slow speed **0.083**, in
+  the 2ch circuit (pico_firmware 270968b) and the host envelope and rehearsal
+  script (dev 6abdfaa, main 22823e3). The bench pumps were set and saved
+  (`pumpstate.txt`). Aeration (pump 3) unchanged.
+- CLI after all of it: both Picos mount; pumps pulse at 0.083; keypad 0 errors.
