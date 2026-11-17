@@ -275,7 +275,14 @@ def flash(console=None, dry_run=False, port=None):
                        "(hold BOOTSEL while plugging it in).[/yellow]")
 
     console.print("Waiting for a UF2 volume to appear ...")
+    ## The board re-enumerates as a USB drive and the desktop mounts it a
+    ## second or two after the reset: poll instead of checking once.
+    import time
+    deadline = time.monotonic() + 15
     volumes = _uf2_volumes()
+    while not volumes and time.monotonic() < deadline:
+        time.sleep(0.5)
+        volumes = _uf2_volumes()
     if not volumes:
         if not Confirm.ask("No UF2 volume detected yet. Check again?", default=True):
             return
