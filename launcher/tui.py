@@ -67,8 +67,8 @@ CONFIGURATION_MENU_ITEMS = [
 ]
 
 INSTALL_MENU_ITEMS = [
-	("check_venv", "1. Check virtual environment"),
-	("check_config", "2. Create configuration file"),
+	("check_config", "1. Create configuration file"),
+	("check_venv", "2. Check virtual environment"),
 	("install_packages", "3. Install packages + hardware profiles"),
 	("append_config", "Create additional configuration file"),
 	("check_scripts_all", "Check all scripts' dependencies"),
@@ -516,8 +516,9 @@ def _install_status_content():
 	from .utilities import check_config, check_venv, installer
 
 	steps = [
-		("1", "Check virtual environment", check_venv.status),
-		("2", "Create configuration file", check_config.status),
+		## Configuration first: config.venv is recorded in it, so step 2 needs it.
+		("1", "Create configuration file", check_config.status),
+		("2", "Check virtual environment", check_venv.status),
 		("3", "Install packages + hardware profiles", installer.status),
 	]
 
