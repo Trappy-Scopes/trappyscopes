@@ -37,9 +37,17 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 16 | "Nothing to transfer -- both sides already match" printed after a failed rsync | the message ignored the exit codes | only on success (06ed9d3) |
 | 17 | NAS username and password printed in a traceback | on the `mount` command line; `CalledProcessError` shows the command | 0600 credentials file, removed after mount (06ed9d3) |
 | 18 | `config_server.destination: "{scope}"` became a folder named `{scope}` | the field was used literally (and `{scope}` is not a template name) | templated like `file_server.destination`; scope ID appended unless placed; template default `""` (671faf4) |
+| 19 | a pinned `git_dependencies` entry (`{path, branch}`) would crash the protocol resolver and "Check new features" | both treated every entry as a path | both accept the mapping form (9dc05b7) |
 
 Open:
 
+- The template's `ScopeAssembly:` section is never read: the assembly builds
+  from a top-level `devices:` block. The bench config uses `devices:`.
+- `scripts/chambertests/keypad_pump_control.py` tells the user to run the
+  keypad circuit `pimoroni_rgb_keypad_pumpctrl`; the file is
+  `pimoroni_rgb_sparkly_rainbows_cntlr.py`.
+- The settings sync never deletes (latest copy wins, both ways): a file
+  removed on one side comes back from the other.
 - Not bugs: "Couldn't chdir to /mnt/config_server" came from a launcher started
   before the Pi pulled dce7260; mount's "fstab has been modified" hint is noise
   (`/etc/fstab` unchanged since 2024).
@@ -61,3 +69,12 @@ Open:
   the bench moved to the launcher).
 - [x] Start the launcher on a fresh machine (`python -m launcher`).
 - [x] Install / setup works without a config.
+
+### Step 2–3: configuration (2026-11-17)
+
+`~/trappyverse/trappyconfig.yaml` on the Pi, built from MDev's config (main)
+and synced to `config_server/ctrlcmd/`. It sets only what differs from the
+defaults: the two Picos (`pico_pumps`, `pico_kp`), `branch: dev`, the venv,
+`git_dependencies` (pico_firmware pinned to `main`, protocols), keyboard
+shortcuts and `micropython` (1.20.0; firmware image to choose at step 4).
+`Experiment.file_server` is left inactive with placeholders.
