@@ -41,7 +41,9 @@ def run(console=None):
 	## was checked out when the launcher started.
 	from core.permaconfig.config import TrappyConfig
 	config = TrappyConfig().get()
-	if config["config"]["set_wallpaper"]:
+	## .get(): TrappyConfig().get() does not fill keys a config file leaves out
+	## from default_config.yaml, so a missing key must fall back here (false).
+	if config["config"].get("set_wallpaper", False):
 		## AI Generated -- wallpaper generation is a cosmetic nice-to-have,
 		## not something that should ever take the whole launcher down
 		## with it (confirmed: it did, via a stale asset path after the
