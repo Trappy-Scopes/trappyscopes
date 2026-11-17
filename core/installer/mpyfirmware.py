@@ -208,7 +208,8 @@ def flash(console=None, dry_run=False, port=None):
     """
     Flash config.micropython.firmware_image onto a device, skipping it if
     the device already reports config.micropython.version, unless the user
-    asks to reflash anyway. `port` (from the launcher's "Select device")
+    asks to reflash anyway. A board listed under config.micropython.boards
+    (by its board.name) uses that entry's version/firmware_image instead. `port` (from the launcher's "Select device")
     is used directly if it's still connected, skipping the picker -- see
     pick_device(). Uses picotool
     if it's on PATH (verified this session: neither Homebrew on Intel Mac
@@ -219,28 +220,42 @@ def flash(console=None, dry_run=False, port=None):
     """
     console = console or Console()
     cfg = _mpy_config()
-    locked_version = cfg.get("version")
-    image_path = cfg.get("firmware_image")
-
-    if not image_path:
-        console.print("[red]config.micropython.firmware_image is not set -- "
-                       "nothing to flash.[/red]")
-        return
 
     candidates = devicetree.micropython_candidates()
     device_port = None
+    info = None
     if candidates:
         chosen = pick_device(console, candidates, preselected=port)
         if chosen is None:
             return
         device_port = chosen.device
-        if locked_version:
-            info = devicetree.probe_micropython(device_port)
-            if info and info.get("mpy_version") == locked_version:
-                console.print(f"[green]{device_port} already reports MicroPython "
-                               f"{locked_version}.[/green]")
-                if not Confirm.ask("Reflash anyway?", default=False):
-                    return
+        info = devicetree.probe_micropython(device_port)
+
+    ## AI Generated -- a board that needs a different build (e.g. the keypad
+    ## Pico on Pimoroni's MicroPython) declares it under
+    ## config.micropython.boards.<board.name>; any key it leaves out, and every
+    ## board without an entry, falls back to the default version/image above.
+    board_name = (info or {}).get("board_name")
+    override = ((cfg.get("boards") or {}).get(board_name) or {}) if board_name else {}
+    locked_version = override.get("version", cfg.get("version"))
+    image_path = override.get("firmware_image", cfg.get("firmware_image"))
+    if override:
+        console.print(f"[cyan]{board_name}: using config.micropython.boards.{board_name}[/cyan] "
+                      f"(MicroPython {locked_version}, {image_path})")
+    elif board_name:
+        console.print(f"[dim]{board_name}: no entry in config.micropython.boards -- "
+                      f"default image ({locked_version}).[/dim]")
+
+    if not image_path:
+        console.print("[red]No firmware image set (config.micropython.firmware_image, or "
+                       "boards.<name>.firmware_image) -- nothing to flash.[/red]")
+        return
+
+    if locked_version and info and info.get("mpy_version") == str(locked_version):
+        console.print(f"[green]{device_port} already reports MicroPython "
+                       f"{locked_version}.[/green]")
+        if not Confirm.ask("Reflash anyway?", default=False):
+            return
 
     ## Resolved (and, if it's a URL, downloaded) only now -- after the
     ## skip-if-already-current check -- so a device that turns out not to

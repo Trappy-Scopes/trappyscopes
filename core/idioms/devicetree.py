@@ -109,7 +109,9 @@ def probe_micropython(device):
             "try:\n"
             "    import board\n"
             "    print(getattr(board, 'circuit_id', 'unknown'))\n"
+            "    print(getattr(board, 'name', 'none'))\n"
             "except ImportError:\n"
+            "    print('none')\n"
             "    print('none')\n"
         )
         output = board_.exec_(probe).decode().strip().splitlines()
@@ -128,9 +130,12 @@ def probe_micropython(device):
 
     mpy_version = output[0].strip() if len(output) > 0 else None
     circuit_id = output[1].strip() if len(output) > 1 else "none"
+    board_name = output[2].strip() if len(output) > 2 else "none"
     if not mpy_version:
         return None
-    return {"mpy_version": mpy_version, "circuit_id": None if circuit_id == "none" else circuit_id}
+    return {"mpy_version": mpy_version,
+            "circuit_id": None if circuit_id == "none" else circuit_id,
+            "board_name": None if board_name == "none" else board_name}
 
 
 def _format_mpy_detail(info):

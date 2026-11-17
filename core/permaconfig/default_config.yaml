@@ -78,6 +78,9 @@ config:
                                   # subfolder inside it) -- mirrored onto a device's own
                                   # filesystem root, filtered by that repo's own
                                   # sync_what.yaml if it declares one.
+    boards: {}                    # Per-board overrides, keyed by board.name, e.g. a Pico that needs a
+                                  # vendor build:  pico_kp: {version: "1.24.0", firmware_image: <uf2>}
+                                  # A board without an entry uses version/firmware_image above.
   keyboard_shortcuts:             # Esc-prefixed REPL shortcuts -- see utilities/keyboard_shortcuts.py
     active: false                 # Config block is active. The function is turned on.
     scope_assembly: true          # Auto-bind Esc,s,<letter> per mounted device (only if active: true)
