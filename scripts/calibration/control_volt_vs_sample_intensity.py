@@ -15,8 +15,8 @@ The light meter is lux1 (scope.lightmeter): a TSL2561 T/FN/CL on a Seeed Grove D
 read at 16x gain and 101 ms. single_channel_calibration() checks this before it measures, because
 its conversion constants (SENSOR below) only hold for that chip and those settings.
 
-single_channel_calibration() takes a few minutes. The complete multi-channel scan
-(start_measurements()) takes many hours.
+single_channel_calibration() takes about 10 minutes with 3 sweeps (up, down, up). The complete
+multi-channel scan (start_measurements()) takes many hours.
 """
 
 
@@ -73,6 +73,7 @@ def create_exp():
 								  ["red", "green",  "blue"]
 								  ]
 	exp.params["stabilization_delay_s"] = 0.2
+	exp.params["sweeps"] = 3        ## alternating up, down, up: N=3 per voltage, and hysteresis
 
 
 
@@ -89,6 +90,10 @@ def set_ch(channels, vals):
 def measure_stream(channels, beacon=False, sensor_name="lightmeter"):
 	"""
 	Open a measurement stream for each "measurement" and iterate over intensity values.
+
+	The grid is swept exp.params["sweeps"] times (default 3), alternating direction: up, down, up.
+	Each row records its sweep and direction, so the repeats give N per voltage and the
+	up/down pairs show hysteresis.
 	"""
 	global exp, scope
 	
@@ -103,7 +108,8 @@ def measure_stream(channels, beacon=False, sensor_name="lightmeter"):
 
 	name_stream = lambda chs :  '_'.join(chs)
 	if not name_stream(channels) in exp.mstreams.keys():
-		ms = exp.new_measurementstream(name_stream(channels), monitors=["channels", "beacon", "temp"], measurements=["volts", "counts", "ch1", "saturated"])
+		ms = exp.new_measurementstream(name_stream(channels), monitors=["channels", "beacon", "temp", "sweep", "direction"],
+		                               measurements=["volts", "counts", "ch1", "saturated"])
 	else:
 		ms = exp.mstreams[name_stream(channels)]
 	channel_limits = {ch: exp.params["volt_limits"][ch] for ch in  channels}
@@ -112,14 +118,17 @@ def measure_stream(channels, beacon=False, sensor_name="lightmeter"):
 	
 	grid = np.meshgrid(*lines, indexing='ij')
 	grid = np.array(grid).reshape(len(lines), -1).T
-	for volts in grid:
-		set_ch(channels, volts)
-		time.sleep(exp.params["stabilization_delay_s"])
-		reading = scope[sensor_name].read()      ## {"ch0", "ch1", "saturated"}; counts is ch0
+	for sweep in range(exp.params.get("sweeps", 3)):
+		direction = "up" if sweep % 2 == 0 else "down"
+		for volts in (grid if direction == "up" else grid[::-1]):
+			set_ch(channels, volts)
+			time.sleep(exp.params["stabilization_delay_s"])
+			reading = scope[sensor_name].read()      ## {"ch0", "ch1", "saturated"}; counts is ch0
 
-		m = ms(channels=channels, counts=reading["ch0"], ch1=reading["ch1"], saturated=reading["saturated"],
-		       volts=list(volts), beacon=beacon, temp=scope.tandh.read()["temp"])
-		print(m)
+			m = ms(channels=channels, counts=reading["ch0"], ch1=reading["ch1"], saturated=reading["saturated"],
+			       volts=list(volts), beacon=beacon, temp=scope.tandh.read()["temp"],
+			       sweep=sweep, direction=direction)
+			print(m)
 
 		
 
