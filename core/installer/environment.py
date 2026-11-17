@@ -86,9 +86,14 @@ def ensure_python_environment(console=None):
 				  "system-wide pip installs are blocked by default.[/yellow]")
 	if Confirm.ask("Create an isolated virtual environment instead of "
 				   "forcing a system-wide install?", default=True):
-		venv_dir = os.path.expanduser("~/.trappyscope-venv")
+		venv_dir = os.path.expanduser("~/trappyvenv")
 		console.print(f"Creating venv at {venv_dir} ...")
-		subprocess.run([sys.executable, "-m", "venv", venv_dir], check=True)
+		## --system-site-packages: picamera2 and libcamera's Python bindings
+		## come only from apt (python3-picamera2), compiled for the system
+		## Python. A venv that cannot see the system packages cannot use the
+		## camera at all.
+		subprocess.run([sys.executable, "-m", "venv", "--system-site-packages",
+						venv_dir], check=True)
 		console.print(f"[green]Created.[/green] Re-run trappyscope from "
 					  f"{venv_dir}/bin/python to use it.")
 		return None
