@@ -38,6 +38,7 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 17 | NAS username and password printed in a traceback | on the `mount` command line; `CalledProcessError` shows the command | 0600 credentials file, removed after mount (06ed9d3) |
 | 18 | `config_server.destination: "{scope}"` became a folder named `{scope}` | the field was used literally (and `{scope}` is not a template name) | templated like `file_server.destination`; scope ID appended unless placed; template default `""` (671faf4) |
 | 19 | a pinned `git_dependencies` entry (`{path, branch}`) would crash the protocol resolver and "Check new features" | both treated every entry as a path | both accept the mapping form (9dc05b7) |
+| 20 | Repository utility crashed (`expected 5, got 4`) and could not get `pico_firmware` | `_status()`'s missing-path returns not updated with branch pinning; no clone action | 5 values everywhere; declared repos missing from the machine can be cloned on their pinned branch (ca536c5) |
 
 Open:
 
@@ -65,8 +66,10 @@ Open:
 - [ ] Minimal config option: "Create configuration file" copies the full
   204-line template; bench step 2 needs one with only `config_server`.
 - [x] Fix the template's `config_server.destination: "{date}"`.
-- [ ] Finish one `main.py --install` run end to end (stopped part-way when
-  the bench moved to the launcher).
+- [ ] Finish one `main.py --install` run end to end (running, Claude).
+- [ ] Install / setup step 3 through the launcher, by hand (Yatharth, next time).
+- [ ] Keypad Pico firmware: a per-board firmware image in `config.micropython`,
+  documented, in case a board needs a non-default build (Pimoroni).
 - [x] Start the launcher on a fresh machine (`python -m launcher`).
 - [x] Install / setup works without a config.
 
