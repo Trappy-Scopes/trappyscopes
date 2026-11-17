@@ -10,18 +10,24 @@
 
 native:
   - fim     # terminal image viewer, used by scripts/celltracking, scripts/alignmenttools
-  - tree
   - rsync   # config sync (launcher/utilities/sync_config.py, via core/sync.py's sync());
             # Raspberry Pi OS already ships it, listed so the requirement is explicit
   - rclone  # experiment data sync (expframework/expsync.py). Its SMB backend needs
             # rclone >= 1.60: Bookworm's apt package is 1.60.1, Bullseye's (1.53) has none
 
 apt_only:
-  - python3-picamera2=0.3.31-1  # locked; pulls the matching python3-libcamera.
-                                # Built for the system Python (3.11), which is why
-                                # the venv sees system packages. A "=version" entry
-                                # is held after install (apt-mark hold) so an
-                                # apt upgrade cannot move it.
+  # The camera stack, locked to what the fleet runs (packages recorded on all
+  # 8 scopes on 2026-11-16, fleet_clock_sync runs). Built for the system Python
+  # (3.11), which is why the venv sees system packages. "=version" entries are
+  # held after install (apt-mark hold), so an apt upgrade cannot move them.
+  # picamera2 0.3.31's Depends are unversioned, so av and simplejpeg must be
+  # named here or apt keeps whatever older copy is already installed.
+  - python3-picamera2=0.3.31-1
+  - python3-av=12.3.0-2+rpt1
+  - python3-simplejpeg=1.8.1-1
+  - python3-libcamera           # not pinned: the fleet's version is not recorded.
+                                # Named so apt upgrades an old copy (0.3.0 on the
+                                # bench Pi) to the archive's current one.
 
 conda_forge:
   - graphviz    # the `dot` binary (diagrams, graphviz python packages)

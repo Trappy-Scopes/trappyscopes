@@ -21,6 +21,9 @@ with the same name:
 2. each folder in `config.hardware_profile_dirs`
 3. `~/trappyverse/hardware-profiles/`
 
+Versions come from the fleet: the package list each scope records in
+`sessions.yaml` (`pypkglist`), compared across all 8 scopes.
+
 ## Natives (`system.yaml`)
 
 | List | Installed with | Use for |
@@ -39,10 +42,11 @@ then held (`apt-mark hold`), so `apt upgrade` cannot move it.
 | Package | List | Used by |
 |---|---|---|
 | `fim` | native | `core/utilities/fim.py`: terminal image viewer |
-| `tree` | native | nothing in the code now (`filetree` is pure Python); kept for the shell |
 | `rsync` | native | config sync: `launcher/utilities/sync_config.py`, through `core/sync.py` `sync()` |
 | `rclone` | native | experiment sync: `expframework/expsync.py`, through `core/sync.py` `rclone()`. SMB needs ≥ 1.60 (Bookworm: 1.60.1). |
-| `python3-picamera2=0.3.31-1` | apt_only, locked | the camera. Pulls the matching `python3-libcamera`. |
+| `python3-picamera2=0.3.31-1` | apt_only, locked | the camera (`detectors/cameras/rpi_hq_picam2.py`) |
+| `python3-av=12.3.0-2+rpt1`, `python3-simplejpeg=1.8.1-1` | apt_only, locked | picamera2's encoders. Named because picamera2's Depends are unversioned, so apt would keep an older copy. |
+| `python3-libcamera` | apt_only, not pinned | the fleet's version is not recorded; named so apt upgrades an old copy |
 | `graphviz` | conda_forge | the `dot` binary for the `diagrams`/`graphviz` packages |
 
 `requirements.txt`:
@@ -50,11 +54,11 @@ then held (`apt-mark hold`), so `apt upgrade` cannot move it.
 | Package | Note |
 |---|---|
 | `numpy==1.26.4` | locked with picamera2 |
-| `gpiozero`, `rpi-lgpio`, `smbus2` | for Pi GPIO and I2C. Nothing in the code imports them today: GPIO and I2C run on the Picos. |
+| `gpiozero`, `rpi-lgpio`, `smbus2` | for Pi GPIO and I2C. Kept for later use: nothing in the code imports them today, because GPIO and I2C run on the Picos. |
 
 ### jetson
 
-`detect`: `test -f /etc/nv_tegra_release`. Natives: `fim`, `tree`. conda_forge:
+`detect`: `test -f /etc/nv_tegra_release`. Natives: `fim`. conda_forge:
 `pandoc`, `graphviz`. Python: `Jetson.GPIO`.
 
 ## Hardware-specific code in use
