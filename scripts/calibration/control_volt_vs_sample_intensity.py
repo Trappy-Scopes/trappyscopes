@@ -15,7 +15,7 @@ The light meter is lux1 (scope.lightmeter): a TSL2561 T/FN/CL on a Seeed Grove D
 read at 16x gain and 101 ms. single_channel_calibration() checks this before it measures, because
 its conversion constants (SENSOR below) only hold for that chip and those settings.
 
-single_channel_calibration() takes about 10 minutes with 3 sweeps (up, down, up). The complete
+single_channel_calibration() takes about 16 minutes with 4 sweeps (two up-down loops). The complete
 multi-channel scan (start_measurements()) takes many hours.
 """
 
@@ -73,7 +73,7 @@ def create_exp():
 								  ["red", "green",  "blue"]
 								  ]
 	exp.params["stabilization_delay_s"] = 0.2
-	exp.params["sweeps"] = 3        ## alternating up, down, up: N=3 per voltage, and hysteresis
+	exp.params["sweeps"] = 4        ## up, down, up, down: two full hysteresis loops, N=4 per voltage
 
 
 
@@ -91,7 +91,7 @@ def measure_stream(channels, beacon=False, sensor_name="lightmeter"):
 	"""
 	Open a measurement stream for each "measurement" and iterate over intensity values.
 
-	The grid is swept exp.params["sweeps"] times (default 3), alternating direction: up, down, up.
+	The grid is swept exp.params["sweeps"] times (default 4), alternating direction: up, down, up, down.
 	Each row records its sweep and direction, so the repeats give N per voltage and the
 	up/down pairs show hysteresis.
 	"""
@@ -118,7 +118,7 @@ def measure_stream(channels, beacon=False, sensor_name="lightmeter"):
 	
 	grid = np.meshgrid(*lines, indexing='ij')
 	grid = np.array(grid).reshape(len(lines), -1).T
-	for sweep in range(exp.params.get("sweeps", 3)):
+	for sweep in range(exp.params.get("sweeps", 4)):
 		direction = "up" if sweep % 2 == 0 else "down"
 		for volts in (grid if direction == "up" else grid[::-1]):
 			set_ch(channels, volts)
