@@ -248,6 +248,9 @@ class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit, ExpPolicy):
 		Returns a list of the fullpath of all qualified experiments.
 		"""
 		data_dir = os.path.expanduser(TrappyConfig.current.leaf("Experiment", "exp_dir"))  # AI Generated -- see Experiment.new()
+		## A fresh scope has no experiments directory yet: nothing to list.
+		if not os.path.isdir(data_dir):
+			return []
 		all_dirs = os.listdir(data_dir)
 		all_dirs = [os.path.join(data_dir, dir_) for dir_ in all_dirs if \
 			os.path.isfile(os.path.join(data_dir, dir_, ".experiment"))]
