@@ -83,7 +83,8 @@ User.exp_hook = exp
 ## 2. Load device ID an metadata
 
 ### Depreciate
-if device_metadata["config"]["set_wallpaper"]:
+## A config without set_wallpaper means false (the default).
+if device_metadata["config"].get("set_wallpaper", False):
 	from utilities.wallpaper import generate_wallpaper, def_wallpaper_path
 	generate_wallpaper(device_metadata)
 	os.system(f"pcmanfm --wallpaper-mode=fit --set-wallpaper {def_wallpaper_path}")

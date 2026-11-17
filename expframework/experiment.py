@@ -160,7 +160,10 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 			name = name + "_" + uuid
 
 
-		dir_ = os.path.join(os.path.expanduser(TrappyConfig.current["config"]["expdir"].get()), name)
+		data_dir = os.path.expanduser(TrappyConfig.current["config"]["expdir"].get())
+		dir_ = os.path.join(data_dir, name)
+		## The experiments directory itself may not exist yet on a fresh scope.
+		os.makedirs(data_dir, exist_ok=True)
 		os.mkdir(dir_)
 		os.mkdir(os.path.join(dir_, "postprocess"))
 		os.mkdir(os.path.join(dir_, "analysis"))
@@ -195,6 +198,9 @@ class Experiment(ExpSync, ExpReport, ExpNotebook, ClockGroup):
 		Returns a list of the fullpath of all qualified experiments.
 		"""
 		data_dir = os.path.expanduser(TrappyConfig.current["config"]["expdir"].get())
+		## A fresh scope has no experiments directory yet: nothing to list.
+		if not os.path.isdir(data_dir):
+			return []
 		all_dirs = os.listdir(data_dir)
 		all_dirs = [os.path.join(data_dir, dir_) for dir_ in all_dirs if \
 			os.path.isfile(os.path.join(data_dir, dir_, ".experiment"))]
