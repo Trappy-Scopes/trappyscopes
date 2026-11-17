@@ -51,6 +51,7 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 30 | every launch asked about conda-forge (graphviz) and "Proceed?" | Launch normally re-ran the profile install each time; graphviz had no users | runs only until installed; graphviz dropped from the Pi profile (ba15e52) |
 | 31 | every startup script ran twice (banner printed twice) | `ScriptEngine.run()` imported the script to read `__description__`, then exec'd it | description read from the source with `ast`; one exec (5c113a6) |
 | 32 | Launch normally always ran install and repository sync | no way to turn steps off | `config.launch: {install, config_sync, repo_sync}`, all off by default and on the bench (see installation.md) |
+| 33 | pumps 1 and 2 tubed backwards | direction is not a runtime setting: the pump always drives forward, and the saved state has no direction | `pump_reverse = (1, 2)` in this board's own `board.py`; the 2ch circuit swaps those pumps' pins (pico_firmware 1b3c927) |
 
 Open:
 

@@ -127,7 +127,9 @@ reachable from it; 192.168.0.248 is.
    [Hardware profiles](hardware_profiles.md#micropython-firmware)).
 3. Launcher → **MicroPython > Sync**: copies `pico_firmware` onto the board.
    `board.py` (`name`, `circuit_id`) must match the config's `devices` entry
-   (`search_name`).
+   (`search_name`). It lives only on the board, so per-board settings go
+   there too, e.g. `pump_reverse = (1, 2)` for a pump board (2ch circuit)
+   whose tubing runs the other way.
 4. `./trappyscope`: the scope mounts each board; `scope.draw_tree()` lists the
    boards and the objects their circuits create.
 
