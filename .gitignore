@@ -2,6 +2,8 @@
 *.h264
 *.mp4
 *.png
+# ...except the logos the wallpaper and the docs site use
+!docs/assets/*.png
 *.jpg
 .DS_Store*
 *.DS_Store

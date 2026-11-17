@@ -18,13 +18,17 @@ core.installer.environment.
 
 from rich.console import Console
 
-from . import check_config, sync_config, repo_sync, environment, boot as boot_
+from . import check_config, sync_config, repo_sync, environment, installer, boot as boot_
 
 
 def run(console=None):
 	console = console or Console()
 
-	environment.ensure()
+	## The hardware-profile install runs here only until trappyscopes is
+	## installed; after that, Install / setup > 3 re-runs it when wanted.
+	## Running it on every launch re-asked "Proceed?" (and conda-forge) each time.
+	if not installer.status()[0]:
+		environment.ensure()
 
 	if not check_config.check(console=console):
 		return

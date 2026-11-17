@@ -30,5 +30,4 @@ apt_only:
                                 # Not checked against the fleet: libcamera is not in
                                 # pypkglist. The bench Pi had 0.3.0.
 
-conda_forge:
-  - graphviz    # the `dot` binary (diagrams, graphviz python packages)
+conda_forge: []   # graphviz was here for the diagrams/graphviz packages, both dropped

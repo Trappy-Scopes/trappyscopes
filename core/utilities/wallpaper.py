@@ -233,16 +233,31 @@ def set_wallpaper(path):
 		return subprocess.run(["osascript", "-e", script]).returncode == 0
 
 	if system == "Linux":
-		if shutil.which("gsettings"):
+		## Raspberry Pi OS draws its desktop with pcmanfm (LXDE-pi, X11 or
+		## Wayland) but also ships gsettings, whose GNOME key it ignores -- so
+		## gsettings is used only on a GNOME desktop.
+		desktop = (os.environ.get("XDG_CURRENT_DESKTOP")
+				   or os.environ.get("DESKTOP_SESSION") or "").lower()
+		## Started over SSH: no display variables, so point at the local
+		## desktop session of this user.
+		env = dict(os.environ)
+		env.setdefault("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+		if "WAYLAND_DISPLAY" not in env and "DISPLAY" not in env:
+			if os.path.exists(os.path.join(env["XDG_RUNTIME_DIR"], "wayland-1")):
+				env["WAYLAND_DISPLAY"] = "wayland-1"
+			else:
+				env["DISPLAY"] = ":0"
+		gnome = "gnome" in desktop or "ubuntu" in desktop
+		if shutil.which("gsettings") and (gnome or not shutil.which("pcmanfm")):
 			uri = f"file://{path}"
 			ok = subprocess.run(["gsettings", "set", "org.gnome.desktop.background",
-								  "picture-uri", uri]).returncode == 0
+								  "picture-uri", uri], env=env).returncode == 0
 			subprocess.run(["gsettings", "set", "org.gnome.desktop.background",
-							 "picture-uri-dark", uri])
+							 "picture-uri-dark", uri], env=env)
 			return ok
 		if shutil.which("pcmanfm"):
 			return subprocess.run(["pcmanfm", "--wallpaper-mode=fit",
-									f"--set-wallpaper={path}"]).returncode == 0
+									f"--set-wallpaper={path}"], env=env).returncode == 0
 		return False
 
 	if system == "Windows":
