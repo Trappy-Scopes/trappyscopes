@@ -46,7 +46,7 @@ then held (`apt-mark hold`), so `apt upgrade` cannot move it.
 | `rclone` | native | experiment sync: `expframework/expsync.py`, through `core/sync.py` `rclone()`. SMB needs ≥ 1.60 (Bookworm: 1.60.1). |
 | `python3-picamera2=0.3.31-1` | apt_only, locked | the camera (`detectors/cameras/rpi_hq_picam2.py`) |
 | `python3-av=12.3.0-2+rpt1`, `python3-simplejpeg=1.8.1-1` | apt_only, locked | picamera2's encoders. Named because picamera2's Depends are unversioned, so apt would keep an older copy. |
-| `python3-libcamera` | apt_only, not pinned | the fleet's version is not recorded; named so apt upgrades an old copy |
+| `python3-libcamera=0.5.2+rpt20250903-1~bpo12+1` | apt_only, locked | libcamera's Python bindings, at the archive's version alongside picamera2 0.3.31. Not recorded on the fleet. |
 | `graphviz` | conda_forge | the `dot` binary for the `diagrams`/`graphviz` packages |
 
 `requirements.txt`:

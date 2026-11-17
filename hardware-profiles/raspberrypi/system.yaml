@@ -25,9 +25,10 @@ apt_only:
   - python3-picamera2=0.3.31-1
   - python3-av=12.3.0-2+rpt1
   - python3-simplejpeg=1.8.1-1
-  - python3-libcamera           # not pinned: the fleet's version is not recorded.
-                                # Named so apt upgrades an old copy (0.3.0 on the
-                                # bench Pi) to the archive's current one.
+  - python3-libcamera=0.5.2+rpt20250903-1~bpo12+1
+                                # the archive's version alongside picamera2 0.3.31.
+                                # Not checked against the fleet: libcamera is not in
+                                # pypkglist. The bench Pi had 0.3.0.
 
 conda_forge:
   - graphviz    # the `dot` binary (diagrams, graphviz python packages)
