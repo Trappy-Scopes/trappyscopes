@@ -170,3 +170,9 @@ circuit ids were already right.
 - 2026-11-18: bench pulled to 74e8d0a (findings 34–35). Pumps 1, 2 were saved
   at level 0.3 (slow speed 0.081), idle; set to 0.083 (level 0.3118) and saved
   in `pumpstate.txt`, still idle. A fresh `main.py` restores 0.083.
+- 2026-11-18: keypad marker pads (pico_firmware 10f56e0, dev 6e81545). Third
+  column: pad 2 = bleach clean of the tubes (red while on), pad 6 = media/water
+  aeration (blue while on). A press toggles and logs a `bleach_clean` /
+  `media_aeration` event with `phase: start|end`; no pump moves. Console:
+  `bleach_clean()`, `media_aeration()`, `(False)` for the end. Synced to
+  `pico_kp`; each pad toggled from the REPL and checked (colour, line), left off.
