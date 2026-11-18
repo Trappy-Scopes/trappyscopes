@@ -45,6 +45,17 @@ def parse_line(line):
 	return None
 
 
+def parse_event(line):
+	"""'EVENT BLEACH ON' -> ('BLEACH', True). None if it is not a marker line.
+
+	Marker pads on the keypad move no pump; the host only logs an event.
+	"""
+	parts = str(line).strip().upper().split()
+	if len(parts) != 3 or parts[0] != "EVENT" or parts[2] not in ("ON", "OFF"):
+		return None
+	return (parts[1], parts[2] == "ON")
+
+
 _READ_METHOD = None       ## "lines" | "drain_repr" | "poll_state"
 
 ## repr of a Command, e.g. "<PUMP 1 SPEED 45 #7>"
@@ -70,8 +81,9 @@ def _reprs_to_lines(blob):
 	global _CMD_REPR
 	import re
 	if _CMD_REPR is None:
-		_CMD_REPR = re.compile(r"PUMP\s+(\d+)\s+([A-Z]+)\s+([A-Za-z0-9]+)")
-	return ["PUMP {} {} {}".format(*m.groups()) for m in _CMD_REPR.finditer(str(blob))]
+		_CMD_REPR = re.compile(r"(PUMP\s+\d+|EVENT)\s+([A-Z0-9_]+)\s+([A-Za-z0-9]+)")
+	return [" ".join(m.group(1).split() + [m.group(2), m.group(3)])
+			for m in _CMD_REPR.finditer(str(blob))]
 
 
 def _read_keypad_for(device):

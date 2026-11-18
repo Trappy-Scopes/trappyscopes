@@ -23,13 +23,13 @@ only thing permitted to reconnect.
 """
 
 from .remote import RemotePumpSet, hard_reset, link_check, relink, pump_device
-from .keypadlink import KeypadLink, parse_line
+from .keypadlink import KeypadLink, parse_line, parse_event
 from .dashboard import Dashboard, setpoint
 from .supervisor import LinkSupervisor
 from . import envelope
 
 __all__ = ["RemotePumpSet", "SimPump", "SimPumpSet", "KeypadLink", "Dashboard",
-			"LinkSupervisor", "envelope", "setpoint", "parse_line",
+			"LinkSupervisor", "envelope", "setpoint", "parse_line", "parse_event",
 			"hard_reset", "link_check", "relink", "pump_device"]
 
 

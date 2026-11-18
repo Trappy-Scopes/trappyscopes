@@ -13,6 +13,12 @@ There is no simulation here. The rehearsal twin is scripts/toyexps/keypad_pump_t
 	envelope()       show it;  set_envelope(3, fast_speed=0.4)  changes it
 	push_to_keypad() mirror pump state onto the LEDs once, by hand
 
+	bleach_clean()   log the start of a bleach clean (tubes in bleach, pumps on
+	                 fast); bleach_clean(False) logs its end
+	media_aeration() log the start of media/water aeration; (False) its end
+	                 Both are also keypad pads: third column, row 1 (red) and
+	                 row 2 (blue). A press toggles; the pad is lit while on.
+
 Everything else lives in actuators.pumps. This file used to carry its own fork of
 all of it -- 1807 lines, ~700 of them duplicated from the package it did not
 import. See "WHAT CHANGED" at the bottom.
@@ -44,7 +50,7 @@ from hive.assembly import ScopeAssembly
 ## keypad_pump_test.py, and this file before the rework) uses the full path.
 from expframework.experiment import Experiment
 
-from actuators.pumps import RemotePumpSet, KeypadLink, Dashboard, parse_line
+from actuators.pumps import RemotePumpSet, KeypadLink, Dashboard, parse_line, parse_event
 from actuators.pumps import envelope as env
 from actuators.pumps.remote import hard_reset
 from actuators.pumps.supervisor import LinkSupervisor
@@ -76,6 +82,12 @@ ENVELOPE = {
 		## band max and fast_speed are both 1.0. Yatharth, 26 Aug.
 		"slow_speed": 1.0, "continuous": True, "kick": (1.0, 1000)},
 }
+
+## Keypad marker pads -> event type in experiment.yaml. They move no pump: a
+## press only logs the start (pad lit) or end (pad dark) of a phase. Pads and
+## colours are MARKER_PADS in the keypad circuit (pico_firmware).
+MARKERS = {"BLEACH": "bleach_clean",       ## tubes in bleach, circulated on fast
+		   "AERATION": "media_aeration"}   ## aeration of media/water
 
 PUMP_NUMBERS = (1, 2, 3)
 PUMP_ROLES   = {1: "perfusion", 2: "perfusion", 3: "aeration"}
@@ -301,9 +313,51 @@ def reset_board(wait_s=3.0):
 	return ok
 
 
+## ---------------------------------------------------------------- markers
+def mark(name, on, from_keypad=True):
+	"""Log the start (on) or end of a marker phase as an experiment event.
+
+	name is the keypad's marker name (MARKERS). Called by the keypad loop, and by
+	bleach_clean() / media_aeration() from the console, which also light or
+	darken the pad (quietly: the keypad does not send it back)."""
+	name = str(name).upper()
+	kind = MARKERS.get(name)
+	if kind is None:
+		log.warning("unknown keypad marker: %s", name)
+		return False
+	phase = "start" if on else "end"
+	if not from_keypad and KEYPAD is not None:
+		try:
+			KEYPAD.device().apply("EVENT {} {}".format(name, "ON" if on else "OFF"))
+		except Exception as err:
+			log.warning("keypad marker LED not updated: %s", err)
+	if exp is None:
+		emit("[yellow]{} {}: no experiment open -- not logged.[/]".format(kind, phase))
+		log.warning("%s %s not logged: no experiment open", kind, phase)
+		return False
+	exp.log(kind, attribs={"phase": phase, "source": "keypad" if from_keypad else "console"})
+	exp.__save__()
+	emit("[bold]{} {}[/] logged".format(kind, phase))
+	return True
+
+
+def bleach_clean(start=True):
+	"""Log the start of a bleach clean of the tubes; bleach_clean(False) its end."""
+	return mark("BLEACH", start, from_keypad=False)
+
+
+def media_aeration(start=True):
+	"""Log the start of media/water aeration; media_aeration(False) its end."""
+	return mark("AERATION", start, from_keypad=False)
+
+
 ## ---------------------------------------------------------------- the loop
 def _apply_line(line):
-	"""One keypad line -> one pump command. Returns True if it went out."""
+	"""One keypad line -> one pump command, or one marker event. Returns True if
+	it went out."""
+	event = parse_event(line)
+	if event is not None:
+		return mark(*event)
 	parsed = parse_line(line)
 	if parsed is None:
 		return False
