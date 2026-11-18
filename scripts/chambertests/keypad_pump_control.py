@@ -314,7 +314,7 @@ def _apply_line(line):
 		return False
 	if exp is not None:
 		try:
-			exp.keypress.add(pump=n, verb=verb, value=value, applied_speed=None)
+			exp.mstreams["keypress"](pump=n, verb=verb, value=value, applied_speed=None)
 		except Exception as err:
 			log.debug("keypress record failed: %s", err)
 	return True
@@ -463,7 +463,7 @@ def stop():
 		try:
 			exp.attribs["volumes_ml"] = BOARD.volumes()
 			exp.attribs["runtimes_s"] = BOARD.runtimes()
-			exp.save()
+			exp.__save__()
 		except Exception as err:
 			log.error("saving the experiment failed: %s", err)
 	return ok

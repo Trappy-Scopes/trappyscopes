@@ -20,9 +20,10 @@ from core.bookkeeping.session import Session
 from hive.assembly import ScopeAssembly
 
 
-def build(config):
+def build(config, namespace=None):
 	"""
-	Build the raw environment and return its namespace.
+	Build the raw environment and return its namespace. With `namespace`,
+	fill that dict in place.
 	"""
 	User.login(Share.argparse["user"])
 	session = Session()
@@ -36,4 +37,8 @@ def build(config):
 	print(f"scope assembly created :: {scopeid} :: {len(scope.devices)} devices")
 
 	Share.updateps1()
-	return {"scope": scope, "session": session, "config": config}
+	built = {"scope": scope, "session": session, "config": config}
+	if namespace is None:
+		return built
+	namespace.update(built)
+	return namespace

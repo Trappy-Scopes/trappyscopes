@@ -69,9 +69,10 @@ from core.utilities.repl_history import enable as enable_history_logging, disabl
 from .. import useractions
 
 
-def build(config):
+def build(config, namespace=None):
 	"""
-	Build the freestyle environment and return its namespace.
+	Build the freestyle environment and return its namespace. With
+	`namespace` (the console's globals), fill that dict in place.
 	"""
 	device_metadata = config
 
@@ -157,7 +158,14 @@ def build(config):
 	## Collect the namespace ------------------------------------------------
 	## Everything bound above becomes a top-level name in the session, plus the
 	## user tools (findexp, delexp, clear, preview, ...) from expenv.useractions.
-	namespace = {k: v for k, v in locals().items() if not k.startswith("_")}
+	built = {k: v for k, v in locals().items()
+			 if not k.startswith("_") and k != "namespace"}
+	## AI Generated -- fill the caller's dict in place (see expenv/__init__.py):
+	## startup scripts below run against it, so their `global` rebinds land
+	## in the console rather than in a copy the console never sees.
+	if namespace is None:
+		namespace = {}
+	namespace.update(built)
 	namespace.update({
 		k: v for k, v in vars(useractions).items() if not k.startswith("_")
 	})
@@ -185,6 +193,12 @@ def build(config):
 	## CLI scripts first (recorded by core.argparser), then the ones named in
 	## the configuration. Scripts run against the namespace we just built, so
 	## they see `scope`, `exp` and the tools without importing anything.
+	## AI Generated -- `exp` always names the open experiment: whatever opens
+	## or closes one (Experiment(...), findexp(), a script's create_exp(),
+	## exp.close()) updates it here, in the console and in every script.
+	namespace["exp"] = Experiment.current
+	Experiment.on_current_change(lambda e: namespace.__setitem__("exp", e))
+
 	ScriptEngine.execlist = list(Share.argparse.get("scriptlist", []))
 	if device_metadata["config"].get("startup_scripts"):
 		ScriptEngine.execlist += device_metadata["config"]["startup_scripts"]

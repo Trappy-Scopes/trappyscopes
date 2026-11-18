@@ -20,4 +20,4 @@ import core.argparser  # noqa: F401
 
 from expenv import build
 
-globals().update(build())
+build(namespace=globals())

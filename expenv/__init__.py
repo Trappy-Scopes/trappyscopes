@@ -9,9 +9,13 @@ declared in the scope configuration:
 	config:
 	  startup_recipie: freestyle
 
-A recipe is a module exposing `build(config) -> dict`. The dict it returns is
-the namespace: `main.py` merges it into `__main__`, so `scope`, `exp` and the
-user tools become genuinely top-level names in the interactive session.
+A recipe is a module exposing `build(config, namespace=None) -> dict`. The
+dict it returns is the namespace. Callers pass the console's own globals
+(`vars(__main__)`) as `namespace`, and the recipe fills that dict in place, so
+`scope`, `exp` and the user tools become genuinely top-level names in the
+interactive session -- and startup scripts run against that same dict. A
+script function that later rebinds a global (`global exp; exp = ...` in a
+create_exp()) therefore rebinds the console's name too, not a copy of it.
 
 Recipes are functions, not scripts, on purpose. The previous design
 `exec()`-ed a file into `main.py`'s globals, which meant the environment
@@ -52,12 +56,14 @@ def resolve(name):
 	return name
 
 
-def build(config=None, recipe=None):
+def build(config=None, recipe=None, namespace=None):
 	"""
 	Build and return the experiment environment namespace.
 
-	config: the scope configuration. Loaded from TrappyConfig if not given.
-	recipe: override the recipe named in the configuration.
+	config:    the scope configuration. Loaded from TrappyConfig if not given.
+	recipe:    override the recipe named in the configuration.
+	namespace: the dict to fill in place, normally vars(__main__). A fresh
+	           dict if not given.
 	"""
 	if config is None:
 		from core.permaconfig.config import TrappyConfig
@@ -83,4 +89,13 @@ def build(config=None, recipe=None):
 			f"Experiment environment `{path}` does not define build(config)."
 		)
 
-	return module.build(config)
+	## AI Generated -- recipes outside this package may predate `namespace`;
+	## their returned dict is merged in afterwards, as before.
+	import inspect
+	if "namespace" in inspect.signature(module.build).parameters:
+		return module.build(config, namespace=namespace)
+	built = module.build(config)
+	if namespace is None:
+		return built
+	namespace.update(built)
+	return namespace

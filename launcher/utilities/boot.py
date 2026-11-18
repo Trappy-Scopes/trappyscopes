@@ -143,9 +143,9 @@ def _enable_tab_completion():
 def boot():
 	"""Build the experiment environment and drop into a console with it."""
 	from expenv import build
-	namespace = build()
-
-	vars(__main__).update(namespace)
+	## The console's own globals, filled in place: startup scripts run
+	## against this same dict (see expenv/__init__.py).
+	build(namespace=vars(__main__))
 	_enable_history()
 	_enable_tab_completion()
 

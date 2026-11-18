@@ -187,6 +187,28 @@ class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit, ExpPolicy):
 	current = None
 	#####SINGLETON#####
 
+	## AI Generated -- called whenever Experiment.current changes: an experiment
+	## opened (the new one) or closed (None). The CLI registers one that keeps
+	## its top-level `exp` equal to Experiment.current (expenv/recipes/freestyle.py),
+	## so `Experiment(...)`, findexp() or a script's create_exp() never leave the
+	## console holding None or an experiment that is already closed.
+	_current_listeners = []
+
+	@staticmethod
+	def on_current_change(fn):
+		"""Call fn(experiment) whenever Experiment.current changes (None after a close)."""
+		Experiment._current_listeners.append(fn)
+		return fn
+
+	@staticmethod
+	def _set_current(experiment):
+		Experiment.current = experiment
+		for fn in list(Experiment._current_listeners):
+			try:
+				fn(experiment)
+			except Exception as err:
+				log.warning(f"Experiment.current listener failed: {err}")
+
 
 	def new(name, append_eid=False, data_dir=None):
 		"""
@@ -456,7 +478,7 @@ class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit, ExpPolicy):
 		
 		### Set the current pointer
 		## Don't move this!
-		Experiment.current = self
+		Experiment._set_current(self)
 
 		## AI Generated -- ExpReport.__init__(self, self.eid) removed here with
 		## the mixin itself (see the import block at the top of this file).
@@ -626,7 +648,7 @@ class Experiment(ExpSync, ExpNotebook, ClockGroup, ExpGit, ExpPolicy):
 		## logs), so this is the right point to snapshot the close.
 		self.git_commit(f"Session {Session.current.name}: experiment closed")
 
-		Experiment.current = None
+		Experiment._set_current(None)
 		if self.active:
 			self.active = False
 
