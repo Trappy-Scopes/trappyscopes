@@ -52,6 +52,8 @@ Each entry: what failed, why, and the fix (commit on `dev`).
 | 31 | every startup script ran twice (banner printed twice) | `ScriptEngine.run()` imported the script to read `__description__`, then exec'd it | description read from the source with `ast`; one exec (5c113a6) |
 | 32 | Launch normally always ran install and repository sync | no way to turn steps off | `config.launch: {install, config_sync, repo_sync}`, all off by default and on the bench (see installation.md) |
 | 33 | pumps 1 and 2 tubed backwards | direction is not a runtime setting: the pump always drives forward, and the saved state has no direction | `pump_reverse = (1, 2)` in this board's own `board.py`; the 2ch circuit swaps those pumps' pins (pico_firmware 1b3c927) |
+| 34 | the console's `exp` stayed `None` after a script's `create_exp()`; `exp.write()` (Esc,e,w) failed | `build()` ran startup scripts in a fresh dict and `boot()` copied it into `__main__`; `global exp` in a script rebound the copy | recipes fill the console's globals in place; `exp` follows `Experiment.current` (`Experiment.on_current_change`) (ec91be6) |
+| 35 | keypresses never recorded; `stop()` never saved | `exp.keypress.add()` and `exp.save()` never existed (since 3ecde06); the errors were logged at DEBUG | `exp.mstreams["keypress"](...)`, `exp.__save__()` (ec91be6) |
 
 Open:
 
@@ -150,3 +152,18 @@ circuit ids were already right.
   script (dev 6abdfaa, main 22823e3). The bench pumps were set and saved
   (`pumpstate.txt`). Aeration (pump 3) unchanged.
 - CLI after all of it: both Picos mount; pumps pulse at 0.083; keypad 0 errors.
+
+### Step 5: overnight perfusion run (2026-11-17 → 18)
+
+- Run `916e3e345e` (`keypad_pump_control`), 17:51 → 10:49, 16 h 57 min.
+  Pumps 1, 2 at 5 s on / 55 s off, slow speed 0.083. Channel 1 feeds outlets
+  p1, p2; channel 2 feeds p3, p4 (p4 has a thicker tube).
+- **Link held for the whole run**: no link incidents in `experiment.yaml`;
+  operator note "link steady".
+- Reservoir ≈ 250 mL, empty by the morning (time unknown). Outlets, on 50 mL
+  cylinders: p1, p3 overflowed (together ≈ 155 mL by difference), p2 ≈ 60 mL
+  (above the scale), p4 35 mL.
+- So at least 14.7 mL/h in total; at these settings 22 h needs at least
+  325 mL. That is a floor: the run cannot tell when the reservoir ran dry.
+- Not in the record: keypresses (finding 35) and the envelope/volumes
+  (`attribs` reach `experiment.yaml` only on `close()`).
