@@ -50,15 +50,13 @@ def create_exp():
 	exp.new_measurementstream("acq", monitors=["acq"])
 
 	exp.params["sampling_period_hours"] = 0.5
-	exp.params["sampling_hours"] = 22
+	exp.params["sampling_hours"] = 20.5
 	exp.params["tandh_sampling_period_minutes"] = 5
 
 	
 	exp.attribs["chunk_size_sec"] = 60
 	exp.attribs["fps"] = 25
-	exp.attribs["exposure_ms"] = 3
 	exp.attribs["quality"] = 100
-	exp.attribs["no_splits"] = 81
 	exp.attribs["light"] = (0.5,0,0)
 	exp.attribs["camera_mode"] = "vid_mjpeg_tpts"
 	exp.attribs["group"] = "red_light"
