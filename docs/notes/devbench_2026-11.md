@@ -167,3 +167,6 @@ circuit ids were already right.
   325 mL. That is a floor: the run cannot tell when the reservoir ran dry.
 - Not in the record: keypresses (finding 35) and the envelope/volumes
   (`attribs` reach `experiment.yaml` only on `close()`).
+- 2026-11-18: bench pulled to 74e8d0a (findings 34–35). Pumps 1, 2 were saved
+  at level 0.3 (slow speed 0.081), idle; set to 0.083 (level 0.3118) and saved
+  in `pumpstate.txt`, still idle. A fresh `main.py` restores 0.083.
