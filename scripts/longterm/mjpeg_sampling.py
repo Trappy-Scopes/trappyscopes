@@ -50,7 +50,7 @@ def create_exp():
 	exp.new_measurementstream("acq", monitors=["acq"])
 
 	exp.params["sampling_period_hours"] = 0.5
-	exp.params["sampling_hours"] = 20.5
+	exp.params["sampling_hours"] = 20
 	exp.params["tandh_sampling_period_minutes"] = 5
 
 	
