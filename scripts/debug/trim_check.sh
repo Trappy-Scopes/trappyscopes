@@ -13,6 +13,7 @@
 # adapters claim support and then corrupt or brick the drive when TRIMmed, so
 # --trim runs only when both checks pass, after a typed confirmation, and only
 # on a scope whose SSD holds nothing that is not already on the NAS.
+# Installs sg3-utils (and smartmontools) on first use if missing.
 # Everything is logged to ~/diagnostics/trim_<host>_<stamp>.txt.
 set -u
 
@@ -39,7 +40,15 @@ DISK=$(lsblk -no PKNAME "$PART" | head -1)
 [ -n "$DISK" ] || DISK=$(basename "$PART")
 case "$DISK" in mmcblk*) fail "$MOUNT is on the SD card ($DISK).";; esac
 [ "$(lsblk -dno TRAN "/dev/$DISK")" = "usb" ] || fail "/dev/$DISK is not a USB drive."
-command -v sg_vpd >/dev/null || fail "sg_vpd missing: sudo apt install -y sg3-utils"
+## Tools: installed on first use (needs internet; the scopes reach it over wlan0).
+need() {
+    command -v "$1" >/dev/null && return
+    say "Installing $2 (for $1)..."
+    { apt-get install -y "$2" || { apt-get update -qq && apt-get install -y "$2"; }; } >/dev/null 2>&1
+    command -v "$1" >/dev/null || fail "could not install $2 (no internet?). By hand: sudo apt install -y $2"
+}
+need sg_vpd sg3-utils
+need smartctl smartmontools
 
 SD=(/sys/block/$DISK/device/scsi_disk/*/provisioning_mode)
 say "== $(hostname)  $(date '+%F %T')"
