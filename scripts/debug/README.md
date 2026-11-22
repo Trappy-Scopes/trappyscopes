@@ -31,6 +31,26 @@ python3 scripts/debug/collect_diagnostics.py \
 | `--no-tar` | leave the directory, skip the tarball |
 | `--timeout N` | per-command timeout, seconds (default 30) |
 
+## As an experiment
+
+`collect_diagnostics.py` is for a bare-bones machine: no framework, maybe no
+network, the bundle carried off on an SSD. When the framework and the network
+work, for example at the end of a long run, `collect_diagnostics_exp.py` runs
+the same collector inside an experiment, so the bundle syncs like any other
+run. Load it in the framework shell, then:
+
+```python
+create_exp()                       # or create_exp("~/data/<run to inspect>")
+start_acq_blocking()               # runs the collector into the experiment
+cleanup()                          # save and sync
+exp.close()
+```
+
+The bundle (`diag_<scopeid>__<stamp>/`) and the collector's console output
+(`collector.log`) land in the experiment folder. Each finding becomes a row in
+the `findings` measurement stream, and a `diagnostics` event holds the counts
+per level. The optional `create_exp()` argument plays the part of `--exp-dir`.
+
 ## Output
 
 ```
