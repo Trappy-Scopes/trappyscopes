@@ -245,3 +245,104 @@ All Pico calls, T&H included, run one at a time from the main loop with a
   at `/etc/chrony/chrony.conf.orig-trappyscopes`.
 - The run sets the Pico's RTC to UTC once (`pico_set_after_min = None` leaves
   it as found).
+
+---
+
+# cpu_ram_health.py
+
+A standard one-hour test of a scope's processor, RAM, power supply and
+cooling: does this board need replacing? Same protocol on every scope
+(`cpu_ram_health/1`), so the scopes can be compared.
+
+## Before the first run
+
+Once per scope, in the framework shell:
+
+```python
+install_requirements()   # asks for sudo once; apt installs stress-ng and sysbench
+```
+
+## Run
+
+Stop any acquisition first. Then:
+
+```python
+create_exp()
+start()                  # ~68 min, then saves and offloads
+```
+
+Set `exp.attribs["start_at"] = "16:40"` on several scopes to start them
+together.
+
+| Phase | Time | What |
+|---|---|---|
+| checks | – | tools present, no acquisition running, ≥ 6 GiB RAM free |
+| settle | 60 s | idle; refused if something else uses > 10% of the CPU |
+| speed | ~4 min | sysbench, 3 × 20 s each: CPU 1 thread, CPU 4 threads, RAM write, RAM read (16 MiB blocks, past the L2 cache) |
+| stress | 60 min | stress-ng: 4 CPU workers (every method) + 1 memory worker (every pattern, fixed 5 GiB), `--verify` |
+| cooldown | 2 min | idle; how fast it cools |
+
+| Output | What |
+|---|---|
+| `health.yaml` | everything: board identity (serial), firmware, config, tool versions, speed, per-phase temperature and clock, throttle flags, kernel check, findings, verdict |
+| `telemetry.csv` | 1 Hz: clock, throttle flags, SoC temperature, fan, CPU use, memory, swap |
+| `speed` stream | one row per sysbench repeat |
+| `kernel.log` | kernel messages; only lines written during the run are checked |
+| `raw/` | stress-ng log and YAML, every sysbench output, `config.txt`, `get_config` |
+
+**Verdict.** FAIL: a wrong result or a kernel error during the run, i.e. a board
+fault. INCOMPLETE: stopped early or a tool did not finish; rerun. WARN:
+under-voltage (check the supply first), throttling, SoC at 80 °C or more,
+clock below `arm_freq`, swap used. PASS: none of these. Speed has no pass
+mark; identical boards should agree within a few percent across the fleet.
+
+**Standard.** The parameters live in `STANDARD` in the script. Changing one in
+`exp.attribs` is allowed but recorded as a deviation, and the run is marked
+non-standard.
+
+## Side effects
+
+- `install_requirements()`: stress-ng 0.15.06 and sysbench 1.0.20 from Debian
+  12, ~3 MB, plus any of their libraries not yet installed. Command-line
+  programs only: no service, daemon or config file. Undo: `sudo apt-get
+  remove stress-ng sysbench`.
+- During the run: full load for an hour (hot SoC, fan on, more power), 5 GiB
+  of RAM held, no disk load beyond the logs. The scope cannot record
+  meanwhile. A faulty board may freeze or reboot; that is the finding.
+
+---
+
+# camera_shake_test.py
+
+Does shaking crash the camera only while the preview is on? The script cues
+the same shake again and again, with and without the preview, records what
+the camera, the CSI receiver and the kernel do around each shake, and after a
+crash brings the camera back (preview included) and records whether that worked.
+Nothing is written to disk but per-frame intensities and logs, so storage is
+not part of the test.
+
+Two conditions, alternated in random order: `none` (Picamera2's null preview,
+which every run without a preview already uses) and `drm` (the framework's
+preview to the monitor). Each trial lasts 2 min: settle 50 s, countdown 5 s,
+**SHAKE NOW** for 10 s (beacon on), watch 55 s. 10 shakes per condition, about
+40 min.
+
+```python
+create_exp()
+start()          # saves and syncs at the end; Ctrl-C stops cleanly
+exp.close()
+```
+
+A crash is the camera delivering no frame for 2 s. Recovery level 1 restarts
+the recording and keeps the preview; level 2 rebuilds the camera and starts
+the preview again. Every camera call has a timeout: if one hangs, as in the
+real crashes, the hang is recorded with the call's name and the run stops
+cleanly instead of hanging.
+
+| Output | What it holds |
+|---|---|
+| `trials` stream | one row per trial: crashed, when (s from the shake start), libcamera's reason, CSI interrupts during the stall, recovery level and time, frames missing, gaps, shake strength |
+| `<eid>_telemetry.csv` | 10 Hz: frames, CSI interrupts, CPU, CMA, temperature, throttle flags, trial, phase |
+| `<eid>_intensities.csv` | one row per frame, sensor timestamp and RGB means |
+| `kernel.log`, `libcamera.log`, `crash_<n>.txt` | the kernel and libcamera logs, and the machine state at each crash |
+| `shake_summary` event | crashes per condition and the Fisher exact p-value |
