@@ -349,6 +349,13 @@ def start_acq_blocking():
 if __name__ == "__main__":
 	global scope
 	scope = ScopeAssembly.current
+	## AI generated (Claude), 2026-11: space left where the run will be saved.
+	## A display only: it never stops the script loading.
+	try:
+		from core.utilities.diskspace import disk_panel
+		print(disk_panel())
+	except Exception as e:
+		print(f"[red]Disk space panel failed: {type(e).__name__}: {e}")
 	scope.lit.setVs(0.50,0,0)
 	print("Lights ready...")
 	scope.cam.open()
