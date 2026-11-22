@@ -55,24 +55,15 @@ encode is the thing that carries them.
 
 Reading the libcamera log
 -------------------------
-LIBCAMERA_LOG_FILE must be set before libcamera is loaded, which happens the
-moment hive.assembly builds the camera. It is set at the top of this module,
-before that import. If the camera was already constructed in this interpreter,
-the variable arrives too late -- export it in the shell before launching:
-
-    export LIBCAMERA_LOG_FILE=~/libcamera.log
+libcamera.log and kernel.log are written live into the experiment folder by
+detectors/cameras/camlogs.py. libcamera writes to stderr, which is copied into
+libcamera.log while still reaching the terminal. Setting LIBCAMERA_LOG_FILE at
+the top of this module, as it did until 2026-11-22, never took effect: the
+framework builds the camera at launch, and libcamera reads the variable only
+then (the 13 Nov runs have no libcamera log).
 """
 
 import os
-
-## MUST precede any import that pulls in picamera2/libcamera. Absolute path,
-## because Experiment.__init__ chdirs into the experiment directory and a
-## relative path would land somewhere different depending on when libcamera
-## happened to open it. The file is copied into the experiment by cleanup().
-LIBCAMERA_LOG = os.path.expanduser("~/libcamera.log")
-os.environ.setdefault("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
-os.environ.setdefault("LIBCAMERA_LOG_LEVELS",
-					  "RPI:INFO,Camera:INFO,V4L2:INFO,IPAProxy:INFO")
 
 from datetime import timedelta
 import csv
@@ -99,6 +90,10 @@ from expframework.experiment import Experiment
 from expframework.protocol import Protocol
 from hive.assembly import ScopeAssembly
 from detectors.cameras.rpi_hq_picam2 import JpegEncoderRedWithBGStats
+from detectors.cameras.camlogs import CameraLogs
+
+global _logs
+_logs = None            # CameraLogs while a run is going
 
 
 __description__ = \
@@ -390,24 +385,9 @@ def stall_reason():
 	returns -- there is no exception to catch anywhere in the Python stack, so
 	its log is the only place the reason exists.
 	"""
-	logfile = os.environ.get("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
-	tail = ""
-	if os.path.exists(logfile):
-		tail = _run(f"tail -40 {logfile}")
-	else:
-		## No log file: the variable was set after libcamera loaded. The same
-		## messages go to stderr and, under a service, to the journal.
-		tail = _run("journalctl -b --no-pager 2>/dev/null | "
-					"grep -iE 'frontend has timed out|Dequeue timer|"
-					"attached securely|vc_sm_cma' | tail -20")
-
-	for pattern, label in (("frontend has timed out", "frontend_timeout"),
-						   ("Dequeue timer", "dequeue_timeout"),
-						   ("vc_sm_cma", "cma_failure"),
-						   ("v4l2_m2m", "v4l2_poll_block")):
-		if pattern.lower() in tail.lower():
-			return label, tail
-	return "unknown", tail
+	if _logs is None:
+		return "unknown", ""
+	return _logs.reason()
 
 
 def snapshot(tag):
@@ -602,9 +582,8 @@ def verify_tuning():
 
 	1. requested -- what picamera2 put in LIBCAMERA_RPI_TUNING_FILE.
 	2. libcamera_says -- the "Using tuning file <path>" line libcamera writes
-	   at INFO under IPAProxy when it loads the IPA. Reliable only if
-	   LIBCAMERA_LOG_FILE was set before the camera system first started; if
-	   the framework built the camera at boot, the line went to stderr.
+	   at INFO under IPAProxy when it loads the IPA, if that happens while
+	   libcamera.log is being captured.
 	3. ccm_match -- behavioural, and independent of logging: the camera
 	   reports the colour-correction matrix it is applying and the colour
 	   temperature it chose. Interpolating each candidate file's CCM table at
@@ -615,7 +594,7 @@ def verify_tuning():
 	global scope
 	res = {"requested": os.environ.get("LIBCAMERA_RPI_TUNING_FILE")}
 	try:
-		logfile = os.environ.get("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
+		logfile = _logs.libcamera_path if _logs else ""
 		hits = []
 		if os.path.exists(logfile):
 			with open(logfile, errors="replace") as f:
@@ -947,11 +926,12 @@ def start_acq_blocking():
 	print("[red]Clearing experiment scheduler...")
 	exp.schedule.clear()
 
-	start_kernel_log()
+	global _logs
+	_logs = CameraLogs().start()        # libcamera.log and kernel.log, live
 	## Without the light the run measures nothing, so a Pico that does not
 	## answer here stops the run at once instead of hanging it.
 	if not _pico_call(lambda: scope.lit.setVs(*a["light"]), "lights on"):
-		stop_kernel_log()
+		_logs.stop()
 		raise RuntimeError("Pico did not set the light; run not started. "
 						   "Check the Pico connection and start again.")
 	_pico_call(scope.beacon.on, "beacon on")
@@ -1059,7 +1039,7 @@ def start_acq_blocking():
 			tele.close()
 		except Exception:
 			pass
-		stop_kernel_log()
+		_logs.stop()
 		stop_tandh()            # before anything else talks to the Pico
 		try:
 			scope.cam.cam.stop_recording()
@@ -1083,92 +1063,6 @@ def start_acq_blocking():
 	## of 2026-11-09 and 2026-11-13 never got here: stop_recording() above
 	## deadlocked on the encoder's lock, fixed in rpi_hq_picam2.py.)
 	cleanup()
-
-
-## --------------------------------------------------------------------------
-##  Kernel message stream
-## --------------------------------------------------------------------------
-
-global _dmesg_proc
-_dmesg_proc = None
-
-
-def start_kernel_log():
-	"""Stream kernel messages to kernel.log for the whole run.
-
-	`dmesg --follow` rather than periodic snapshots: the ring buffer holds a
-	bounded number of lines and a 16 h run can wrap it, losing exactly the
-	early messages that would explain a late failure. Following it also
-	timestamps each line as it arrives, so a kernel event can be lined up
-	against the inter-frame gaps -- which otherwise have no explanation
-	attached to them at all.
-	"""
-	global _dmesg_proc
-	## stdbuf -oL: dmesg block-buffers when its stdout is a file rather than a
-	## tty, so without this the last few kilobytes of kernel messages sit
-	## unflushed and are lost when the process is terminated -- precisely the
-	## messages written just before a failure.
-	for cmd in (["stdbuf", "-oL", "dmesg", "--follow", "-T"],
-				["sudo", "-n", "stdbuf", "-oL", "dmesg", "--follow", "-T"],
-				["dmesg", "--follow", "-T"]):
-		f = None
-		try:
-			f = open("kernel.log", "a", buffering=1)
-			_dmesg_proc = subprocess.Popen(cmd, stdout=f,
-										   stderr=subprocess.STDOUT)
-			## Liveness alone is too weak: `sudo -n ...` stays alive briefly
-			## before failing, and a restricted dmesg writes its refusal and
-			## exits. Require the process to still be running AND the log to
-			## be free of the refusals those two produce.
-			time.sleep(0.8)
-			refused = ""
-			try:
-				with open("kernel.log", errors="replace") as r:
-					refused = r.read()[-400:]
-			except Exception:
-				pass
-			bad = re.search(r"operation not permitted|password is required|"
-							r"not found|read kernel buffer failed|"
-							r"invalid option|unrecognized", refused, re.I)
-			if _dmesg_proc.poll() is None and not bad:
-				log.info(f"Kernel log streaming via: {' '.join(cmd)}")
-				return True
-			if bad:
-				log.error(f"kernel log refused ({cmd[0]}): {bad.group(0)}")
-			try:
-				_dmesg_proc.terminate()
-				_dmesg_proc.wait(timeout=3)
-			except Exception:
-				pass
-			_dmesg_proc = None
-		except Exception as e:
-			log.error(f"kernel log start failed ({cmd[0]}): {e}")
-		finally:
-			## The child holds its own dup of the descriptor, so closing ours
-			## is correct whether or not the attempt succeeded -- and without
-			## it each failed candidate leaks a handle.
-			if f is not None:
-				try:
-					f.close()
-				except Exception:
-					pass
-	log.error("kernel.log unavailable (dmesg restricted and sudo -n refused)")
-	return False
-
-
-def stop_kernel_log():
-	global _dmesg_proc
-	if _dmesg_proc is None:
-		return
-	try:
-		_dmesg_proc.terminate()
-		_dmesg_proc.wait(timeout=5)
-	except Exception:
-		try:
-			_dmesg_proc.kill()
-		except Exception:
-			pass
-	_dmesg_proc = None
 
 
 ## --------------------------------------------------------------------------
@@ -1321,14 +1215,6 @@ def cleanup():
 	exp.schedule.end_thread = True
 	_pico_call(lambda: scope.lit.setVs(0, 0, 0), "lights off")
 
-	## The libcamera log lives outside the experiment because it has to exist
-	## before the experiment does. Copy it in so the bundle is self-contained.
-	def copy_libcamera_log():
-		src = os.environ.get("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
-		if os.path.exists(src):
-			shutil.copy2(src, "libcamera.log")
-	_step("libcamera log copy", copy_libcamera_log)
-
 	stats = run_stats()
 
 	def write_stats():
@@ -1363,6 +1249,5 @@ if __name__ == "__main__":
 	scope.beacon.off()
 	print(Panel(f'create_exp() -> start_acq_blocking()\n\n'
 				f'mark("shake start") to timestamp a disturbance.\n'
-				f'cleanup() then exp.close() when done.\n\n'
-				f'libcamera log: {os.environ.get("LIBCAMERA_LOG_FILE")}',
+				f'cleanup() then exp.close() when done.',
 				title="intensity_continuous"))
