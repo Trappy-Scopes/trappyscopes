@@ -128,6 +128,142 @@ def capture():
 	#exp.sync_dir()
 	#exp.close()
 
+## --------------------------------------------------------------------------
+##  Run evidence -- AI generated (Claude, Anthropic), 2026-11
+## --------------------------------------------------------------------------
+## Until 2026-11-22 a crash left nothing but a split that stopped: libcamera's
+## messages went only to the terminal, the kernel log was not kept, and the
+## blocked read() logs nothing. This writes, live, into the experiment folder:
+##   libcamera.log   libcamera's messages (all of stderr), wall time in front
+##   kernel.log      dmesg, followed for the whole run
+##   telemetry.csv   1 Hz: split (as in the file name), split file size, camera frames, CSI
+##                   interrupts, CMA, SoC temperature, throttle flags
+## and logs an event (with a snapshot of the machine state) when
+##   camera_stall    the camera delivers no frame for stall_s, or
+##   output_stall    frames keep arriving but the split file stops growing for
+##                   output_stall_s -- the encoder/output side, not the camera.
+## The acquisition itself is unchanged.
+
+import csv
+import os
+import re
+import subprocess
+import threading
+
+from detectors.cameras.camlogs import CameraLogs, csi_irq
+
+global _logs, _watcher, _watch_stop
+_logs, _watcher, _watch_stop = None, None, threading.Event()
+
+
+def _sys_read(path, key=None):
+	try:
+		with open(path) as f:
+			if key is None:
+				return f.read().strip()
+			for line in f:
+				if line.startswith(key):
+					return line.split()[1]
+	except Exception:
+		return ""
+
+
+global _thr, _thr_at
+_thr, _thr_at = "", 0.0
+
+
+def _throttled():
+	"""vcgencmd forks, so at most every 10 s."""
+	global _thr, _thr_at
+	if time.monotonic() - _thr_at < 10:
+		return _thr
+	_thr_at = time.monotonic()
+	try:
+		out = subprocess.run(["vcgencmd", "get_throttled"], capture_output=True,
+							 text=True, timeout=5).stdout
+		m = re.search(r"throttled=(0x[0-9a-fA-F]+)", out)
+		_thr = m.group(1) if m else ""
+	except Exception:
+		_thr = ""
+	return _thr
+
+
+def _evidence(exp, kind, n, **attribs):
+	"""Log one stall: libcamera's reason, a snapshot, an event and a note."""
+	reason, tail = _logs.reason()
+	snap = _logs.snapshot(f"{kind}_{n:02d}.txt")
+	exp.log_event(kind, attribs={"n": n, "reason": reason, "snapshot": snap, **attribs})
+	exp.note(f"{kind} #{n} in split {attribs.get('split')}: {reason}")
+	exp.__save__()
+	log.error(f"{kind} #{n}: {reason} {attribs}")
+	print(Panel(f"[red]{kind} #{n}: {reason}\n{attribs}\n{tail.strip()[-300:]}",
+				title="run evidence"))
+
+
+def _watch(exp, scope, period=1.0, stall_s=5.0, output_stall_s=30.0):
+	path = exp.newfile("telemetry.csv", abspath=False)
+	n_cam = n_out = 0
+	last_n = last_b = None
+	t_n = t_b = time.monotonic()
+	irq_at_frame = csi_irq()
+	cam_flag = out_flag = False
+	with open(path, "w", newline="") as f:
+		w = csv.writer(f)
+		w.writerow(["wall", "split", "split_file", "split_bytes", "cam_frames",
+					"csi_irq", "cma_free_mb", "temp_c", "throttled"])
+		while not _watch_stop.wait(period):
+			try:
+				n = scope.cam.cam.frames
+			except Exception:
+				n = None
+			name = capturefilelist[-1] if capturefilelist else ""
+			try:
+				b = os.path.getsize(name) if name else None
+			except OSError:
+				b = None
+			irq, now = csi_irq(), time.monotonic()
+			temp = _sys_read("/sys/class/thermal/thermal_zone0/temp")
+			cma = _sys_read("/proc/meminfo", "CmaFree:")
+			try:
+				w.writerow([round(time.time(), 3), len(capturefilelist) - 1, os.path.basename(name),
+							b, n, irq, round(int(cma) / 1024, 1) if cma else "",
+							round(int(temp) / 1000, 1) if temp else "", _throttled()])
+				f.flush()
+			except Exception:
+				pass
+			if n != last_n:
+				last_n, t_n, irq_at_frame, cam_flag = n, now, irq, False
+			elif not cam_flag and now - t_n >= stall_s:
+				cam_flag, n_cam = True, n_cam + 1
+				_evidence(exp, "camera_stall", n_cam, split=len(capturefilelist) - 1,
+						  frames=n, csi_irq_since_last_frame=irq - irq_at_frame)
+			if b != last_b:
+				last_b, t_b, out_flag = b, now, False
+			elif (not out_flag and b is not None and now - t_b >= output_stall_s
+				  and now - t_n < stall_s):
+				out_flag, n_out = True, n_out + 1
+				_evidence(exp, "output_stall", n_out, split=len(capturefilelist) - 1,
+						  split_file=os.path.basename(name), split_bytes=b, frames=n)
+
+
+def start_evidence(exp, scope):
+	"""libcamera.log, kernel.log and the watcher, from now on."""
+	global _logs, _watcher
+	_logs = CameraLogs().start()
+	_watch_stop.clear()
+	_watcher = threading.Thread(target=_watch, args=(exp, scope), daemon=True,
+								name="run-evidence")
+	_watcher.start()
+
+
+def stop_evidence():
+	_watch_stop.set()
+	if _watcher is not None:
+		_watcher.join(timeout=5)
+	if _logs is not None:
+		_logs.stop()
+
+
 def start_acq():
 
 	global exp, scope, capture
@@ -195,13 +331,14 @@ def start_acq_blocking():
 
 	## Set lights and capture
 	scope.lit.setVs(*exp.attribs["light"])
-	
+	start_evidence(exp, scope)      # AI generated (Claude), 2026-11: run evidence
 
 	#from multiprocessing import Process
 	#global process
 	#process = Process(target=capture)
 	#process.start()
 	capture()
+	stop_evidence()                 # AI generated (Claude), 2026-11
 	exp.__save__()
 	exp.logs.update(scope.get_config())
 	scope.beacon.blink()

@@ -58,27 +58,18 @@ Output, inside the experiment folder:
     <eid>_telemetry.csv     10 Hz: frames, CSI interrupts, CPU, CMA,
                             temperature, throttle flags, trial, phase
     kernel.log              dmesg, followed for the whole run
-    libcamera.log           copied in at the end
+    libcamera.log           libcamera's messages (all of stderr), written live
     crash_<n>.txt           machine state at each crash
     trials stream           one row per trial
     events                  shake_protocol, camera_settings, camera_crash,
                             camera_recovery, shake_summary
 
-The libcamera log only exists if LIBCAMERA_LOG_FILE was set before libcamera
-loaded. This file sets it at import; if the camera was already built in this
-interpreter, export it in the shell before launching the framework:
-
-    export LIBCAMERA_LOG_FILE=~/libcamera.log
+libcamera.log and kernel.log come from detectors/cameras/camlogs.py.
+libcamera writes to stderr, which is copied into libcamera.log while still
+reaching the terminal, so nothing has to be exported before launching.
 """
 
 import os
-
-## MUST precede any import that pulls in picamera2/libcamera. Absolute, because
-## Experiment.__init__ chdirs into the experiment directory.
-LIBCAMERA_LOG = os.path.expanduser("~/libcamera.log")
-os.environ.setdefault("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
-os.environ.setdefault("LIBCAMERA_LOG_LEVELS",
-					  "RPI:INFO,Camera:INFO,V4L2:INFO,IPAProxy:INFO")
 
 import collections
 import csv
@@ -103,6 +94,7 @@ from picamera2.outputs import Output
 from expframework.experiment import Experiment
 from hive.assembly import ScopeAssembly
 from detectors.cameras.rpi_hq_picam2 import JpegEncoderRedWithBGStats
+from detectors.cameras.camlogs import CameraLogs, csi_irq
 
 
 __description__ = \
@@ -391,65 +383,12 @@ def _run(cmd, timeout=10):
 		return f"<{type(e).__name__}: {e}>"
 
 
-def stall_reason():
-	"""Why the camera stopped, in libcamera's own words: it logs the timeout
-	and returns, so its log is the only place the reason exists."""
-	logfile = os.environ.get("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
-	if os.path.exists(logfile):
-		tail = _run(f"tail -40 {logfile}")
-	else:
-		tail = _run("journalctl -b --no-pager 2>/dev/null | "
-					"grep -iE 'frontend has timed out|Dequeue timer|"
-					"attached securely|vc_sm_cma' | tail -20")
-	for pattern, label in (("frontend has timed out", "frontend_timeout"),
-						   ("Dequeue timer", "dequeue_timeout"),
-						   ("vc_sm_cma", "cma_failure"),
-						   ("v4l2_m2m", "v4l2_poll_block")):
-		if pattern.lower() in tail.lower():
-			return label, tail
-	return "unknown", tail
-
-
-def snapshot(tag):
-	"""Freeze the machine state at a crash."""
-	try:
-		path = f"crash_{tag}.txt"
-		with open(path, "w") as f:
-			f.write(f"## {datetime.datetime.now()}\n")
-			for title, cmd in (("dmesg", "dmesg -T 2>/dev/null | tail -60"),
-							   ("journal", "journalctl -b --no-pager 2>/dev/null | tail -40"),
-							   ("throttled", "vcgencmd get_throttled; vcgencmd measure_temp; vcgencmd measure_volts"),
-							   ("csi interrupts", "grep -iE 'csi|unicam|rp1-cfe|mipi' /proc/interrupts"),
-							   ("meminfo", "grep -iE 'cma|MemAvailable' /proc/meminfo"),
-							   ("libcamera", f"tail -40 {os.environ.get('LIBCAMERA_LOG_FILE', LIBCAMERA_LOG)}")):
-				f.write(f"\n===== {title} =====\n{_run(cmd)}")
-		return path
-	except Exception as e:
-		log.error(f"snapshot failed: {type(e).__name__}: {e}")
-		return None
-
-
 def _boot_ns():
 	"""CLOCK_BOOTTIME, the clock SensorTimestamp (t_ns) is on."""
 	try:
 		return time.clock_gettime_ns(time.CLOCK_BOOTTIME)
 	except (AttributeError, OSError):
 		return time.monotonic_ns()
-
-
-def _csi_irq():
-	"""Total interrupts on the CSI receiver: the one counter below picamera2.
-	Still climbing while frames stand still -> the link is alive and the stall
-	is software-side; flat -> the link or the sensor stopped."""
-	try:
-		total = 0
-		with open("/proc/interrupts") as f:
-			for line in f:
-				if re.search(r"csi|unicam|rp1-cfe|mipi", line, re.I):
-					total += sum(int(x) for x in line.split()[1:] if x.isdigit())
-		return total
-	except Exception:
-		return -1
 
 
 global _cpu_prev, _thr, _thr_at
@@ -507,7 +446,7 @@ TELEMETRY = ["wall", "boot_ns", "trial", "condition", "phase", "cam_frames",
 def _telemetry(w, state):
 	try:
 		cam = scope.cam.cam
-		irq = _csi_irq()
+		irq = csi_irq()
 		state["irq"].append((time.monotonic(), irq))
 		w.writerow([round(time.time(), 3), _boot_ns(), state["trial"],
 					state["condition"], state["phase"], cam.frames,
@@ -521,7 +460,7 @@ def _telemetry(w, state):
 def _log_offsets():
 	"""Current sizes of the libcamera and kernel logs, to count new lines."""
 	out = {}
-	for key, path in (("libcamera", os.environ.get("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)),
+	for key, path in (("libcamera", _logs.libcamera_path),
 					  ("kernel", "kernel.log")):
 		try:
 			out[key] = (path, os.path.getsize(path))
@@ -543,93 +482,6 @@ def _new_lines(offsets):
 		except Exception:
 			counts[key] = None
 	return counts["libcamera"], counts["kernel"]
-
-
-## --------------------------------------------------------------------------
-##  Kernel message stream
-## --------------------------------------------------------------------------
-
-global _dmesg_proc
-_dmesg_proc = None
-
-
-def start_kernel_log():
-	"""Stream kernel messages to kernel.log for the whole run.
-
-	`dmesg --follow` rather than periodic snapshots: the ring buffer holds a
-	bounded number of lines and a 16 h run can wrap it, losing exactly the
-	early messages that would explain a late failure. Following it also
-	timestamps each line as it arrives, so a kernel event can be lined up
-	against the inter-frame gaps -- which otherwise have no explanation
-	attached to them at all.
-	"""
-	global _dmesg_proc
-	## stdbuf -oL: dmesg block-buffers when its stdout is a file rather than a
-	## tty, so without this the last few kilobytes of kernel messages sit
-	## unflushed and are lost when the process is terminated -- precisely the
-	## messages written just before a failure.
-	for cmd in (["stdbuf", "-oL", "dmesg", "--follow", "-T"],
-				["sudo", "-n", "stdbuf", "-oL", "dmesg", "--follow", "-T"],
-				["dmesg", "--follow", "-T"]):
-		f = None
-		try:
-			f = open("kernel.log", "a", buffering=1)
-			_dmesg_proc = subprocess.Popen(cmd, stdout=f,
-										   stderr=subprocess.STDOUT)
-			## Liveness alone is too weak: `sudo -n ...` stays alive briefly
-			## before failing, and a restricted dmesg writes its refusal and
-			## exits. Require the process to still be running AND the log to
-			## be free of the refusals those two produce.
-			time.sleep(0.8)
-			refused = ""
-			try:
-				with open("kernel.log", errors="replace") as r:
-					refused = r.read()[-400:]
-			except Exception:
-				pass
-			bad = re.search(r"operation not permitted|password is required|"
-							r"not found|read kernel buffer failed|"
-							r"invalid option|unrecognized", refused, re.I)
-			if _dmesg_proc.poll() is None and not bad:
-				log.info(f"Kernel log streaming via: {' '.join(cmd)}")
-				return True
-			if bad:
-				log.error(f"kernel log refused ({cmd[0]}): {bad.group(0)}")
-			try:
-				_dmesg_proc.terminate()
-				_dmesg_proc.wait(timeout=3)
-			except Exception:
-				pass
-			_dmesg_proc = None
-		except Exception as e:
-			log.error(f"kernel log start failed ({cmd[0]}): {e}")
-		finally:
-			## The child holds its own dup of the descriptor, so closing ours
-			## is correct whether or not the attempt succeeded -- and without
-			## it each failed candidate leaks a handle.
-			if f is not None:
-				try:
-					f.close()
-				except Exception:
-					pass
-	log.error("kernel.log unavailable (dmesg restricted and sudo -n refused)")
-	return False
-
-
-
-def stop_kernel_log():
-	global _dmesg_proc
-	if _dmesg_proc is None:
-		return
-	try:
-		_dmesg_proc.terminate()
-		_dmesg_proc.wait(timeout=5)
-	except Exception:
-		try:
-			_dmesg_proc.kill()
-		except Exception:
-			pass
-	_dmesg_proc = None
 
 
 ## --------------------------------------------------------------------------
@@ -659,8 +511,8 @@ def _crash(state):
 	state["n_crashes"] += 1
 	after = round(state["last_t"] - state["shake_t"], 2)   # last frame vs shake start
 	irq = _irq_since(state, state["last_t"])
-	reason, tail = stall_reason()
-	snap = snapshot(f"{crashes:03d}")
+	reason, tail = _logs.reason(since=state["log_offset"])
+	snap = _logs.snapshot(f"crash_{crashes:03d}.txt")
 	log.error(f"CRASH #{crashes} in trial {state['trial']} ({state['condition']}, "
 			  f"{state['phase']}): {reason}")
 	print(Panel(f"[red]CRASH #{crashes}: {reason}\n"
@@ -797,9 +649,10 @@ def start():
 	trials = _schedule(a)
 	exp.log_event("shake_protocol", attribs={"order": [c for _, c in trials],
 											 "seed": a["seed"]})
-	start_kernel_log()
+	global _logs
+	_logs = CameraLogs().start()       # libcamera.log and kernel.log, live
 	if not _pico(lambda: scope.lit.setVs(*a["light"]), "lights on"):
-		stop_kernel_log()
+		_logs.stop()
 		raise RuntimeError("The Pico did not set the light; nothing started.")
 	_pico(scope.beacon.off, "beacon off")
 	minutes = len(trials) * (a["settle_s"] + a["countdown_s"] + a["shake_s"]
@@ -812,7 +665,7 @@ def start():
 	w = csv.writer(tele)
 	state = {"trial": 0, "condition": "", "phase": "setup", "irq": collections.deque(maxlen=600),
 			 "last_n": 0, "last_t": time.monotonic(), "shake_t": time.monotonic(),
-			 "n_crashes": 0, "first": None}
+			 "n_crashes": 0, "first": None, "log_offset": 0}
 	rows, current, stopped_by, hung = [], None, "completed", None
 	try:
 		_guarded(_cam_cycle, "cam_cycle")
@@ -833,6 +686,7 @@ def start():
 			t0 = time.monotonic()
 			state["shake_t"] = shake_t = t0 + a["settle_s"] + a["countdown_s"]
 			offsets = _log_offsets()
+			state["log_offset"] = _logs.size()
 			b0 = _boot_ns()
 			print(Panel(f"Trial {i}/{len(trials)}: [bold]{cond}[/bold]. Hands off; "
 						f"settling {a['settle_s']} s.", title="trial"))
@@ -897,7 +751,7 @@ def start():
 			tele.close()
 		except Exception:
 			pass
-		stop_kernel_log()
+		_logs.stop()
 		if hung is None:                # a hung camera stack would hang these too
 			try:
 				stop_recording()
@@ -932,7 +786,7 @@ def _step(what, fn):
 
 
 def cleanup():
-	"""Stop the schedule, copy the libcamera log in, save and sync. Called by
+	"""Stop the schedule, save and sync. Called by
 	start() at the end; call it yourself if start() did not get there. Does
 	NOT close the experiment -- type exp.close() afterwards."""
 	global exp
@@ -940,11 +794,6 @@ def cleanup():
 	exp.schedule.clear()
 	exp.schedule.end_thread = True
 
-	def copy_libcamera_log():
-		src = os.environ.get("LIBCAMERA_LOG_FILE", LIBCAMERA_LOG)
-		if os.path.exists(src):
-			shutil.copy2(src, "libcamera.log")
-	_step("libcamera log copy", copy_libcamera_log)
 	_step("note", lambda: exp.note("Camera shake test finished and offloaded."))
 	_step("save", exp.__save__)
 	_step("sync", exp.sync_dir)
@@ -955,6 +804,5 @@ def cleanup():
 if __name__ == "__main__":
 	scope = ScopeAssembly.current
 	print(Panel("create_exp()\nstart()        # ~40 min, saves and syncs at the end\n"
-				"exp.close()\n\n"
-				f"libcamera log: {os.environ.get('LIBCAMERA_LOG_FILE')}",
+				"exp.close()",
 				title="camera_shake_test"))
