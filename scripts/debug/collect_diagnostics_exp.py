@@ -29,7 +29,7 @@ exp.sync_dir() like any other run, and its findings are logged in the
 experiment, where the explorer can read them.
 
     create_exp()                     # or create_exp("~/data/M1__YB__...")
-    start_acq_blocking()             # runs the collector, a few minutes
+    start()                          # runs the collector, a few minutes
     cleanup()                        # save and sync
     exp.close()
 
@@ -51,8 +51,8 @@ measurement stream, one row each, and their counts to a `diagnostics` event.
 
 The bundle holds the scope's configs unredacted -- the NetworkManager keyfiles
 carry the file-server password and the Wi-Fi PSK -- and sync puts it on the
-file server. Set exp.attribs["redact"] = True before start_acq_blocking() for a
-bundle that has to leave the lab.
+file server. Set exp.attribs["redact"] = True before start() for a bundle
+that has to leave the lab.
 """
 
 import glob
@@ -124,7 +124,7 @@ def _run_logged(cmd, path, limit_s):
 		timer.cancel()
 
 
-def start_acq_blocking():
+def start():
 	"""Run the collector into this experiment and log what it found."""
 	global exp
 	exp = Experiment.current
@@ -194,7 +194,7 @@ def cleanup():
 
 if __name__ == "__main__":
 	print(Panel('create_exp()   or   create_exp("~/data/<run to inspect>")\n'
-				"start_acq_blocking()\n"
+				"start()\n"
 				"cleanup() then exp.close()\n\n"
 				"Runs collect_diagnostics.py into an experiment, so the bundle "
 				"syncs like any other run.",

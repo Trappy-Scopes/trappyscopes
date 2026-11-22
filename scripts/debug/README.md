@@ -41,7 +41,7 @@ run. Load it in the framework shell, then:
 
 ```python
 create_exp()                       # or create_exp("~/data/<run to inspect>")
-start_acq_blocking()               # runs the collector into the experiment
+start()                            # runs the collector into the experiment
 cleanup()                          # save and sync
 exp.close()
 ```
