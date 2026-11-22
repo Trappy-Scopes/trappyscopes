@@ -268,7 +268,7 @@ Stop any acquisition first. Then:
 
 ```python
 create_exp()
-start_acq_blocking()     # ~68 min, then saves and offloads
+start()                  # ~68 min, then saves and offloads
 ```
 
 Set `exp.attribs["start_at"] = "16:40"` on several scopes to start them

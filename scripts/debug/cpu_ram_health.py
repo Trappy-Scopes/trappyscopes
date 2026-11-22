@@ -24,7 +24,7 @@ on every scope, so the scopes can be compared with each other.
 
 	install_requirements()   # once per scope: stress-ng and sysbench (apt)
 	create_exp()
-	start_acq_blocking()     # ~68 min, then saves, offloads and stops
+	start()     # ~68 min, then saves, offloads and stops
 
 The run, in order (protocol cpu_ram_health/1)
 ---------------------------------------------
@@ -119,7 +119,7 @@ __description__ = \
 """CPU and RAM health -- standard 1 h stress test with a pass/fail verdict.
 
 install_requirements() once per scope, then create_exp() and
-start_acq_blocking(). Runs ~68 min, offloads and stops on its own.
+start(). Runs ~68 min, offloads and stops on its own.
 """
 
 PROTOCOL = "cpu_ram_health/1"
@@ -876,7 +876,7 @@ class _Refused(Exception):
 	pass
 
 
-def start_acq_blocking():
+def start():
 	global exp
 	exp = Experiment.current
 	a = exp.attribs
@@ -1038,7 +1038,7 @@ def cleanup(res=None):
 
 if __name__ == "__main__":
 	print(Panel("install_requirements()   # once per scope\n"
-				"create_exp() -> start_acq_blocking()\n\n"
+				"create_exp() -> start()\n\n"
 				f"Standard 1 h CPU and RAM health test ({PROTOCOL}).",
 				title="cpu_ram_health"))
 	check_requirements()
