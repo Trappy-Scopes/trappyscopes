@@ -11,6 +11,20 @@ import os
 import gc
 import logging as log
 
+## libcamera's log -- where "Camera frontend has timed out" and the rest
+## appear -- is NOT captured by picamera2. libcamera is a C++ library with its
+## own logger, separate from Python logging, and writes to stderr unless
+## LIBCAMERA_LOG_FILE is set before it first starts: in the framework that is
+## at launch, when this camera is built, so a script setting it is too late.
+## Its Python bindings expose only log_set_level, and Picamera2.set_logging()
+## covers picamera2's own messages only. The picamera2 maintainer: libcamera's
+## logging "simply can't be controlled by us other than through the coarse
+## switch of the environment variable", which libcamera "probably only reads
+## ... when it starts up"; he suggested redirecting stderr
+## (raspberrypi/picamera2 #309, #1074). A limitation, not a design choice.
+## Acquisition scripts capture it with detectors/cameras/camlogs.py
+## (CameraLogs), which copies stderr into libcamera.log in the experiment.
+
 ## picamera2 imports
 from picamera2 import Picamera2, Preview
 from picamera2.outputs import FileOutput, Output, SplittableOutput
