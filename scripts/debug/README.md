@@ -245,3 +245,67 @@ All Pico calls, T&H included, run one at a time from the main loop with a
   at `/etc/chrony/chrony.conf.orig-trappyscopes`.
 - The run sets the Pico's RTC to UTC once (`pico_set_after_min = None` leaves
   it as found).
+
+---
+
+# cpu_ram_health.py
+
+A standard one-hour test of a scope's processor, RAM, power supply and
+cooling: does this board need replacing? Same protocol on every scope
+(`cpu_ram_health/1`), so the scopes can be compared.
+
+## Before the first run
+
+Once per scope, in the framework shell:
+
+```python
+install_requirements()   # asks for sudo once; apt installs stress-ng and sysbench
+```
+
+## Run
+
+Stop any acquisition first. Then:
+
+```python
+create_exp()
+start_acq_blocking()     # ~68 min, then saves and offloads
+```
+
+Set `exp.attribs["start_at"] = "16:40"` on several scopes to start them
+together.
+
+| Phase | Time | What |
+|---|---|---|
+| checks | – | tools present, no acquisition running, ≥ 6 GiB RAM free |
+| settle | 60 s | idle; refused if something else uses > 10% of the CPU |
+| speed | ~4 min | sysbench, 3 × 20 s each: CPU 1 thread, CPU 4 threads, RAM write, RAM read (16 MiB blocks, past the L2 cache) |
+| stress | 60 min | stress-ng: 4 CPU workers (every method) + 1 memory worker (every pattern, fixed 5 GiB), `--verify` |
+| cooldown | 2 min | idle; how fast it cools |
+
+| Output | What |
+|---|---|
+| `health.yaml` | everything: board identity (serial), firmware, config, tool versions, speed, per-phase temperature and clock, throttle flags, kernel check, findings, verdict |
+| `telemetry.csv` | 1 Hz: clock, throttle flags, SoC temperature, fan, CPU use, memory, swap |
+| `speed` stream | one row per sysbench repeat |
+| `kernel.log` | kernel messages; only lines written during the run are checked |
+| `raw/` | stress-ng log and YAML, every sysbench output, `config.txt`, `get_config` |
+
+**Verdict.** FAIL: a wrong result or a kernel error during the run, i.e. a board
+fault. INCOMPLETE: stopped early or a tool did not finish; rerun. WARN:
+under-voltage (check the supply first), throttling, SoC at 80 °C or more,
+clock below `arm_freq`, swap used. PASS: none of these. Speed has no pass
+mark; identical boards should agree within a few percent across the fleet.
+
+**Standard.** The parameters live in `STANDARD` in the script. Changing one in
+`exp.attribs` is allowed but recorded as a deviation, and the run is marked
+non-standard.
+
+## Side effects
+
+- `install_requirements()`: stress-ng 0.15.06 and sysbench 1.0.20 from Debian
+  12, ~3 MB, plus any of their libraries not yet installed. Command-line
+  programs only: no service, daemon or config file. Undo: `sudo apt-get
+  remove stress-ng sysbench`.
+- During the run: full load for an hour (hot SoC, fan on, more power), 5 GiB
+  of RAM held, no disk load beyond the logs. The scope cannot record
+  meanwhile. A faulty board may freeze or reboot; that is the finding.
