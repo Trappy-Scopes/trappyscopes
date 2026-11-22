@@ -351,6 +351,61 @@ it and using the `local` backend, reintroducing the mount we are removing).
 No operations proposed here; the protocol should simply be a config field
 so it can change without a design change.
 
+### Open: one connection per transfer (2026-11-22, undecided)
+
+Non-critical; to be decided later. Logged from a conversation with Yatharth.
+
+**What happens now.** Nothing contacts the NAS until the first transfer, so
+the experiment folder appears on the NAS only at the first `sync_file()` /
+`sync_dir()`. On `main`, the mount and `mkexpdir()` at creation also served
+as a check that the NAS was reachable and the login worked. The table above
+lists `mkexpdir()` as gone but not that check: on `dev` a wrong password or
+dead link shows up only at the first sync, hours into a long run.
+
+Every `sync_file()` starts its own `rclone`: start-up, connect, log in, one
+transfer, disconnect. `sync_dir()` runs one rclone per top-level entry. No
+connection survives between calls. (The launcher's settings sync is
+separate: it still CIFS-mounts `/mnt/<share>` and leaves it mounted until
+reboot; experiment sync does not use that mount.)
+
+**Why it matters.** Continuous acquisitions send a file about every
+10 minutes, as soon as it is recorded. Three encoder threads keep three
+cores busy; one core is left for the schedules, the OS and the transfers.
+The cost per file is guessed at about 1 s and has not been measured. Most of
+it should be waiting on network round trips (no CPU); the CPU part is rclone
+starting up.
+
+**Wanted (Yatharth):** connect at the start, stay connected until an
+explicit unmount, as the default.
+
+**Options**
+
+- **A. One persistent `rclone rcd` per session.** Transfers go through it
+  over its local HTTP API. Rejected for now: Yatharth does not want another
+  process on a CPU-bound run. Note for the decision: an idle daemon sleeps
+  (memory, not CPU) and saves the start-up per file. It would need the SMB
+  `idle_timeout=0` (default closes the connection after 1 min idle) and
+  `--fs-cache-expire-interval 0` (default drops the remote after 5 min
+  unused); both exist in rclone 1.60.1, Bookworm's version.
+- **B. Keep one rclone per file, at the lowest CPU priority.** Config only:
+  `Experiment.file_server.sync_prefix: ["nice", "-n", "19", "ionice", "-c2", "-n4"]`.
+  Could become the Linux default. Still pays start-up and login per file.
+- **C. Kernel SMB mount at experiment start, kept until `ExpSync.unmount()`.**
+  Each transfer is a plain file copy in the existing background thread, at
+  lowest priority, with no process started and no login per file. This
+  reverses this section. Guards: check the share is mounted before every
+  transfer and refuse (recorded in `sync.yaml`) if it dropped, so nothing
+  lands on the SD card; `core/sync.mount()` already raises if mounting
+  fails; the `dev` launcher already mounts with `sudo`.
+
+Whichever is chosen: create the experiment folder at creation (`rclone
+mkdir` with short timeouts, or `mkdir` on the mount), so a bad login or
+unreachable NAS shows up then.
+
+**To decide:** measure on ctrlcmd the CPU (user + sys) and wall time per
+transfer for B and C (A if reconsidered), with a file the size of a
+10-minute capture, ideally while the encoders run.
+
 ---
 
 ## 6. `sync.yaml` vs `filetree.yaml` — the overlap audit

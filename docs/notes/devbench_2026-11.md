@@ -101,6 +101,11 @@ in [Restructuring: MicroPython](restructuring_micropython.md).
 - [ ] **Step 5: the link-break diagnosis.** Leads: the over-full flash (fixed
   in step 4) and the reply parsing (fixed on `dev`).
 - [ ] Bring the `strip("None")` fix to `main` once the bench has run on it.
+- [ ] **Experiment sync: one rclone connection per file** (undecided,
+  non-critical). The NAS folder appears only at the first sync, and each file
+  pays rclone start-up and a login. Options (persistent rclone, `nice`d
+  rclone per file, kernel mount kept until unmount) and the measurement that
+  decides: [sync rework §5, "Open: one connection per transfer"](sync_rework.md).
 - [x] Set `config.launch` on the bench config (all off).
 - [ ] Make the template's defaults apply in `TrappyConfig` (then a minimal
   config becomes safe; "Create configuration file" could offer one).
