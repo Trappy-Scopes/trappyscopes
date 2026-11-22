@@ -468,7 +468,13 @@ def triage(results):
 				  "precedes a frontend timeout; often mechanical (CSI ribbon).",
 				  "journal_camera"))
 
-	n = _count(get("journal_camera") + get("dmesg_camera"), r"vc_sm_cma|cma alloc")
+	## vc_sm_cma prints four harmless lines whenever the driver loads at boot
+	## ("module is from the staging directory", the probe, init start and
+	## "installed successfully"), which made this WARN on every scope. Only
+	## lines that report a failure count.
+	n = sum(1 for l in (get("journal_camera") + get("dmesg_camera")).splitlines()
+			if re.search(r"vc_sm_cma|cma[ _]alloc", l, re.I)
+			and re.search(r"fail|error|unable|cannot|no memory|-12\b", l, re.I))
 	if n:
 		F.append(("WARN", f"{n} CMA allocation message(s)",
 				  "Contiguous memory pressure. Consider lowering buffer_count or "
