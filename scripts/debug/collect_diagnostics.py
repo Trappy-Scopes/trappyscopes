@@ -342,10 +342,12 @@ def triage(results):
 		if gi is not None and mi is not None:
 			for line in disc[1:]:
 				parts = line.split()
-				if (len(parts) > max(gi, mi)
-						and parts[gi] == "0B" and parts[mi] == "0B"):
+				## DISC-MAX alone decides it: M1 on 2026-11-22 showed a 512B
+				## granularity with a 0B maximum and accepted no discard, but
+				## the old both-zero test let it through.
+				if len(parts) > max(gi, mi) and parts[mi] == "0B":
 					F.append(("WARN", f"{parts[0]} does not accept discards",
-							  "DISC-GRAN and DISC-MAX are zero, so every fstrim "
+							  "DISC-MAX is zero, so every fstrim "
 							  "since deployment has been a no-op. On a USB "
 							  "bridge, set provisioning_mode to unmap.",
 							  "lsblk_discard"))
