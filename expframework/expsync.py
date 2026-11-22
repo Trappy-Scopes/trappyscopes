@@ -221,9 +221,15 @@ class ExpSync:
 			# Running rsync command
 			#ionice -c1 -n0 rsync -aW --inplace --no-compress /source/ /mnt/nas/
 
+			## AI Generated (Claude), 2026-11: a folder needs the trailing slash.
+			## Without it rsync copies the folder itself into the destination,
+			## so every synced folder arrived as <dir>/<dir> on the NAS.
+			source = os.path.join(os.getcwd(), file)
+			if os.path.isdir(source):
+				source = source.rstrip("/") + "/"
 			command = [
 				'sudo', 'ionice', '-c2', '-n4', 'rsync', '-aW', '--no-compress', '--inplace', *source_removal,
-				os.path.join(os.getcwd(), file),
+				source,
 				os.path.join(self.destination_dir, file)
 			]
 			result = subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
