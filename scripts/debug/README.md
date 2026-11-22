@@ -346,3 +346,23 @@ cleanly instead of hanging.
 | `<eid>_intensities.csv` | one row per frame, sensor timestamp and RGB means |
 | `kernel.log`, `libcamera.log`, `crash_<n>.txt` | the kernel and libcamera logs, and the machine state at each crash |
 | `shake_summary` event | crashes per condition and the Fisher exact p-value |
+
+---
+
+# trim_check.sh
+
+Can the experiment SSD be TRIMmed through its USB adapter? The drives report
+TRIM (NTech MX600, Samsung 870 QVO); the ASMedia ASM1153 adapters (`174c:55aa`)
+leave it off, and some adapters that claim support corrupt or brick the drive
+when TRIMmed. Run it on one scope first, with everything on its SSD already on
+the NAS.
+
+```bash
+scripts/debug/trim_check.sh            # check only: adapter UNMAP support, drive TRIM, kernel settings
+scripts/debug/trim_check.sh --trim     # also enable TRIM until reboot, fstrim, read the kernel log
+```
+
+`--trim` runs only if both checks pass, after you type `TRIM`, and refuses if
+the SSD is not mounted (so it can never touch the SD card). Any adapter error
+in the kernel log switches TRIM back off. Needs `sg3-utils`; logs to
+`~/diagnostics/trim_<host>_<stamp>.txt`.
