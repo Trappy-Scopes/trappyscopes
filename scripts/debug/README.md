@@ -364,5 +364,5 @@ scripts/debug/trim_check.sh --trim     # also enable TRIM until reboot, fstrim, 
 
 `--trim` runs only if both checks pass, after you type `TRIM`, and refuses if
 the SSD is not mounted (so it can never touch the SD card). Any adapter error
-in the kernel log switches TRIM back off. Needs `sg3-utils`; logs to
-`~/diagnostics/trim_<host>_<stamp>.txt`.
+in the kernel log switches TRIM back off. Installs `sg3-utils` on first use;
+logs to `~/diagnostics/trim_<host>_<stamp>.txt`.
