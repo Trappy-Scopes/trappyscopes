@@ -55,16 +55,20 @@ need smartctl smartmontools
 SD=(/sys/block/$DISK/device/scsi_disk/*/provisioning_mode)
 say "== $(hostname)  $(date '+%F %T')"
 say "mount     $MOUNT -> $PART (disk /dev/$DISK)"
-USBID=$(udevadm info -q property -n "/dev/$DISK" | grep -E '^ID_(USB_)?(VENDOR|MODEL)_ID=' | cut -d= -f2 | head -2 | paste -sd:)
+PROPS=$(udevadm info -q property -n "/dev/$DISK")
+USBID="$(grep -m1 -E '^ID_(USB_)?VENDOR_ID=' <<< "$PROPS" | cut -d= -f2):$(grep -m1 -E '^ID_(USB_)?MODEL_ID=' <<< "$PROPS" | cut -d= -f2)"
 say "adapter   ${USBID:-?}  $(lsblk -dno VENDOR "/dev/$DISK" | xargs)"
 say "drive     $(lsblk -dno MODEL "/dev/$DISK" | xargs)"
 say "kernel    provisioning_mode=$(cat "${SD[0]}")  discard_max_bytes=$(cat /sys/block/$DISK/queue/discard_max_bytes)"
 
 UNMAP=$(sg_vpd -p bl "/dev/$DISK" 2>/dev/null | sed -n 's/.*Maximum unmap LBA count: *\([0-9]*\).*/\1/p' | head -1)
-LBPU=$(sg_vpd -p lbpv "/dev/$DISK" 2>/dev/null | sed -n 's/.*Unmap command supported (LBPU): *\([0-9]\).*/\1/p' | head -1)
+LBPV=$(sg_vpd -p lbpv "/dev/$DISK" 2>&1)
+LBPU=$(sed -n 's/.*Unmap command supported (LBPU): *\([0-9]\).*/\1/p' <<< "$LBPV" | head -1)
+[ -n "$LBPU" ] || LBPU="page not provided"
 BLOCK=$(sg_readcap -l "/dev/$DISK" 2>/dev/null | sed -n 's/.*Logical block length=\([0-9]*\).*/\1/p' | head -1)
 DRIVE_TRIM=$(smartctl -i "/dev/$DISK" 2>/dev/null | sed -n 's/^TRIM Command: *//p')
 say "adapter   max unmap LBA count=${UNMAP:-?}  LBPU=${LBPU:-?}  block=${BLOCK:-?} B"
+[ "$LBPU" = "page not provided" ] && say "          sg_vpd -p lbpv said: $(head -2 <<< "$LBPV" | paste -sd' ')"
 say "drive     TRIM: ${DRIVE_TRIM:-not reported}"
 
 ADAPTER_OK=0; [ "${UNMAP:-0}" -gt 0 ] 2>/dev/null && [ "${LBPU:-0}" = "1" ] && ADAPTER_OK=1
