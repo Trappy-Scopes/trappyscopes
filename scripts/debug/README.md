@@ -366,3 +366,24 @@ scripts/debug/trim_check.sh --trim     # also enable TRIM until reboot, fstrim, 
 the SSD is not mounted (so it can never touch the SD card). Any adapter error
 in the kernel log switches TRIM back off. Installs `sg3-utils` on first use;
 logs to `~/diagnostics/trim_<host>_<stamp>.txt`.
+
+---
+
+# trim_force_test.sh
+
+The experiment `trim_check.sh` refuses: force TRIM through an adapter that
+does not report support, in the smallest dose, and check whether it reached
+the drive. It writes a 64 MB file of a marker text, finds its blocks on the
+disk, deletes it, forces `provisioning_mode=unmap`, trims exactly those
+blocks, and reads them back raw. Marker gone means the TRIM reached the drive.
+Any adapter error in the kernel log stops it; TRIM goes back to its original
+setting at the end.
+
+```bash
+bash scripts/debug/trim_force_test.sh            # 64 MB test
+bash scripts/debug/trim_force_test.sh --more 1G  # then the first 1G, only if clean
+```
+
+Only on a drive whose contents are all on the NAS: a mistranslated TRIM can
+corrupt a drive. Asks you to type `FORCE`. Logs to
+`~/diagnostics/trim_force_<host>_<stamp>.txt`.
