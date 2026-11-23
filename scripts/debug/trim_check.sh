@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+## bash only. Started with sh/dash (or any other shell), switch to bash first.
+if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
 # AI Generated -- new file, Claude (Anthropic), 2026-11. MIT, Yatharth Bhasin.
 #
 # Can the experiment SSD be TRIMmed through its USB adapter? Check, and
@@ -22,7 +24,7 @@ TRIM=0
 MOUNT="${1:-/home/trappyscope/ssd}"
 
 [ "$(uname)" = "Linux" ] || { echo "Linux only."; exit 1; }
-[ "$(id -u)" -eq 0 ] || exec sudo "$0" $([ $TRIM = 1 ] && echo --trim) "$MOUNT"
+[ "$(id -u)" -eq 0 ] || exec sudo bash "$0" $([ $TRIM = 1 ] && echo --trim) "$MOUNT"
 
 HOME_DIR=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
 mkdir -p "$HOME_DIR/diagnostics"
@@ -38,7 +40,7 @@ mountpoint -q "$MOUNT" || fail "$MOUNT is not a mount point (SSD not mounted?)."
 PART=$(findmnt -no SOURCE --target "$MOUNT")
 DISK=$(lsblk -no PKNAME "$PART" | head -1)
 [ -n "$DISK" ] || DISK=$(basename "$PART")
-case "$DISK" in mmcblk*) fail "$MOUNT is on the SD card ($DISK).";; esac
+if [[ "$DISK" == mmcblk* ]]; then fail "$MOUNT is on the SD card: $DISK"; fi
 [ "$(lsblk -dno TRAN "/dev/$DISK")" = "usb" ] || fail "/dev/$DISK is not a USB drive."
 ## Tools: installed on first use (needs internet; the scopes reach it over wlan0).
 need() {
@@ -66,7 +68,7 @@ say "adapter   max unmap LBA count=${UNMAP:-?}  LBPU=${LBPU:-?}  block=${BLOCK:-
 say "drive     TRIM: ${DRIVE_TRIM:-not reported}"
 
 ADAPTER_OK=0; [ "${UNMAP:-0}" -gt 0 ] 2>/dev/null && [ "${LBPU:-0}" = "1" ] && ADAPTER_OK=1
-DRIVE_OK=0;   case "${DRIVE_TRIM:-}" in Available*) DRIVE_OK=1;; esac
+DRIVE_OK=0;   if [[ "${DRIVE_TRIM:-}" == Available* ]]; then DRIVE_OK=1; fi
 say "verdict   adapter $([ $ADAPTER_OK = 1 ] && echo supports || echo 'does NOT report') UNMAP; drive $([ $DRIVE_OK = 1 ] && echo supports || echo 'does NOT report') TRIM"
 
 [ $TRIM = 1 ] || { say "Check only. Add --trim to enable and run it."; say "Log: $LOG"; exit 0; }
