@@ -18,15 +18,15 @@
 """
 AI Generated -- new file, Claude (Anthropic), 2026-11.
 
-CPU and RAM health. A standard one-hour test of a scope's processor, memory,
+CPU and RAM health. A standard two-hour test of a scope's processor, memory,
 power supply and cooling: does this board need replacing? The same protocol
 on every scope, so the scopes can be compared with each other.
 
-	install_requirements()   # once per scope: stress-ng and sysbench (apt)
+	install_requirements()   # once per scope: stress-ng, sysbench, smartmontools (apt)
 	create_exp()
-	start()     # ~68 min, then saves, offloads and stops
+	start()                  # asks for sudo once; ~2 h 8 min, then saves, offloads and stops
 
-The run, in order (protocol cpu_ram_health/1)
+The run, in order (protocol cpu_ram_health/2)
 ---------------------------------------------
 1. Checks    tools present, no acquisition running, enough free RAM.
 2. Settle    60 s idle. Refused if something else uses more than 10% of the
@@ -34,7 +34,7 @@ The run, in order (protocol cpu_ram_health/1)
 3. Speed     sysbench, 3 repeats of 20 s: CPU on 1 thread, CPU on 4 threads,
              RAM write and RAM read (4 threads, 16 MiB blocks -- larger than
              the 1 MiB L2 cache, so the RAM is measured, not the cache).
-4. Stress    stress-ng, 60 min: 4 CPU workers cycling through every CPU
+4. Stress    stress-ng, 120 min: 4 CPU workers cycling through every CPU
              method, plus 1 memory worker cycling through every memory
              pattern on a fixed 5 GiB. --verify checks results against the
              known answer. Only computation and memory stressors: the others
@@ -42,7 +42,22 @@ The run, in order (protocol cpu_ram_health/1)
              kernel log.
 5. Cooldown  2 min idle: how fast the board cools.
 Throughout: telemetry.csv at 1 Hz (clock, temperature, throttle flags, fan,
-CPU use, memory, swap) and kernel.log.
+CPU use, memory, swap, SSD temperature) and kernel.log.
+
+Protocol history: /1 (2026-11-22) had a 60 min stress phase and no SSD
+temperature. /2 doubles the stress phase and adds the SSD temperature.
+
+SSD temperature
+---------------
+The test does not use the SSD; the drive only sits near a hot board. Its own
+sensor is read over SMART (`smartctl -A`, needs sudo: asked once at the start)
+every ssd_period_s, in its own thread, and lands in telemetry.csv on the next
+row. The experiment directory's drive is the one read. Some drives report a
+fixed value instead of a live reading (the NTech MX600s always say 40 C); a
+drive that never changes is reported as such. After 3 failed reads in a row
+the reading stops, so a struggling USB bridge is not pushed further. The
+camera sensor's temperature is not logged: reading it needs the camera
+running.
 
 Standard
 --------
@@ -61,10 +76,12 @@ FAIL        a wrong result (stress-ng exit 2, a "fail:" line or "failed: N"
 INCOMPLETE  stopped early, out of memory, or a tool did not finish. Rerun.
 WARN        under-voltage (check the power supply and cable first),
             frequency capping or throttling, SoC at 80 C or more, clock below
-            arm_freq under load, swap used, kernel log not captured.
+            arm_freq under load, kernel log not captured.
 PASS        none of the above.
 Speed has no pass mark: identical boards should agree within a few percent,
-so it is judged across the fleet.
+so it is judged across the fleet. SSD temperature and swap are reported, not
+judged. Holding 5 GiB makes the kernel swap briefly on healthy boards too
+(protocol /1 counted swap as WARN, and all 8 scopes got it).
 
 Throttle flags: `vcgencmd get_throttled` keeps "has happened since boot" bits,
 so an event between samples is still caught -- unless the same bit was already
@@ -72,14 +89,20 @@ set before the run (reported as before_run); then only the 5 s samples see it.
 
 Requirements -- installed by install_requirements()
 ---------------------------------------------------
-stress-ng (0.15.06) and sysbench (1.0.20) from Debian 12 via apt, ~3 MB, plus
-any of their libraries not already installed. Command-line programs only: no
-service, daemon or config file. Undo: sudo apt-get remove stress-ng sysbench.
+stress-ng (0.15.06), sysbench (1.0.20) and smartmontools from Debian 12 via
+apt, plus any of their libraries not already installed. stress-ng and
+sysbench are command-line programs only. smartmontools also ships smartd, a
+background service that polls drives; on a Pi with USB storage that has been
+reported to hang the USB controller, so install_requirements() disables it
+(as storage_health_statistics does). Only the smartctl command is used.
+Undo: sudo apt-get remove stress-ng sysbench (smartmontools is shared with
+storage_health_statistics; leave it).
 
 Side effects of a run
 ---------------------
-- 1 h at full load: the SoC runs hot, the fan runs, power draw rises.
-- 5 GiB of RAM held for the hour. Refused if that would leave less than 1 GiB.
+- 2 h at full load: the SoC runs hot, the fan runs, power draw rises.
+- 5 GiB of RAM held for 2 h. Refused if that would leave less than 1 GiB.
+- One SMART read of the SSD every minute (sudo smartctl -A).
 - The scope cannot record meanwhile. Refused if an acquisition is running;
   do not start one during the test.
 - No disk load: only the logs are written (a few MB).
@@ -97,6 +120,7 @@ import logging as log
 import math
 import os
 import re
+import shlex
 import shutil
 import signal
 import socket
@@ -116,13 +140,13 @@ from hive.assembly import ScopeAssembly
 
 
 __description__ = \
-"""CPU and RAM health -- standard 1 h stress test with a pass/fail verdict.
+"""CPU and RAM health -- standard 2 h stress test with a pass/fail verdict.
 
 install_requirements() once per scope, then create_exp() and
-start(). Runs ~68 min, offloads and stops on its own.
+start(). Runs ~2 h 8 min, offloads and stops on its own.
 """
 
-PROTOCOL = "cpu_ram_health/1"
+PROTOCOL = "cpu_ram_health/2"
 
 ## The standard. populate_exp() copies it into exp.attribs; any value changed
 ## there is recorded as a deviation. Change these only with a new PROTOCOL.
@@ -133,7 +157,7 @@ STANDARD = {
 	"speed_s": 20,
 	"cpu_max_prime": 10000,
 	"mem_block": "16M",
-	"stress_min": 60,
+	"stress_min": 120,
 	"cpu_workers": 4,
 	"cpu_method": "all",
 	"vm_workers": 1,
@@ -142,6 +166,7 @@ STANDARD = {
 	"min_free_gib": 1.0,
 	"cooldown_s": 120,
 	"vcgencmd_period_s": 5,
+	"ssd_period_s": 60,     # SMART read of the SSD's temperature
 	"hot_c": 80,            # the Pi 4 starts throttling at 80 C
 }
 
@@ -152,8 +177,16 @@ STANDARD = {
 
 REQUIREMENTS = {
 	"pip": {},
-	"apt": {"stress-ng": "stress-ng", "sysbench": "sysbench"},
+	"apt": {"stress-ng": "stress-ng", "sysbench": "sysbench",
+			"smartmontools": "smartctl"},
+	## Ships enabled with smartmontools; unwanted on a scope (see the docstring).
+	"disable_services": ["smartd"],
 }
+
+
+def _service_on(svc):
+	return any(_run(f"systemctl {q} {svc}", timeout=10)[1].strip() == want
+			   for q, want in (("is-enabled", "enabled"), ("is-active", "active")))
 
 
 def check_requirements(verbose=True):
@@ -173,32 +206,41 @@ def check_requirements(verbose=True):
 
 
 def install_requirements():
-	"""Install stress-ng and sysbench with apt.
+	"""Install stress-ng, sysbench and smartmontools with apt, then disable
+	smartd if it is on.
 
 	Explicit by design: this changes the system, so it never runs implicitly.
-	No reboot needed. Installs nothing that runs in the background.
+	No reboot needed. Leaves nothing running in the background.
 	"""
 	_, missing = check_requirements(verbose=False)
-	if not missing:
+	services = [s for s in REQUIREMENTS["disable_services"] if _service_on(s)]
+	if not missing and not services:
 		print(Panel(Pretty(tool_versions()), title="[green]already installed"))
 		return True
-	print(Panel(f"apt-get install -y {' '.join(missing)}\n\n"
-				"Command-line programs only: no service, daemon or config file.\n"
+	print(Panel((f"apt-get install -y {' '.join(missing)}\n" if missing else "")
+				+ (f"systemctl disable --now {' '.join(services)}\n" if services else "")
+				+ "\nNothing is left running in the background.\n"
 				"Undo: sudo apt-get remove stress-ng sysbench", title="install"))
-	if not sudo_session("apt"):
+	if not sudo_session("apt and systemctl"):
 		print("[red]Needs sudo; nothing installed.")
 		return False
 	try:
-		cmd = f"sudo -n apt-get install -y {' '.join(missing)}"
-		rc, out = _run(cmd, timeout=900)
-		if rc != 0:
-			## Stale package lists are the usual cause; refresh once and retry.
-			print("[yellow]apt failed; refreshing package lists and retrying...")
-			_run("sudo -n apt-get update", timeout=900)
+		if missing:
+			cmd = f"sudo -n apt-get install -y {' '.join(missing)}"
 			rc, out = _run(cmd, timeout=900)
-		if rc != 0:
-			print(Panel(f"[red]apt failed (rc={rc}).\n{out[-800:]}", title="install"))
-			return False
+			if rc != 0:
+				## Stale package lists are the usual cause; refresh once and retry.
+				print("[yellow]apt failed; refreshing package lists and retrying...")
+				_run("sudo -n apt-get update", timeout=900)
+				rc, out = _run(cmd, timeout=900)
+			if rc != 0:
+				print(Panel(f"[red]apt failed (rc={rc}).\n{out[-800:]}", title="install"))
+				return False
+		## After apt: installing smartmontools is what turns smartd on.
+		for svc in REQUIREMENTS["disable_services"]:
+			if _service_on(svc):
+				_run(f"sudo -n systemctl disable --now {svc}", timeout=60)
+			print(f"  {svc}: {_run(f'systemctl is-active {svc}', timeout=10)[1].strip()}")
 	finally:
 		sudo_end()
 	_, missing = check_requirements(verbose=False)
@@ -211,13 +253,15 @@ def install_requirements():
 
 def tool_versions():
 	return {"stress_ng": _run("stress-ng --version", timeout=10)[1].strip(),
-			"sysbench": _run("sysbench --version", timeout=10)[1].strip()}
+			"sysbench": _run("sysbench --version", timeout=10)[1].strip(),
+			"smartctl": _run("smartctl --version", timeout=10)[1].strip().split("\n")[0]}
 
 
 ## ==========================================================================
 ##  sudo -- authenticate once (same scheme as storage_health_statistics)
 ## ==========================================================================
-## Only install_requirements() needs it. Every privileged call uses `sudo -n`,
+## install_requirements() needs it, and start() for smartctl (asked once at
+## the start, kept alive for the whole run). Every privileged call uses `sudo -n`,
 ## which never prompts. The password is typed into sudo itself (`sudo -v`
 ## reads /dev/tty) and never passes through this script. Never replace this
 ## with `sudo -S`.
@@ -437,21 +481,119 @@ def system_snapshot():
 
 
 ## ==========================================================================
+##  SSD temperature -- SMART, own thread
+## ==========================================================================
+
+## Device types a USB bridge may need, tried in this order (as in
+## storage_health_statistics.smart_read).
+SMART_TYPES = ("", "-d sat", "-d sat,12", "-d sntasmedia", "-d usbjmicron", "-d scsi")
+## The RAW_VALUE of ATA attribute 194, else 190 (Samsung reports only 190),
+## else the NVMe health log. Same patterns as storage_health_statistics.
+SMART_TEMP = (r"^\s*194\s+\S+\s+0x[0-9a-fA-F]+\s+\d+\s+\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+)",
+			  r"^\s*190\s+\S+\s+0x[0-9a-fA-F]+\s+\d+\s+\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\d+)",
+			  r"^Temperature:\s+(\d+)\s+Celsius")
+
+
+def _smart_temp(disk, dtype, timeout=20):
+	"""One temperature reading in C, or None. smartctl's exit code is a bit
+	mask that is non-zero on healthy drives too, so only the output counts."""
+	out = _run(f"sudo -n smartctl {dtype} -A {shlex.quote(disk)}", timeout=timeout)[1]
+	for pat in SMART_TEMP:
+		m = re.search(pat, out or "", re.M)
+		if m:
+			return int(m.group(1))
+	return None
+
+
+def ssd_setup(path, have_sudo):
+	"""The drive under `path` and how to read its temperature. Saves the full
+	SMART output once in raw/smart_start.txt."""
+	info = {"available": False}
+	src = _run(f"findmnt -no SOURCE --target {shlex.quote(path)}", timeout=10)[1].strip()
+	pk = _run(f"lsblk -no PKNAME {shlex.quote(src)}", timeout=10)[1].strip().splitlines() \
+		if src.startswith("/dev/") else []
+	disk = f"/dev/{pk[0].strip()}" if pk and pk[0].strip() else src
+	info["disk"] = disk
+	model, _, tran = _run(f"lsblk -dno MODEL,TRAN {shlex.quote(disk)}",
+						  timeout=10)[1].strip().rpartition(" ")
+	info["model"], info["transport"] = model.strip(), tran
+	if not disk.startswith("/dev/sd") and not disk.startswith("/dev/nvme"):
+		info["why"] = f"the experiment directory is on {disk or '?'}, not an SSD"
+	elif not shutil.which("smartctl"):
+		info["why"] = "smartctl missing: run install_requirements()"
+	elif not have_sudo:
+		info["why"] = "no sudo: smartctl needs root"
+	else:
+		for t in SMART_TYPES:
+			if _smart_temp(disk, t) is not None:
+				info.update(available=True, device_type=t or "(auto)", dtype=t)
+				_write("raw/smart_start.txt", _run(f"sudo -n smartctl {t} -a {shlex.quote(disk)}",
+												   timeout=60)[1])
+				break
+		else:
+			info["why"] = "no temperature in the SMART output with any device type"
+	return info
+
+
+class SSDTemp:
+	"""Reads the SSD's temperature every `period` s in its own thread: smartctl
+	through a USB bridge can take seconds, and must never stall the 1 Hz
+	telemetry. take() hands each new reading over once. Stops for good after 3
+	failed reads in a row."""
+
+	def __init__(self, disk, dtype, period):
+		self.disk, self.dtype, self.period = disk, dtype, period
+		self.readings, self.failures, self.gave_up = [], 0, False
+		self._new, self._lock, self._stop = None, threading.Lock(), threading.Event()
+		self._t = threading.Thread(target=self._loop, daemon=True, name="ssd-temp")
+
+	def start(self):
+		self._t.start()
+
+	def stop(self):
+		self._stop.set()
+		self._t.join(timeout=30)
+
+	def take(self):
+		with self._lock:
+			v, self._new = self._new, None
+		return v
+
+	def _loop(self):
+		wait = 0.0
+		while not self._stop.wait(wait):
+			wait = self.period
+			v = _smart_temp(self.disk, self.dtype)
+			if v is None:
+				self.failures += 1
+				log.error(f"SSD temperature read failed ({self.failures} in a row)")
+				if self.failures >= 3:
+					self.gave_up = True
+					return
+				continue
+			self.failures = 0
+			self.readings.append(v)
+			with self._lock:
+				self._new = v
+
+
+## ==========================================================================
 ##  Telemetry -- 1 Hz, background thread
 ## ==========================================================================
 
 TELEMETRY_COLS = ["wall", "elapsed_s", "phase", "arm_mhz", "throttled",
 				  "soc_temp_c", "fan", "busy_pct", "load1", "mem_avail_mib",
-				  "swap_used_mib"]
+				  "swap_used_mib", "ssd_temp_c"]
 
 
 class Telemetry:
 	"""One row a second, on whole wall-clock seconds. /proc and /sys are read
 	every second; vcgencmd forks, so arm_mhz and throttled are read every
-	vc_period seconds and left blank in between."""
+	vc_period seconds and left blank in between. ssd_temp_c is filled on the
+	row after each SMART reading (every ssd_period_s) and blank otherwise."""
 
-	def __init__(self, path, vc_period):
-		self.path, self.vc_period = path, vc_period
+	def __init__(self, path, vc_period, ssd=None):
+		self.path, self.vc_period, self.ssd = path, vc_period, ssd
 		self.phase, self.rows = "start", []
 		self._fans = _fan_paths()
 		self._stop = threading.Event()
@@ -493,7 +635,8 @@ class Telemetry:
 						   "load1": float(_read("/proc/loadavg", "0").split()[0]),
 						   "mem_avail_mib": round(mem.get("MemAvailable", 0)),
 						   "swap_used_mib": round(mem.get("SwapTotal", 0)
-												  - mem.get("SwapFree", 0))}
+												  - mem.get("SwapFree", 0)),
+						   "ssd_temp_c": self.ssd.take() if self.ssd else None}
 					self.rows.append(row)
 					w.writerow([_hex(row[k]) if k == "throttled" else
 								("" if row[k] is None else row[k]) for k in TELEMETRY_COLS])
@@ -716,7 +859,7 @@ def run_stress(a, tel):
 ## ==========================================================================
 
 def summarise(rows, arm_freq):
-	"""Per phase: temperature, clock, CPU use, fan, swap."""
+	"""Per phase: temperature, clock, CPU use, fan, swap, SSD temperature."""
 	out = {}
 	for ph in ("settle", "speed", "stress", "cooldown"):
 		r = [x for x in rows if x["phase"] == ph]
@@ -738,7 +881,30 @@ def summarise(rows, arm_freq):
 		if fan:
 			s["fan_on_pct"] = round(100 * sum(x > 0 for x in fan) / len(fan), 1)
 		s["swap_used_mib_max"] = max(col("swap_used_mib") or [0])
+		ssd = col("ssd_temp_c")
+		if ssd:
+			s.update(ssd_c_start=ssd[0], ssd_c_max=max(ssd), ssd_c_end=ssd[-1])
 		out[ph] = s
+	return out
+
+
+def ssd_summary(info, ssd, rows):
+	"""The SSD's temperature over the run: start (first reading), the plateau
+	(mean over the last 10 min of stress), the highest, and the rise."""
+	out = {k: v for k, v in info.items() if k != "dtype"}
+	if ssd is None:
+		return out
+	vals = [x["ssd_temp_c"] for x in rows if x["ssd_temp_c"] is not None]
+	stress = [x for x in rows if x["phase"] == "stress"]
+	last = [x["ssd_temp_c"] for x in stress if x["ssd_temp_c"] is not None
+			and x["wall"] >= stress[-1]["wall"] - 600] if stress else []
+	out.update(readings=len(vals), failed_reads_in_a_row=ssd.failures, gave_up=ssd.gave_up)
+	if vals:
+		out.update(start_c=vals[0], max_c=max(vals), end_c=vals[-1],
+				   plateau_c=round(statistics.mean(last), 1) if last else None,
+				   constant=len(set(vals)) == 1 and len(vals) > 2)
+		if last:
+			out["rise_c"] = round(out["plateau_c"] - vals[0], 1)
 	return out
 
 
@@ -797,13 +963,24 @@ def findings(res, a):
 	if ph.get("clock_held_pct") is not None and ph["clock_held_pct"] < 99:
 		add("WARN", "clock below arm_freq under load",
 			f"at arm_freq {ph['clock_held_pct']}% of the time, min {ph.get('arm_mhz_min')} MHz")
-	swap0 = (res.get("phases", {}).get("settle") or {}).get("swap_used_mib_max", 0)
-	if ph.get("swap_used_mib_max", 0) > swap0 + 64:
-		add("WARN", "swap used during the stress phase",
-			f"{swap0} -> {ph['swap_used_mib_max']} MiB: something else holds memory")
 	if not k.get("captured"):
 		add("WARN", "kernel log not captured", "kernel errors were not checked")
 
+	## Reported, not judged.
+	swap0 = (res.get("phases", {}).get("settle") or {}).get("swap_used_mib_max", 0)
+	if ph.get("swap_used_mib_max", 0) > swap0 + 64:
+		add("INFO", "swap used during the stress phase",
+			f"{swap0} -> {ph['swap_used_mib_max']} MiB; holding {a['vm_gib']} GiB makes "
+			f"the kernel swap briefly on healthy boards too")
+	ssd = res.get("ssd") or {}
+	if not ssd.get("available"):
+		add("INFO", "SSD temperature not read", ssd.get("why", ""))
+	elif ssd.get("gave_up"):
+		add("INFO", "SSD temperature reads stopped after 3 failures in a row",
+			f"{ssd.get('readings')} readings before that")
+	elif ssd.get("constant"):
+		add("INFO", f"SSD reported {ssd.get('start_c')} C throughout",
+			f"{ssd.get('model')}: probably a fixed value, not a live sensor")
 	if res.get("deviations"):
 		add("INFO", "non-standard parameters", str(res["deviations"]))
 	if thr.get("before_run"):
@@ -888,8 +1065,13 @@ def start():
 	if why:
 		print(Panel(f"[red]{escape(why)}", title="refused"))
 		return
+	## Before any waiting, so nobody has to come back to type a password.
+	## Without sudo the run goes ahead, without the SSD temperature.
+	have_sudo = sudo_session("smartctl, to read the SSD's temperature every "
+							 f"{a['ssd_period_s']} s")
 	if a.get("start_at") and not _wait_until(a["start_at"]):
 		print(Panel(f"[red]start_at {a['start_at']} has passed.", title="refused"))
+		sudo_end()
 		return
 
 	exp.schedule.clear()                 # nothing scheduled: no Pico traffic
@@ -908,15 +1090,24 @@ def start():
 	if start_kernel_log():
 		time.sleep(1)                    # let dmesg finish the since-boot part
 		k_offset = os.path.getsize("kernel.log")
-	tel = Telemetry(exp.newfile("telemetry.csv", abspath=False), a["vcgencmd_period_s"])
+	ssd_info = ssd_setup(exp.exp_dir, have_sudo)
+	ssd = SSDTemp(ssd_info["disk"], ssd_info["dtype"], a["ssd_period_s"]) \
+		if ssd_info["available"] else None
+	tel = Telemetry(exp.newfile("telemetry.csv", abspath=False), a["vcgencmd_period_s"], ssd)
+	if ssd:
+		ssd.start()
 	tel.start()
 
 	total_min = (a["settle_s"] + len(SPEED_TESTS) * a["speed_repeats"] * (a["speed_s"] + 1)
 				 + a["stress_min"] * 60 + a["cooldown_s"]) / 60
 	end = datetime.datetime.now() + datetime.timedelta(minutes=total_min)
+	ssd_line = (f"SSD temperature: {ssd_info['disk']} ({ssd_info['model']}), every "
+				f"{a['ssd_period_s']} s." if ssd else
+				f"SSD temperature: not read ({ssd_info.get('why')}).")
 	print(Panel(f"Protocol {PROTOCOL}: settle {a['settle_s']} s, speed "
 				f"~{len(SPEED_TESTS) * a['speed_repeats'] * (a['speed_s'] + 1) / 60:.0f} min, "
 				f"stress {a['stress_min']} min, cooldown {a['cooldown_s']} s.\n"
+				f"{escape(ssd_line)}\n"
 				f"Ends about {end:%H:%M}. Ctrl-C stops early.", title="cpu_ram_health"))
 	try:
 		tel.phase = "settle"
@@ -957,9 +1148,15 @@ def start():
 	finally:
 		_kill_stress()
 		tel.stop()
+		if ssd:
+			ssd.stop()
+			_step("SMART at the end", lambda: _write("raw/smart_end.txt", _run(
+				f"sudo -n smartctl {ssd.dtype} -a {shlex.quote(ssd.disk)}", timeout=60)[1]))
+		sudo_end()
 		stop_kernel_log()
 
 	res["finished"] = datetime.datetime.now().isoformat(timespec="seconds")
+	res["ssd"] = ssd_summary(ssd_info, ssd, tel.rows)
 	thr_end = _throttled()
 	if "refused" in res:
 		exp.log_event("health_refused", attribs={"why": res["refused"]})
@@ -993,7 +1190,9 @@ def _report(res):
 		"serial": res["system"].get("serial"), **{f"speed_{k}": v for k, v in speed.items()},
 		"soc_c_max": st.get("soc_c_max"), "clock_held_pct": st.get("clock_held_pct"),
 		"throttle_during": res["throttle"]["during"],
-		"stress_exit": (res.get("stress") or {}).get("exit_code")})
+		"stress_exit": (res.get("stress") or {}).get("exit_code"),
+		"ssd_c_start": res["ssd"].get("start_c"), "ssd_c_plateau": res["ssd"].get("plateau_c"),
+		"ssd_constant": res["ssd"].get("constant")})
 	for f in res["findings"]:
 		exp.log_event("health_finding", attribs=f)
 
@@ -1008,6 +1207,11 @@ def _report(res):
 	lines += ["", f"Stress: SoC max {st.get('soc_c_max')} C, clock "
 			  f"{st.get('arm_mhz_median')} MHz (held {st.get('clock_held_pct')}%), "
 			  f"fan on {st.get('fan_on_pct')}%"]
+	s = res["ssd"]
+	lines += [escape(f"SSD ({s.get('model')}): {s.get('start_c')} C at the start, plateau "
+					 f"{s.get('plateau_c')} C, max {s.get('max_c')} C"
+					 + ("  (constant: not a live sensor?)" if s.get("constant") else ""))
+			  if s.get("readings") else escape(f"SSD: not read ({s.get('why', 'no readings')})")]
 	print(Panel("\n".join(lines), title="CPU and RAM health"))
 
 

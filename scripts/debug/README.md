@@ -250,16 +250,17 @@ All Pico calls, T&H included, run one at a time from the main loop with a
 
 # cpu_ram_health.py
 
-A standard one-hour test of a scope's processor, RAM, power supply and
+A standard two-hour test of a scope's processor, RAM, power supply and
 cooling: does this board need replacing? Same protocol on every scope
-(`cpu_ram_health/1`), so the scopes can be compared.
+(`cpu_ram_health/2`), so the scopes can be compared. It also logs how warm the
+SSD gets from sitting next to the hot board.
 
 ## Before the first run
 
 Once per scope, in the framework shell:
 
 ```python
-install_requirements()   # asks for sudo once; apt installs stress-ng and sysbench
+install_requirements()   # asks for sudo once; apt installs stress-ng, sysbench, smartmontools
 ```
 
 ## Run
@@ -268,47 +269,59 @@ Stop any acquisition first. Then:
 
 ```python
 create_exp()
-start()                  # ~68 min, then saves and offloads
+start()                  # asks for sudo once (SSD temperature); ~2 h 8 min, then saves and offloads
 ```
 
 Set `exp.attribs["start_at"] = "16:40"` on several scopes to start them
-together.
+together. The sudo prompt comes before the wait.
 
 | Phase | Time | What |
 |---|---|---|
 | checks | – | tools present, no acquisition running, ≥ 6 GiB RAM free |
 | settle | 60 s | idle; refused if something else uses > 10% of the CPU |
 | speed | ~4 min | sysbench, 3 × 20 s each: CPU 1 thread, CPU 4 threads, RAM write, RAM read (16 MiB blocks, past the L2 cache) |
-| stress | 60 min | stress-ng: 4 CPU workers (every method) + 1 memory worker (every pattern, fixed 5 GiB), `--verify` |
+| stress | 120 min | stress-ng: 4 CPU workers (every method) + 1 memory worker (every pattern, fixed 5 GiB), `--verify` |
 | cooldown | 2 min | idle; how fast it cools |
 
 | Output | What |
 |---|---|
-| `health.yaml` | everything: board identity (serial), firmware, config, tool versions, speed, per-phase temperature and clock, throttle flags, kernel check, findings, verdict |
-| `telemetry.csv` | 1 Hz: clock, throttle flags, SoC temperature, fan, CPU use, memory, swap |
+| `health.yaml` | everything: board identity (serial), firmware, config, tool versions, speed, per-phase temperature and clock, throttle flags, SSD temperature, kernel check, findings, verdict |
+| `telemetry.csv` | 1 Hz: clock, throttle flags, SoC temperature, fan, CPU use, memory, swap; `ssd_temp_c` once a minute |
 | `speed` stream | one row per sysbench repeat |
 | `kernel.log` | kernel messages; only lines written during the run are checked |
-| `raw/` | stress-ng log and YAML, every sysbench output, `config.txt`, `get_config` |
+| `raw/` | stress-ng log and YAML, every sysbench output, `config.txt`, `get_config`, full SMART output at the start and end |
+
+**SSD temperature.** The drive's own sensor, read over SMART (`smartctl -A`)
+once a minute in its own thread. The test puts no load on the SSD, so any rise
+is heat from the board. The NTech MX600 drives always report 40 °C, not a live
+reading; a drive that never changes is reported as such. Reading stops after 3
+failures in a row. The camera sensor's temperature is not logged: reading it
+needs the camera running.
 
 **Verdict.** FAIL: a wrong result or a kernel error during the run, i.e. a board
 fault. INCOMPLETE: stopped early or a tool did not finish; rerun. WARN:
 under-voltage (check the supply first), throttling, SoC at 80 °C or more,
-clock below `arm_freq`, swap used. PASS: none of these. Speed has no pass
-mark; identical boards should agree within a few percent across the fleet.
+clock below `arm_freq`. PASS: none of these. Speed, SSD temperature and swap
+are reported, not judged. Holding 5 GiB makes the kernel swap briefly on
+healthy boards too; `/1` counted that as WARN.
 
 **Standard.** The parameters live in `STANDARD` in the script. Changing one in
 `exp.attribs` is allowed but recorded as a deviation, and the run is marked
-non-standard.
+non-standard. `/1` (22 Nov 2026) had a 60 min stress phase and no SSD
+temperature.
 
 ## Side effects
 
-- `install_requirements()`: stress-ng 0.15.06 and sysbench 1.0.20 from Debian
-  12, ~3 MB, plus any of their libraries not yet installed. Command-line
-  programs only: no service, daemon or config file. Undo: `sudo apt-get
-  remove stress-ng sysbench`.
-- During the run: full load for an hour (hot SoC, fan on, more power), 5 GiB
-  of RAM held, no disk load beyond the logs. The scope cannot record
-  meanwhile. A faulty board may freeze or reboot; that is the finding.
+- `install_requirements()`: stress-ng 0.15.06, sysbench 1.0.20 and
+  smartmontools from Debian 12, plus any of their libraries not yet installed.
+  smartmontools turns on smartd, a background drive poller reported to hang
+  the Pi 4's USB controller, so it is disabled again at once (as in
+  `storage_health_statistics.py`). Nothing is left running in the background.
+  Undo: `sudo apt-get remove stress-ng sysbench`.
+- During the run: full load for 2 h (hot SoC, fan on, more power), 5 GiB of
+  RAM held, one SMART read of the SSD a minute, no disk load beyond the logs.
+  The scope cannot record meanwhile. A faulty board may freeze or reboot; that
+  is the finding.
 
 ---
 
