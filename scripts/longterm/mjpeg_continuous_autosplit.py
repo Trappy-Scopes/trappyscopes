@@ -51,7 +51,7 @@ def populate_exp():
 	exp.attribs["light"] = (0.5,0,0)
 	exp.attribs["camera_mode"] = "vid_mjpeg_tpts_multi"
 	exp.attribs["group"] = "red_light"
-	exp.attribs["sync_files"] = False
+	exp.attribs["sync_files"] = True
 	print(Panel(Pretty(exp.attribs), title="Experiment Attributes"))
 
 
