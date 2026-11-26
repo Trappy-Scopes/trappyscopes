@@ -23,13 +23,16 @@ pico_temp_array board, read together at 1 Hz for 5 min: how far apart do
 sensors read the same air?
 
 	create_exp()    mounts pico_temp_array, test-reads every sensor
-	start()         5 min at 1 Hz (blocks), then saves and syncs
+	start()         5 min at 1 Hz (blocks), then cleanup() straight away
 	exp.close()
 
 	test_read()     one reading of every sensor, any time
 	mount_array()   (re)mount the board on its own: mount_array(remount=True)
 
-Ctrl-C during start() stops early and keeps what was read.
+Ctrl-C during start() stops early and keeps what was read. cleanup() runs
+right after the acquisition however it ended (done, Ctrl-C, a hung Pico or an
+error): it stops the schedule, saves and syncs. It does not close the
+experiment; type exp.close() afterwards.
 
 The seat
 --------
@@ -440,7 +443,10 @@ def start():
 		for t in threads:
 			t.join(timeout=5)
 		hung = [t.name for t in threads if t.is_alive()]
-		_finish(stopped_early, hung)
+		try:
+			_finish(stopped_early, hung)
+		finally:
+			cleanup()            # right after the acquisition, whatever happened
 
 
 def _finish(stopped_early, hung):
@@ -459,7 +465,6 @@ def _finish(stopped_early, hung):
 	if hung:
 		print(Panel(f"[red]Still reading when the run ended: {hung}. That Pico "
 					f"is not answering; its rows stop where it hung.", title="hung"))
-	cleanup()
 
 
 ## --------------------------------------------------------------------------
@@ -480,7 +485,8 @@ def _sd(v):
 
 def summarise():
 	"""Per sensor: mean and SD, and its difference from the reference on the
-	same tick. Plus the triad's spread (max - min) per tick."""
+	same tick. Plus the triad's spread (max - min) per tick, over the triad
+	sensors that gave readings at all, on the ticks where all of them did."""
 	ref = _data[REFERENCE]
 	sensors = {}
 	for s in STREAMS:
@@ -492,10 +498,11 @@ def summarise():
 					  "temp_mean": _r(_mean(temps)), "temp_sd": _r(_sd(temps)),
 					  "minus_ref_mean": _r(_mean(diff)), "minus_ref_sd": _r(_sd(diff)),
 					  "humidity_mean": _r(_mean(hums), 2)}
-	ticks = set.intersection(*(set(_data[s]) for s in TRIAD))
-	spread = [max(_data[s][k][0] for s in TRIAD) - min(_data[s][k][0] for s in TRIAD)
+	present = [s for s in TRIAD if _data[s]]
+	ticks = set.intersection(*(set(_data[s]) for s in present)) if len(present) > 1 else set()
+	spread = [max(_data[s][k][0] for s in present) - min(_data[s][k][0] for s in present)
 			  for k in ticks]
-	triad = {"n": len(spread), "mean": _r(_mean(spread)),
+	triad = {"members": present, "n": len(spread), "mean": _r(_mean(spread)),
 			 "max": _r(max(spread) if spread else None)}
 
 	table = Table("stream", "position", "n", "temp C", "SD", f"minus {REFERENCE}",
@@ -506,7 +513,8 @@ def summarise():
 						("temp_mean", "temp_sd", "minus_ref_mean", "minus_ref_sd",
 						 "humidity_mean")))
 	print(table)
-	print(f"Triad spread (max - min, same tick): mean {triad['mean']} C, "
+	print(f"Triad spread ({', '.join(present) or 'no sensors'}; max - min, same tick): "
+		  f"mean {triad['mean']} C, "
 		  f"max {triad['max']} C over {triad['n']} ticks")
 	return {"sensors": sensors, "triad_spread_c": triad}
 
@@ -525,9 +533,12 @@ def _step(what, fn):
 
 
 def cleanup():
-	"""Save and sync. Does NOT close the experiment: type exp.close() after."""
+	"""Stop the schedule, save and sync. start() calls it right after the
+	acquisition; call it yourself only if start() never got that far. Does NOT
+	close the experiment: type exp.close() after."""
 	exp = Experiment.current
 	exp.schedule.clear()
+	exp.schedule.end_thread = True
 	_step("save", exp.__save__)
 	_step("sync", exp.sync_dir)
 	print(Panel("[yellow]Done. The experiment is still OPEN -- type "
@@ -536,5 +547,5 @@ def cleanup():
 
 if __name__ == "__main__":
 	print(Panel("create_exp()    # mounts pico_temp_array, test-reads every sensor\n"
-				"start()         # 5 min at 1 Hz, then saves and syncs\n"
+				"start()         # 5 min at 1 Hz, then cleanup(): saves and syncs\n"
 				"exp.close()", title="T&H divergence"))
