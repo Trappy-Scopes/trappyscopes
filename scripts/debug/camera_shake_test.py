@@ -43,9 +43,9 @@ into a null sink: no video reaches the disk, so storage is not tested.
 
 Two parts, so the operator is needed only at the start:
 
-    1. shake (attended, ~9 min): shake trials back to back. Each: switch to
-       the condition, settle 15 s, a 3 s countdown, SHAKE (8 s, beacon on),
-       watch 12 s.
+    1. shake (attended, ~3 min): 3 shake trials per condition, back to back.
+       Each: switch to the condition, settle 8 s, a 3 s countdown, SHAKE
+       (8 s, beacon on), watch 8 s.
     2. hold (unattended, 20 min by default): no shaking. Blocks of 5 min,
        alternating the conditions, as the no-shake control, and to catch
        crashes that come later than the watch window. The operator can leave
@@ -57,7 +57,7 @@ call has a timeout: in the real crashes the script hung inside the camera
 stack, and a test that hangs the same way records nothing.
 
     create_exp()
-    start()          # ~9 min attended, ~20 min unattended; Ctrl-C stops cleanly.
+    start()          # ~3 min attended, ~20 min unattended; Ctrl-C stops cleanly.
                      # Saves and syncs at the end.
     exp.close()
 
@@ -118,13 +118,14 @@ and how the camera crashes. create_exp() then start()."""
 def populate_exp():
 	a = Experiment.current.attribs
 	a["conditions"] = ("none", "drm")
-	a["shakes_per_condition"] = 6
+	a["shakes_per_condition"] = 3
 	a["seed"] = int(time.time()) % 100000   # rebuilds the trial order
-	## Part 1, attended. One shake trial: settle, countdown, shake, watch -- 38 s.
-	a["settle_s"] = 15
+	## Part 1, attended. One shake trial: settle, countdown, shake, watch -- 27 s;
+	## 6 trials plus the preview switches come to about 3 min.
+	a["settle_s"] = 8
 	a["countdown_s"] = 3
 	a["shake_s"] = 8
-	a["watch_s"] = 12
+	a["watch_s"] = 8
 	## Part 2, unattended: no shaking, conditions alternating in blocks.
 	a["hold_min_per_condition"] = 10
 	a["hold_block_min"] = 5
@@ -659,7 +660,7 @@ def _camera_settings():
 
 
 def start():
-	"""Run the shake protocol: ~9 min attended, then ~20 min unattended.
+	"""Run the shake protocol: ~3 min attended, then ~20 min unattended.
 	Ctrl-C stops cleanly. Saves
 	and syncs at the end (cleanup())."""
 	global exp, scope, intens_path, telem_path
@@ -866,6 +867,6 @@ def cleanup():
 
 if __name__ == "__main__":
 	scope = ScopeAssembly.current
-	print(Panel("create_exp()\nstart()        # ~9 min shaking, then ~20 min by itself\n"
+	print(Panel("create_exp()\nstart()        # ~3 min shaking, then ~20 min by itself\n"
 				"exp.close()",
 				title="camera_shake_test"))
