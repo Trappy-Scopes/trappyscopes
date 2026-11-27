@@ -41,15 +41,24 @@ Two conditions, alternated in random order:
 The encoder runs throughout (MJPEG, red channel, per-frame RGB means kept),
 into a null sink: no video reaches the disk, so storage is not tested.
 
-Each trial lasts 2 min: switch to the condition, settle, a 5 s countdown,
-SHAKE (10 s, beacon on), then watch. A crash is cam.frames standing still for
-stall_s. Recovery level 1 restarts the recording and keeps the preview; level
+Two parts, so the operator is needed only at the start:
+
+    1. shake (attended, ~9 min): shake trials back to back. Each: switch to
+       the condition, settle 15 s, a 3 s countdown, SHAKE (8 s, beacon on),
+       watch 12 s.
+    2. hold (unattended, 20 min by default): no shaking. Blocks of 5 min,
+       alternating the conditions, as the no-shake control, and to catch
+       crashes that come later than the watch window. The operator can leave
+       when the terminal says DONE SHAKING.
+
+A crash is cam.frames standing still for stall_s. Recovery level 1 restarts the recording and keeps the preview; level
 2 rebuilds the Picamera2 object and starts the preview again. Every camera
 call has a timeout: in the real crashes the script hung inside the camera
 stack, and a test that hangs the same way records nothing.
 
     create_exp()
-    start()          # ~40 min; Ctrl-C stops cleanly. Saves and syncs at the end.
+    start()          # ~9 min attended, ~20 min unattended; Ctrl-C stops cleanly.
+                     # Saves and syncs at the end.
     exp.close()
 
 Output, inside the experiment folder:
@@ -109,13 +118,16 @@ and how the camera crashes. create_exp() then start()."""
 def populate_exp():
 	a = Experiment.current.attribs
 	a["conditions"] = ("none", "drm")
-	a["shakes_per_condition"] = 10
+	a["shakes_per_condition"] = 6
 	a["seed"] = int(time.time()) % 100000   # rebuilds the trial order
-	## One trial: settle, countdown, shake, watch -- 2 min in all.
-	a["settle_s"] = 50
-	a["countdown_s"] = 5
-	a["shake_s"] = 10
-	a["watch_s"] = 55
+	## Part 1, attended. One shake trial: settle, countdown, shake, watch -- 38 s.
+	a["settle_s"] = 15
+	a["countdown_s"] = 3
+	a["shake_s"] = 8
+	a["watch_s"] = 12
+	## Part 2, unattended: no shaking, conditions alternating in blocks.
+	a["hold_min_per_condition"] = 10
+	a["hold_block_min"] = 5
 	a["light"] = (0.5, 0, 0)
 	a["quality"] = 100
 	a["num_threads"] = 3
@@ -138,7 +150,7 @@ def create_exp():
 	scope = ScopeAssembly.current
 	exp = Experiment.Construct(["camera_shake"])
 	exp.new_measurementstream("trials",
-		monitors=["trial", "block", "condition"],
+		monitors=["trial", "block", "condition", "part"],
 		measurements=["crashed", "n_crashes", "crash_after_s", "reason",
 					  "csi_irq_during_stall", "recover_level", "recover_s",
 					  "recovered", "frames_missing", "gaps_over_100ms", "max_gap_ms",
@@ -580,6 +592,13 @@ def _trial_stats(base, shake, trial):
 		   "shake_strength": None}
 	if x.size == 0:
 		return out
+	if shake is None:                # a hold block: only the longest gap
+		x = x[np.argsort(x[:, 0])]
+		t = x[:, 0]
+		inside = t[(t >= trial[0]) & (t < trial[1])]
+		out["max_gap_ms"] = round(float(np.diff(np.concatenate(
+			[[trial[0]], inside, [trial[1]]])).max()) / 1e6, 1)
+		return out
 	x = x[np.argsort(x[:, 0])]
 	t, r = x[:, 0], x[:, 1]
 	b = (t >= base[0]) & (t < base[1])
@@ -611,13 +630,20 @@ def _fisher(a, b, c, d):
 ## --------------------------------------------------------------------------
 
 def _schedule(a):
-	"""Blocks of one trial per condition, each block in random order."""
+	"""(block, condition, part). Shake trials first, in blocks of one trial per
+	condition, each block in random order; then the hold blocks, alternating
+	the conditions, starting with a random one."""
 	rng = random.Random(a["seed"])
 	trials = []
 	for block in range(a["shakes_per_condition"]):
 		order = list(a["conditions"])
 		rng.shuffle(order)
-		trials += [(block + 1, c) for c in order]
+		trials += [(block + 1, c, "shake") for c in order]
+	n_hold = int(round(a["hold_min_per_condition"] / a["hold_block_min"]))
+	order = list(a["conditions"])
+	rng.shuffle(order)
+	for block in range(n_hold):
+		trials += [(block + 1, c, "hold") for c in order]
 	return trials
 
 
@@ -633,7 +659,8 @@ def _camera_settings():
 
 
 def start():
-	"""Run the shake protocol. Blocks ~40 min; Ctrl-C stops cleanly. Saves
+	"""Run the shake protocol: ~9 min attended, then ~20 min unattended.
+	Ctrl-C stops cleanly. Saves
 	and syncs at the end (cleanup())."""
 	global exp, scope, intens_path, telem_path
 	exp = Experiment.current
@@ -647,7 +674,7 @@ def start():
 		csv.writer(f).writerow(TELEMETRY)
 
 	trials = _schedule(a)
-	exp.log_event("shake_protocol", attribs={"order": [c for _, c in trials],
+	exp.log_event("shake_protocol", attribs={"order": [f"{p}:{c}" for _, c, p in trials],
 											 "seed": a["seed"]})
 	global _logs
 	_logs = CameraLogs().start()       # libcamera.log and kernel.log, live
@@ -655,11 +682,15 @@ def start():
 		_logs.stop()
 		raise RuntimeError("The Pico did not set the light; nothing started.")
 	_pico(scope.beacon.off, "beacon off")
-	minutes = len(trials) * (a["settle_s"] + a["countdown_s"] + a["shake_s"]
-							 + a["watch_s"]) / 60
-	print(Panel(f"{len(trials)} trials, about {minutes:.0f} min. Shake only when "
-				f"told: SHAKE NOW in the terminal, beacon on. Same gesture each "
-				f"time. Ctrl-C stops cleanly.", title="camera_shake_test"))
+	n_shake = sum(p == "shake" for _, _, p in trials)
+	shake_min = n_shake * (a["settle_s"] + a["countdown_s"] + a["shake_s"]
+						   + a["watch_s"]) / 60
+	hold_min = (len(trials) - n_shake) * a["hold_block_min"]
+	print(Panel(f"Part 1: {n_shake} shake trials, about {shake_min:.0f} min. Stay "
+				f"here. Shake only when told: SHAKE NOW in the terminal, beacon on. "
+				f"Same gesture each time.\nPart 2: {hold_min:.0f} min unattended, no "
+				f"shaking. You can leave when it says DONE SHAKING.\nCtrl-C stops "
+				f"cleanly.", title="camera_shake_test"))
 
 	tele = open(telem_path, "a", newline="")
 	w = csv.writer(tele)
@@ -669,7 +700,12 @@ def start():
 	rows, current, stopped_by, hung = [], None, "completed", None
 	try:
 		_guarded(_cam_cycle, "cam_cycle")
-		for i, (block, cond) in enumerate(trials, 1):
+		for i, (block, cond, part) in enumerate(trials, 1):
+			if part == "hold" and i > 1 and trials[i - 2][2] == "shake":
+				print(Panel(f"[bold green]DONE SHAKING. You can leave. The test runs "
+							f"{hold_min:.0f} min more by itself, then saves and syncs.",
+							title="camera_shake_test"))
+				_pico(scope.beacon.off, "beacon off")
 			state.update(trial=i, condition=cond, n_crashes=0, first=None)
 			if cond != current:
 				state["phase"] = "switch"
@@ -684,10 +720,33 @@ def start():
 			state["last_n"], state["last_t"] = scope.cam.cam.frames, time.monotonic()
 
 			t0 = time.monotonic()
-			state["shake_t"] = shake_t = t0 + a["settle_s"] + a["countdown_s"]
 			offsets = _log_offsets()
 			state["log_offset"] = _logs.size()
 			b0 = _boot_ns()
+			if part == "hold":
+				state["phase"], state["shake_t"] = "hold", t0
+				print(f"  hold block {block}: {cond}, {a['hold_block_min']} min, "
+					  f"no shaking")
+				_watch(t0 + 60 * a["hold_block_min"], state, w, tele)
+				_drain()
+				lib, kern = _new_lines(offsets)
+				first = state["first"] or {}
+				row = dict(trial=i, block=block, condition=cond, part=part,
+						   crashed=state["n_crashes"] > 0, n_crashes=state["n_crashes"],
+						   crash_after_s=first.get("crash_after_s"),
+						   reason=first.get("reason"),
+						   csi_irq_during_stall=first.get("csi_irq_during_stall"),
+						   recover_level=first.get("recover_level"),
+						   recover_s=first.get("recover_s"),
+						   recovered=first.get("recovered"),
+						   libcamera_errors=lib, kernel_lines=kern,
+						   **_trial_stats(None, None, (b0, _boot_ns())))
+				exp.mstreams["trials"](**row)
+				rows.append(row)
+				print(f"  hold {block} ({cond}): "
+					  f"{'CRASHED' if row['crashed'] else 'no crash'}")
+				continue
+			state["shake_t"] = shake_t = t0 + a["settle_s"] + a["countdown_s"]
 			print(Panel(f"Trial {i}/{len(trials)}: [bold]{cond}[/bold]. Hands off; "
 						f"settling {a['settle_s']} s.", title="trial"))
 			state["phase"] = "settle"
@@ -712,7 +771,7 @@ def start():
 			_drain()
 			lib, kern = _new_lines(offsets)
 			first = state["first"] or {}
-			row = dict(trial=i, block=block, condition=cond,
+			row = dict(trial=i, block=block, condition=cond, part=part,
 					   crashed=state["n_crashes"] > 0, n_crashes=state["n_crashes"],
 					   crash_after_s=first.get("crash_after_s"),
 					   reason=first.get("reason"),
@@ -762,10 +821,14 @@ def start():
 		_pico(lambda: scope.lit.setVs(0, 0, 0), "lights off")
 
 	summary = {"stopped_by": stopped_by, "trials_done": len(rows), "crashes": crashes}
-	for c in a["conditions"]:
-		r = [x for x in rows if x["condition"] == c]
-		summary[f"{c}_crashed"] = sum(x["crashed"] for x in r)
-		summary[f"{c}_trials"] = len(r)
+	for part in ("shake", "hold"):
+		for c in a["conditions"]:
+			r = [x for x in rows if x["condition"] == c and x["part"] == part]
+			summary[f"{part}_{c}_crashed"] = sum(x["crashed"] for x in r)
+			summary[f"{part}_{c}_trials"] = len(r)
+	for c in a["conditions"]:                 # shake trials: the test proper
+		summary[f"{c}_crashed"] = summary[f"shake_{c}_crashed"]
+		summary[f"{c}_trials"] = summary[f"shake_{c}_trials"]
 	if len(a["conditions"]) == 2:
 		(c1, c2) = a["conditions"]
 		summary["fisher_p"] = _fisher(summary[f"{c2}_crashed"],
@@ -803,6 +866,6 @@ def cleanup():
 
 if __name__ == "__main__":
 	scope = ScopeAssembly.current
-	print(Panel("create_exp()\nstart()        # ~40 min, saves and syncs at the end\n"
+	print(Panel("create_exp()\nstart()        # ~9 min shaking, then ~20 min by itself\n"
 				"exp.close()",
 				title="camera_shake_test"))
